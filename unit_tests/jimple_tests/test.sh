@@ -3,13 +3,15 @@ if [ -z "$TIMELIMIT" ]; then
   TIMELIMIT=5
 fi
 echo -n .
-( ulimit -t $TIMELIMIT; $1/bin/jstar -f $2.jimple ) 2> /dev/null
+( $1/unit_tests/limit -w $TIMELIMIT -x "$1/bin/jstar -f $2.jimple" ) 2> /dev/null
 EC=$?
 case $EC in
-  137)
+  4)
     echo
     echo "Time limit (${TIMELIMIT}s) exceeded. Try"
     echo "  TIMELIMIT=${TIMELIMIT}0 make test"
+    echo "or, if you use a byte-code build,"
+    echo "  TIMELIMIT=${TIMELIMIT}0 make test-byte"
     echo "(or some other number >$TIMELIMIT)."
     ;;
   0)
