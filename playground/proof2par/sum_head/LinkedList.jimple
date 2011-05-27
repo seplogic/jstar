@@ -1,0 +1,32 @@
+class LinkedList extends java.lang.Object
+{
+    private NodeLL head;
+    private NodeLL tail;
+
+    void <init>()
+    {
+        LinkedList r0;
+
+        r0 := @this: LinkedList;
+        specialinvoke r0.<java.lang.Object: void <init>()>();
+        return;
+    }
+
+    public void sum_head_all()
+    {
+        LinkedList r0;
+        NodeLL r1;
+
+        r0 := @this: LinkedList;
+        r1 = r0.<LinkedList: NodeLL head>;
+
+     label0:
+        if r1 == null goto label1;
+
+        r1 = r1.<NodeLL: NodeLL next>;
+        goto label0;
+
+     label1:
+        return;
+    }
+}
