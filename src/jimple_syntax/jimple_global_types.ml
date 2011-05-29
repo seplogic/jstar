@@ -73,4 +73,5 @@ type methdec_jimple = {
  ens_locals: local_var list; (* local variables of the ensures clause and old clauses *)
  mutable ens_stmts: statement list; (* the ensures clause statements *)
  mutable bstmts: statement list; (* this is set after the call of cfg *)
+ catch_clauses: (Spec.catch_labels list) Spec.ExceptionMap.t 
 }

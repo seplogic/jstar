@@ -125,8 +125,7 @@ type expression =
   | Immediate_exp of immediate
   | Reference_exp of reference
 type bool_expr = True | False
-type catch_clause =
-    Catch_clause of class_name * label_name * label_name * label_name
+type catch_clause = full_identifier * Spec.catch_labels
 type extends_clause = class_name list
 type implements_clause = class_name list
 type list_class_file = ListClassFile of string list

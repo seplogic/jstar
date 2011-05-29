@@ -234,9 +234,8 @@ let declaration_or_statement2str =function
   |  DOS_stm (s,_) -> statement2str s
 
 
-let catch_clause2str = function
-  | Catch_clause (c,l1,l2,l3) -> 
-      "catch "^class_name2str c ^" "^ label_name2str l1 ^" "^ label_name2str l2 ^" "^ label_name2str l3^";"
+let catch_clause2str (c,l) = 
+  "catch "^ c ^" "^ label_name2str l.from_label ^" "^ label_name2str l.to_label ^" "^ label_name2str l.with_label^";"
 
 let method_body2str = function
   |None -> ";"

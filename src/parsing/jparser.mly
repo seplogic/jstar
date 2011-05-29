@@ -68,7 +68,7 @@ let bind_spec_vars
 	  (0,subst) args_list in
   {pre=subst_pform subst pre;
    post=subst_pform subst post;
-   excep=ClassMap.map (subst_pform subst) excep}
+   excep=Spec.ExceptionMap.map (subst_pform subst) excep}
 
 let mkDynamic (msig, specs, source_pos) =
   let specs = List.map (bind_spec_vars msig) specs in 
@@ -414,12 +414,12 @@ method_spec:
    | method_signature_short STATIC COLON specs source_pos_tag_option { mkStatic($1, $4, $5) }
 
 exp_posts:
-   | L_BRACE identifier COLON formula R_BRACE exp_posts { ClassMap.add $2 $4 $6 }
-   | /*empty */ { ClassMap.empty }
+   | L_BRACE full_identifier COLON formula R_BRACE exp_posts { Spec.ExceptionMap.add $2 $4 $6 }
+   | /*empty */ { Spec.ExceptionMap.empty }
 
 exp_posts_npv:
-   | L_BRACE identifier COLON formula_npv R_BRACE exp_posts_npv { ClassMap.add $2 $4 $6 }
-   | /*empty */ { ClassMap.empty }
+   | L_BRACE identifier COLON formula_npv R_BRACE exp_posts_npv { Spec.ExceptionMap.add $2 $4 $6 }
+   | /*empty */ { Spec.ExceptionMap.empty }
 
 
 modifier:
@@ -664,7 +664,7 @@ goto_stmt:
    | GOTO label_name SEMICOLON {$2}
 ;
 catch_clause:
-   | CATCH class_name FROM label_name TO label_name WITH label_name SEMICOLON {Catch_clause($2,$4,$6,$8)}
+   | CATCH full_identifier FROM label_name TO label_name WITH label_name SEMICOLON {($2,{from_label = $4;to_label=$6;with_label=$8})}
 ;
 expression:
    | new_expr   {$1}         

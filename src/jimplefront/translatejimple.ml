@@ -30,6 +30,7 @@ open Spec
 let curr_static_methodSpecs: Javaspecs.methodSpecs ref = ref Javaspecs.emptyMSpecs
 let curr_dynamic_methodSpecs: Javaspecs.methodSpecs ref = ref Javaspecs.emptyMSpecs
 
+module VarTypeMap = Map.Make (struct type t = immediate let compare = compare end)
 
 let fresh_label =
   let label_ref = ref 0 in 
@@ -102,6 +103,7 @@ let get_spec  (iexp: Jparsetree.invoke_expr) =
 
 	
 let retvar_term = Arg_var(Spec.ret_v1)
+let caught_excep = Arg_var(Vars.concretep_str "@caughtexception")
 
 let rec translate_assign_stmt  (v:Jparsetree.variable) (e:Jparsetree.expression) =
   match v, e with 
@@ -113,12 +115,12 @@ let rec translate_assign_stmt  (v:Jparsetree.variable) (e:Jparsetree.expression)
       let p1 = immediate2args e' in
       let pre=mk_pointsto p0 (signature2args si) pointed_to_var in
       let post=mk_pointsto p0 (signature2args si) p1 in
-      let spec=mk_spec pre post ClassMap.empty in
+      let spec=mk_spec pre post Spec.ExceptionMap.empty in
       Assignment_core ([],spec,[])	
   | Var_name n, Immediate_exp e' -> 
       (* execute  v=e' --> v:={emp}{return=param0}(e') *)
       let post= mkEQ(retvar_term,immediate2args e') in
-      let spec=mk_spec [] post ClassMap.empty in
+      let spec=mk_spec [] post Spec.ExceptionMap.empty in
       Assignment_core  ([variable2var (Var_name(n))],spec,[])
 
   | Var_name v, Reference_exp (Field_local_ref (n,si))  -> 
@@ -128,19 +130,19 @@ let rec translate_assign_stmt  (v:Jparsetree.variable) (e:Jparsetree.expression)
       let x = (immediate2args (Immediate_local_name(n))) in 
       let pre=mk_pointsto x (signature2args si) pointed_to_var in
       let post=pconjunction (mkEQ(retvar_term,pointed_to_var)) (mk_pointsto x (signature2args si) pointed_to_var) in
-      let spec=mk_spec pre post ClassMap.empty in
+      let spec=mk_spec pre post Spec.ExceptionMap.empty in
       Assignment_core ([variable2var (Var_name v)],spec,[])
   | Var_name n, New_simple_exp ty ->
       (* execute x=new(ty)
 	 The rest of the job will be performed by the invocation to specialinvoke <init>
       *)
 			let post = mk_type_all retvar_term ty in
-			let spec = mk_spec [] post ClassMap.empty in
+			let spec = mk_spec [] post Spec.ExceptionMap.empty in
 			Assignment_core ([variable2var (Var_name n)],spec,[])
   | Var_name n , Binop_exp(name,x,y)-> 
       let args = Arg_op(Support_syntax.bop_to_prover_arg name, [immediate2args x;immediate2args y]) in
       let post= mkEQ(retvar_term,args) in
-      let spec=mk_spec [] post ClassMap.empty in
+      let spec=mk_spec [] post Spec.ExceptionMap.empty in
       Assignment_core  ([variable2var (Var_name(n))],spec,[])
   | Var_name n , Cast_exp (_,e') -> (* TODO : needs something for the cast *) 
       translate_assign_stmt (Var_name n) (Immediate_exp(e'))
@@ -154,12 +156,12 @@ let assert_core b =
   | Binop_exp (op,i1,i2) -> 
       let b_pred = Support_syntax.bop_to_prover_pred op (immediate2args i1) (immediate2args i2) in
       Assignment_core([], 
-		      mk_spec [] b_pred ClassMap.empty,
+		      mk_spec [] b_pred Spec.ExceptionMap.empty,
 		      []) 
   | _ -> assert false
   
 
-let jimple_statement2core_statement s : core_statement list =
+let jimple_statement2core_statement s map : core_statement list =
   match s with 
   | Label_stmt l -> [Label_stmt_core l]
   | Breakpoint_stmt -> assert false
@@ -170,12 +172,18 @@ let jimple_statement2core_statement s : core_statement list =
   | Identity_stmt(nn,id,ty) -> 
       (* nn := id: LinkedLisr   ---> nn:={emp}{return=param0}(id)*)
       if Config.symb_debug() then 
-	Printf.printf "\n Translating a jimple identity statement \n  %s\n" (Pprinter.statement2str s);
+	  Printf.printf "\n Translating a jimple identity statement \n  %s\n" (Pprinter.statement2str s);
       let id'=Immediate_local_name(Identifier_name(id)) in 
       let post= mkEQ(retvar_term,immediate2args id') in
-      let spec=mk_spec [] post ClassMap.empty in
+      let spec=mk_spec [] post Spec.ExceptionMap.empty in
       [Assignment_core  ([variable2var (Var_name(nn))],spec,[]) ]
-  | Identity_no_type_stmt(n,i) -> assert false
+  | Identity_no_type_stmt(n,i) -> 
+    if Config.symb_debug() then 
+	    Printf.printf "\n Translating a jimple identity statement with no type \n  %s\n" (Pprinter.statement2str s);
+      let id'=Immediate_local_name(Identifier_name(i)) in 
+      let post= mkEQ(retvar_term,immediate2args id') in
+      let spec=mk_spec [] post Spec.ExceptionMap.empty in
+      [Assignment_core  ([variable2var (Var_name(n))],spec,[]) ]
   | Assign_stmt(v,e) -> 
       if Config.symb_debug() then 
 	Printf.printf "\n Translating a jimple assignment statement  %s\n" (Pprinter.statement2str s);
@@ -201,12 +209,16 @@ let jimple_statement2core_statement s : core_statement list =
        | Some e' -> 
 	 let p0 = Arg_var(mk_parameter 0) in (* ddino: should it be a fresh program variable? *)
 	 let post= mkEQ(retvar_term,p0) in
-	 let spec=mk_spec [] post ClassMap.empty in
+	 let spec=mk_spec [] post Spec.ExceptionMap.empty in
 	 [Assignment_core  ([],spec,[immediate2args e']); End ]
       )
   | Throw_stmt(i) ->
       if Config.symb_debug() then Printf.printf "\n Translating a jimple Throw statement %s\n" (Pprinter.statement2str s);      
-      [Throw_stmt_core(immediate2args i)]
+      let exception_spec = mkEQ(caught_excep,immediate2args i) in
+      (try let exception_type = VarTypeMap.find i map in
+      let spec = mk_spec [] mkFalse (Spec.ExceptionMap.add exception_type exception_spec Spec.ExceptionMap.empty) in
+      [Assignment_core ([], spec, [])]
+      with Not_found -> assert false)
   | Invoke_stmt (e) -> 
       if Config.symb_debug() then Printf.printf "\n Translating a jimple Invoke statement %s \n" (Pprinter.statement2str s);      
       let spec,param=get_spec e in
@@ -236,9 +248,26 @@ let jimple_stmt_create s source_pos =
   Printing.add_location node.Cfg_core.sid source_pos;
   node 
 
-let jimple_stmts2core stms = 
+let jimple_stmts2core stms locals = 
+  let map = ref VarTypeMap.empty in
+  List.iter (fun (arg_type, arg_name) -> 
+    match arg_type with
+      | None -> ()
+      | Some arg_type -> 
+        (match arg_type with 
+          | Void -> ()
+          | Non_void nvoid_type -> 
+            (match nvoid_type with 
+              | Base _ -> ()
+              | Quoted _ -> ()
+              | Ident_NVT _ -> ()
+              | Full_ident_NVT (fid,_) ->
+                map := VarTypeMap.add (Immediate_local_name(arg_name)) fid !map)
+              )
+         )  
+  locals;
   let do_one_stmt (stmt_jimple, source_pos) =
-    let s=jimple_statement2core_statement stmt_jimple in
+    let s=jimple_statement2core_statement stmt_jimple !map in
     if Config.symb_debug() then 
       Format.printf "@\ninto the core statement:@\n  %a @\n" 
       (Debug.list_format "; " Pprinter_core.pp_stmt_core) s; 
@@ -296,7 +325,7 @@ let get_requires_clause_spec_for m fields cname =
         {
                 pre=dynspec.pre;
                 post=conjoin_with_res_true (dynspec.pre);
-                excep=ClassMap.empty
+                excep=Spec.ExceptionMap.empty
         }
 
 let get_dyn_spec_for m fields cname =
@@ -409,10 +438,10 @@ let verify_jimple_file
   let xs = 
     List.map (fun m ->
                let sig_str = methdec2signature_str m in
-               let body = if Methdec.has_body m then jimple_stmts2core m.bstmts else [] in
-               let requires = if Methdec.has_requires_clause m then jimple_stmts2core m.req_stmts else [] in
-               let old_clause = List.map (fun o -> jimple_stmts2core o) m.old_stmts_list in
-               let ensures = if Methdec.has_ensures_clause m then jimple_stmts2core m.ens_stmts else [] in
+               let body = if Methdec.has_body m then jimple_stmts2core m.bstmts m.locals else [] in
+               let requires = if Methdec.has_requires_clause m then jimple_stmts2core m.req_stmts [] else [] in
+               let old_clause = List.map (fun o -> jimple_stmts2core o []) m.old_stmts_list in
+               let ensures = if Methdec.has_ensures_clause m then jimple_stmts2core m.ens_stmts [] else [] in
                  (m, sig_str, body, requires, old_clause, ensures) )
        mdl in
 
@@ -427,10 +456,10 @@ let verify_jimple_file
 
   (* print dot-file representation of CFG *)
   let annotate = List.map (fun (m,s,b,r,o,e) -> 
-           let b = (b, s) in 
-           let r = (r, s^" requires clause") in 
-           let o = List.map (fun x -> (x,s^" old expression")) o in 
-           let e = (e, s^" ensures clause") in 
+           let b = (b, m.catch_clauses, s) in 
+           let r = (r, Spec.ExceptionMap.empty, s^" requires clause") in 
+           let o = List.map (fun x -> (x,Spec.ExceptionMap.empty,s^" old expression")) o in 
+           let e = (e,Spec.ExceptionMap.empty, s^" ensures clause") in 
              List.flatten [[b]; [r]; o; [e]]) 
       xs in 
   Cfg_core.print_icfg_dotty (List.flatten annotate) (!file);
@@ -442,16 +471,16 @@ let verify_jimple_file
                     let spec = get_spec_for m fields cname in
                     let l = add_static_type_info lo m.locals in
 	            (*let _ = Prover.pprint_sequent_rules l in*)
-                    ignore (Symexec.verify sig_str body spec l abs_rules);
+                    ignore (Symexec.verify sig_str body m.catch_clauses spec l abs_rules);
                   (* verify the requires clause if present *)
                   if Methdec.has_requires_clause m then
                     let spec = get_requires_clause_spec_for m fields cname in
 	            let l = add_static_type_info lo m.req_locals in
-                    ignore (Symexec.verify (sig_str^" requires clause") req spec l abs_rules);
+                    ignore (Symexec.verify (sig_str^" requires clause") req Spec.ExceptionMap.empty spec l abs_rules);
                   (* verify the ensures clause if present *)
                   if Methdec.has_ensures_clause m then 
                     let spec = get_dyn_spec_for m fields cname in
                     let l = add_static_type_info lo m.ens_locals in
-                    let frames = List.map (fun o -> Symexec.get_frame o spec.pre l abs_rules) old in
-                    ignore (Symexec.verify_ensures (sig_str^" ensures clause") ens spec.post conjoin_with_res_true frames l abs_rules)
+                    let frames = List.map (fun o -> Symexec.get_frame o Spec.ExceptionMap.empty spec.pre l abs_rules) old in
+                    ignore (Symexec.verify_ensures (sig_str^" ensures clause") ens Spec.ExceptionMap.empty spec.post conjoin_with_res_true frames l abs_rules)
             ) xs

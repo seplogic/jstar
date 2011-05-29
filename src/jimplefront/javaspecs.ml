@@ -502,12 +502,12 @@ let dynamic_to_static cn spec =
     {pre=f1; post=f2; excep=excep}
       -> {pre=filtertype cn f1; 
 	  post=filtertype cn f2; 
-	  excep=ClassMap.map (filtertype cn) excep }
+	  excep=Spec.ExceptionMap.map (filtertype cn) excep }
 
 let filter_dollar_spec {pre=f1; post=f2; excep=excep} =
   { pre=filterdollar f1; 
     post=filterdollar f2; 
-    excep=ClassMap.map filterdollar excep }
+    excep=Spec.ExceptionMap.map filterdollar excep }
 
 let fix_spec_inheritance_gaps classes mmap spec_file exclude_function spec_type =
 	let mmapr = ref mmap in

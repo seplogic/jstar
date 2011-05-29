@@ -168,12 +168,7 @@ type expression =
 
 type bool_expr = True | False
 
-
-
-
-
-
-type  catch_clause = Catch_clause of class_name * label_name * label_name * label_name
+type catch_clause = full_identifier * Spec.catch_labels
 
 (*type  method_body = (declaration list * statement list * catch_clause list) option  *)
 

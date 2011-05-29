@@ -18,9 +18,7 @@
 open Jparsetree
 open Jimple_global_types
 
-
-
-let make_methdec mos cname ty n pars tc (rlocs,rstms) ostmss (elocs,estms) (locs,b)  =
+let make_methdec mos cname ty n pars tc (rlocs,rstms) ostmss (elocs,estms) (locs,b) c=
 {
   modifiers= mos;
   class_name = cname;
@@ -34,7 +32,8 @@ let make_methdec mos cname ty n pars tc (rlocs,rstms) ostmss (elocs,estms) (locs
   old_stmts_list = ostmss;
   ens_locals = elocs;
   ens_stmts = estms;
-  bstmts=b 
+  bstmts=b; 
+  catch_clauses=c
 }
 
 let get_list_methods f = 
@@ -79,6 +78,22 @@ let make_stmts_list b =
 		   |DOS_stm s -> [s]
 		   | _ -> [] ) dec_or_stmt_list 
       in  List.flatten dos
+      
+(* Catch clauses *)
+let make_catch_clause_map b =
+  let map = ref Spec.ExceptionMap.empty in
+  match b with
+    | None -> !map
+    | Some body ->
+      List.iter (fun (x : Jparsetree.catch_clause) -> (
+        let (fid,labels) = x in
+        let old_value = 
+          (try Spec.ExceptionMap.find fid !map
+          with Not_found -> []) in
+          let new_value = labels :: old_value in
+          map := Spec.ExceptionMap.add fid new_value !map
+      )) (snd body);
+      !map
 
 
 let member2methdec cname m =
@@ -91,7 +106,8 @@ let member2methdec cname m =
       let estms=make_stmts_list ec in
       let locs=get_locals mb in
       let bstmts= make_stmts_list mb in
-      Some(make_methdec mo cname t n p thc (rlocs,rstmts) ostmts_list (elocs,estms) (locs,bstmts)) 
+      let catch_clauses = make_catch_clause_map mb in
+      Some(make_methdec mo cname t n p thc (rlocs,rstmts) ostmts_list (elocs,estms) (locs,bstmts) catch_clauses) 
   | _ -> None
 
 

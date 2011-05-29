@@ -65,4 +65,5 @@ type methdec_jimple = {
   ens_locals : Jparsetree.local_var list;
   mutable ens_stmts : statement list;
   mutable bstmts : statement list;
+  catch_clauses: (Spec.catch_labels list) Spec.ExceptionMap.t 
 }
