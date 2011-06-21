@@ -216,7 +216,8 @@ let jimple_statement2core_statement s map : core_statement list =
       if Config.symb_debug() then Printf.printf "\n Translating a jimple Throw statement %s\n" (Pprinter.statement2str s);      
       let exception_spec = mkEQ(caught_excep,immediate2args i) in
       (try let exception_type = VarTypeMap.find i map in
-      let spec = mk_spec [] mkFalse (Spec.ExceptionMap.add exception_type exception_spec Spec.ExceptionMap.empty) in
+      let fresh_var = Arg_var(Vars.freshe()) in 
+      let spec = mk_spec [] (mkNEQ(fresh_var,fresh_var)) (Spec.ExceptionMap.add exception_type exception_spec Spec.ExceptionMap.empty) in
       [Assignment_core ([], spec, [])]
       with Not_found -> assert false)
   | Invoke_stmt (e) -> 
