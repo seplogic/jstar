@@ -60,6 +60,7 @@ let kwd_or_else =
     "boolean", BOOLEAN;
     "breakpoint", BREAKPOINT;
     "byte", BYTE;
+    "call", CALL;
     "case", CASE;
     "catch", CATCH;
     "char", CHAR;
@@ -74,6 +75,8 @@ let kwd_or_else =
     "ensures", ENSURES;
     "enum", ENUM;
     "equiv", EQUIV;
+    "error", ERROR;
+    "fail", FAIL;
     "export", EXPORT;
     "exports", EXPORTS;
     "extends", EXTENDS;
@@ -83,6 +86,7 @@ let kwd_or_else =
     "Frame", FRAME;
     "from", FROM;
     "goto", GOTO;
+    "idtac", IDTAC;
     "if", IF;
     "implements", IMPLEMENTS;
     "Implication", IMPLICATION;
@@ -112,6 +116,7 @@ let kwd_or_else =
     "protected", PROTECTED;
     "public", PUBLIC;
     "purerule", PURERULE;
+    "repeat", REPEAT;
     "requires", REQUIRES;
     "return", RETURN;
     "rewrite", REWRITERULE;
@@ -125,11 +130,13 @@ let kwd_or_else =
     "strictfp", STRICTFP;
     "synchronized", SYNCHRONIZED;
     "tableswitch", TABLESWITCH;
+    "tactic", TACTIC;
     "throw", THROW;
     "throws", THROWS;
     "to", TO;
     "transient", TRANSIENT;
     "True", TRUE;
+    "try", TRY;
     "unknown", UNKNOWN;
     "virtualinvoke", VIRTUALINVOKE;
     "void", VOID;

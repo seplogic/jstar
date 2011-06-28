@@ -131,6 +131,7 @@ let field_signature2str fs =
 %token BREAKPOINT  
 %token BYTE 
 %token CASE 
+%token CALL
 %token CATCH 
 %token CHAR 
 %token CLASS 
@@ -163,10 +164,12 @@ let field_signature2str fs =
 %token EOF
 %token EQUALS 
 %token EQUIV
+%token ERROR	
 %token EXITMONITOR 
 %token EXPORT
 %token EXPORTS
 %token EXTENDS 
+%token FAIL
 %token FALSE
 %token FINAL 
 %token FLOAT 
@@ -177,6 +180,7 @@ let field_signature2str fs =
 %token GARBAGE
 %token GOTO 
 %token IDENTIFIER 
+%token IDTAC
 %token IF
 %token IF 
 %token IMP
@@ -230,6 +234,7 @@ let field_signature2str fs =
 %token R_BRACE 
 %token R_BRACKET 
 %token R_PAREN 
+%token REPEAT
 %token REQUIRES
 %token RET 
 %token RETURN 
@@ -249,12 +254,14 @@ let field_signature2str fs =
 %token STRICTFP 
 %token STRING_CONSTANT 
 %token SYNCHRONIZED 
-%token TABLESWITCH   
+%token TABLESWITCH  
+%token TACTIC 
 %token THROW  
 %token THROWS 
 %token TO 
 %token TRANSIENT 
 %token TRUE
+%token TRY
 %token UNDERSCORE 
 %token UNKNOWN 
 %token USHR 
@@ -323,6 +330,9 @@ let field_signature2str fs =
 
 %start rule_file
 %type <Psyntax.rules Load.importoption list> rule_file
+
+%start tactic_file
+%type <Psyntax.tactic list> tactic_file
 
 %start question_file
 %type <Psyntax.question list> question_file
@@ -1003,6 +1013,9 @@ without:
 /*   | WITHOUT plain_list { $2 }*/
    | WITHOUT formula { ($2, mkEmpty) }
    | WITHOUT formula VDASH formula { ($2,$4) }
+
+without_op:	
+   | without { $1 }
    | /* empty */ { (mkEmpty,mkEmpty) }
 
 without_simp:
@@ -1040,7 +1053,7 @@ equiv_rule:
 rule:
    |  CONSTRUCTOR identifier  { NormalEntry( ConsDecl($2) ) }
    |  IMPORT STRING_CONSTANT SEMICOLON  { ImportEntry($2) }
-   |  RULE identifier_op COLON sequent without where IF sequent_list_or_list { NormalEntry(SeqRule($4,$8,$2,$5,$6)) }
+   |  RULE identifier_op COLON sequent without_op where IF sequent_list_or_list { NormalEntry(SeqRule($4,Rule_Premises($8),$2,$5,$6)) }
    |  REWRITERULE identifier_op COLON identifier L_PAREN jargument_list R_PAREN EQUALS jargument ifclause without_simp where 
 	 { NormalEntry(RewriteRule({function_name=$4;
 				     arguments=$6;
@@ -1061,7 +1074,7 @@ rule:
 							       let wo=(mkEmpty,mkEmpty) in 
 							       let seq2=(mkEmpty,$6,mkEmpty,mkEmpty) in
 							       let seq_list=[[seq2]] in
-							       NormalEntry(SeqRule(seq,seq_list,$2,wo,$7)) }
+							       NormalEntry(SeqRule(seq,Rule_Premises(seq_list),$2,wo,$7)) }
    | equiv_rule { NormalEntry($1) }
 
 rule_file:
@@ -1069,6 +1082,9 @@ rule_file:
    | rule rule_file  {$1 :: $2}
 
 
+tactic_file:
+ 	 | EOF  { [] }
+ 	 | tactic tactic_file  { $1 :: $2 }
 
 
 boolean: 
@@ -1131,5 +1147,25 @@ label_list:
    |  IDENTIFIER   { [$1] }
    |  IDENTIFIER COMMA label_list   { $1 :: $3 }
 
+tactical_rule:
+   | RULE identifier_op COLON sequent IF sequent_list_or_error { ($4,$6,$2,([],[]),[]) }
+
+sequent_list_or_error:
+ 	 | sequent_list { Rule_Premises([$1]) }
+ 	 | ERROR STRING_CONSTANT WITH STRING_CONSTANT { Error_Premise {tactical_error=$2; tactic_to_prove=$4;} }
+
+tactical: 
+ 	 | tactical SEMICOLON tactical { Tactical_Sequence($1,$3) }
+ 	 | tactical OROR tactical { Tactical_Branching($1,$3) }
+ 	 | REPEAT L_BRACE tactical R_BRACE { Tactical_Repeat($3) }
+ 	 | TRY L_BRACE tactical R_BRACE { Tactical_Try($3) }
+   | tactical_rule { Tactical_Rule($1) }
+   | CALL identifier { Tactical_Call($2) }
+   | without L_BRACE tactical R_BRACE { Tactical_Without($1,$3) }
+ 	 | WHERE clause_list L_BRACE tactical R_BRACE { Tactical_Where($2,$4) } 
+   | IDTAC STRING_CONSTANT { Tactical_Id($2) }   
+   | FAIL STRING_CONSTANT { Tactical_Fail($2) }
+ 
+tactic: TACTIC identifier tactical { ($3,$2) }
 
 %% (* trailer *)

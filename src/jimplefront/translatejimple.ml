@@ -357,7 +357,7 @@ let jimple_locals2stattype_rules (locals : local_var list) : sequent_rule list =
 		let premise : (Psyntax.psequent list list) = List.map (fun var -> [mkEmpty,mkEmpty,mkEQ(x,var),mkEmpty]) vars in
 		mk_seq_rule (
 			(mkEmpty,mkEmpty,[mk_statictyp1 x (Arg_string typ)],mkEmpty),
-			premise,
+			Rule_Premises premise,
 			"static_type_"^typ
 		) :: rules
 	) (!localmap) []
