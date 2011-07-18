@@ -149,6 +149,7 @@ let field_signature2str fs =
 %token COLON_EQUALS 
 %token COMMA 
 %token CONSTRUCTOR
+%token CONTRATICTION
 %token DASHV
 %token DEFAULT 
 %token DEFINE
@@ -1152,7 +1153,7 @@ tactical_rule:
 
 sequent_list_or_error:
  	 | sequent_list { Rule_Premises([$1]) }
- 	 | ERROR STRING_CONSTANT WITH STRING_CONSTANT { Error_Premise {tactical_error=$2; tactic_to_prove=$4;} }
+ 	 | ERROR STRING_CONSTANT { Error_Premise {tactical_error=$2} }
 
 tactical: 
  	 | tactical SEMICOLON tactical { Tactical_Sequence($1,$3) }
@@ -1165,6 +1166,7 @@ tactical:
  	 | WHERE clause_list L_BRACE tactical R_BRACE { Tactical_Where($2,$4) } 
    | IDTAC STRING_CONSTANT { Tactical_Id($2) }   
    | FAIL STRING_CONSTANT { Tactical_Fail($2) }
+   | CONTRATICTION tactical { Tactical_Contr($2) }
  
 tactic: TACTIC identifier tactical { ($3,$2) }
 

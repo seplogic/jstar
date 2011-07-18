@@ -67,6 +67,7 @@ let kwd_or_else =
     "class", CLASS;
     "cls", CLS;
     "constructor", CONSTRUCTOR;
+    "contradiction", CONTRATICTION;
     "define", DEFINE;
     "double", DOUBLE;
     "Emp", EMP;
