@@ -103,6 +103,27 @@ let get_spec  (iexp: Jparsetree.invoke_expr) =
 	
 let retvar_term = Arg_var(Spec.ret_v1)
 
+(* make terms related to array representation *) (* {{{ *)
+let mk_array a i j v =
+  [P_SPred ( "array", [a; i; j; v] )]
+
+let mk_zero x = Immediate_constant (match x with
+  | Base (Boolean, _)
+  | Base (Byte, _) 
+  | Base (Char, _) 
+  | Base (Short, _)
+  | Base (Int, _) -> Int_const (Positive, 0)
+  | Base (Long, _) -> Int_const_long (Positive, 0)
+  | Base (Float, _) 
+  | Base (Double, _) -> Float_const (Positive, 0.0)
+  | Base _ | Quoted _ | Ident_NVT _ |  Full_ident_NVT _ ->
+      Null_const)
+
+let mk_succ n =
+  Arg_op ("builtin_plus", [n; Arg_op ("numeric_const", [Arg_string "1"])])
+
+(* }}} *)
+
 let rec translate_assign_stmt  (v:Jparsetree.variable) (e:Jparsetree.expression) =
   match v, e with 
   | Var_ref (Field_local_ref (n,si)), Immediate_exp e'  -> 
@@ -115,6 +136,14 @@ let rec translate_assign_stmt  (v:Jparsetree.variable) (e:Jparsetree.expression)
       let post=mk_pointsto p0 (signature2args si) p1 in
       let spec=mk_spec pre post ClassMap.empty in
       Assignment_core ([],spec,[])	
+  | Var_ref (Array_ref (a,i)), Immediate_exp e' ->
+      let e_var = Arg_var (freshe ()) in
+      let a = Arg_var (Vars.concretep_str a) in
+      let i = immediate2args i in
+      let pre = mk_array a i (mk_succ i) e_var in
+      let post = mk_array a i (mk_succ i) (immediate2args e') in
+      let spec = mk_spec pre post ClassMap.empty in
+      Assignment_core ([],spec,[])
   | Var_name n, Immediate_exp e' -> 
       (* execute  v=e' --> v:={emp}{return=param0}(e') *)
       let post= mkEQ(retvar_term,immediate2args e') in
@@ -129,6 +158,14 @@ let rec translate_assign_stmt  (v:Jparsetree.variable) (e:Jparsetree.expression)
       let pre=mk_pointsto x (signature2args si) pointed_to_var in
       let post=pconjunction (mkEQ(retvar_term,pointed_to_var)) (mk_pointsto x (signature2args si) pointed_to_var) in
       let spec=mk_spec pre post ClassMap.empty in
+      Assignment_core ([variable2var (Var_name v)],spec,[])
+  | Var_name v, Reference_exp (Array_ref (a, i)) ->
+      let e_var = Arg_var (freshe ()) in
+      let a = Arg_var (Vars.concretep_str a) in
+      let i = immediate2args i in
+      let pre = mk_array a i (mk_succ i) e_var in
+      let post = pconjunction pre (mkEQ (retvar_term, e_var)) in
+      let spec = mk_spec pre post ClassMap.empty in
       Assignment_core ([variable2var (Var_name v)],spec,[])
   | Var_name n, New_simple_exp ty ->
       (* execute x=new(ty)
@@ -147,7 +184,15 @@ let rec translate_assign_stmt  (v:Jparsetree.variable) (e:Jparsetree.expression)
   | Var_name n , Invoke_exp ie ->  
       let spec,param=get_spec ie in
       Assignment_core ([variable2var (Var_name n)],spec,List.map immediate2args param)
-  | _ , _ -> assert false 
+  | Var_name v, New_array_exp (t, sz) ->
+      let int_zero = immediate2args (mk_zero (Base (Int, []))) in
+      let t_zero = immediate2args (mk_zero t) in
+      let sz = immediate2args sz in
+      let post = mk_array retvar_term int_zero sz t_zero in
+      let spec = mk_spec [] post ClassMap.empty in
+      Assignment_core ([variable2var (Var_name v)],spec,[])
+  | Var_name _ , _ -> assert false
+  | Var_ref _ , _ -> assert false
 
 let assert_core b =
   match b with
