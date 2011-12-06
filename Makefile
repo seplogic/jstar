@@ -13,12 +13,13 @@ export JSTAR_HOME
 SRC_DIRS=src corestar_src
 MAINS=jstar
 LIBS=dynlink str unix
+OB_FLAGS=-cflags -dtypes
 
 # section with stuff that shouldn't change often
 
 SHELL=/bin/bash
 SRC_SUBDIRS=$(addsuffix .subdirs,$(SRC_DIRS))
-OCAMLBUILD=ocamlbuild `cat $(SRC_SUBDIRS)` $(addprefix -lib ,$(LIBS))
+OCAMLBUILD=ocamlbuild $(OB_FLAGS) `cat $(SRC_SUBDIRS)` $(addprefix -lib ,$(LIBS))
 
 build: native
 
