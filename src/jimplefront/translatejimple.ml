@@ -122,8 +122,15 @@ let mk_zero x = Immediate_constant (match x with
 let mk_succ n =
   Arg_op ("builtin_plus", [n; Arg_op ("numeric_const", [Arg_string "1"])])
 
+let mk_array_get av i v =
+  [P_PPred ("array_get", [av; i; v])]
+let mk_array_set av i v =
+  Arg_op ("array_set", [av; i; v])
+
 (* }}} *)
 
+(* TODO: Pattern match separately on [v] and [e], not on [(v, e)], and
+  handle all cases. *)
 let rec translate_assign_stmt  (v:Jparsetree.variable) (e:Jparsetree.expression) =
   match v, e with 
   | Var_ref (Field_local_ref (n,si)), Immediate_exp e'  -> 
@@ -141,7 +148,8 @@ let rec translate_assign_stmt  (v:Jparsetree.variable) (e:Jparsetree.expression)
       let a = Arg_var (Vars.concretep_str a) in
       let i = immediate2args i in
       let pre = mk_array a i (mk_succ i) e_var in
-      let post = mk_array a i (mk_succ i) (immediate2args e') in
+      let new_value = mk_array_set e_var i (immediate2args e') in
+      let post = mk_array a i (mk_succ i) new_value in
       let spec = mk_spec pre post ClassMap.empty in
       Assignment_core ([],spec,[])
   | Var_name n, Immediate_exp e' -> 
@@ -149,7 +157,6 @@ let rec translate_assign_stmt  (v:Jparsetree.variable) (e:Jparsetree.expression)
       let post= mkEQ(retvar_term,immediate2args e') in
       let spec=mk_spec [] post ClassMap.empty in
       Assignment_core  ([variable2var (Var_name(n))],spec,[])
-
   | Var_name v, Reference_exp (Field_local_ref (n,si))  -> 
       (* execute v=n.si --> v:={param0.si|->z}{param0.si|->z * return=z}(n)*)
       let e_var = freshe() in
@@ -164,7 +171,7 @@ let rec translate_assign_stmt  (v:Jparsetree.variable) (e:Jparsetree.expression)
       let a = Arg_var (Vars.concretep_str a) in
       let i = immediate2args i in
       let pre = mk_array a i (mk_succ i) e_var in
-      let post = pconjunction pre (mkEQ (retvar_term, e_var)) in
+      let post = pconjunction pre (mk_array_get e_var i retvar_term) in
       let spec = mk_spec pre post ClassMap.empty in
       Assignment_core ([variable2var (Var_name v)],spec,[])
   | Var_name n, New_simple_exp ty ->
