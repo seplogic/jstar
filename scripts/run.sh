@@ -1,7 +1,7 @@
 #!/bin/bash
 # Run soot and jStar on all the *.java files in a directory.
 
-DEBUG=1 # set to nonzero to enable debug output
+DEBUG=0 # set to nonzero to enable debug output
 
 function usage () {
 	printf "Usage: %s [-t target_dir] [-s soot_jar] [-r rt_jar] [-j jstar]\n" $0
@@ -82,6 +82,6 @@ fi
 java -jar "$SOOT_JAR" -cp ".:$RT_JAR" "$CLASSES" -f J -d .
 for f in "$CLASSES"; do
 	# TODO(rgrig): Make "specs", "logic", and "abs" configurable.
-	$JSTAR -f $f.jimple -s ../specs -l ../logic -a ../abs
+	$JSTAR -f $f.jimple -s ../specs -l ../logic -a ../abs -b ../smt
 done
 cd "$HERE"
