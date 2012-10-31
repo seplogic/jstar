@@ -15,11 +15,11 @@
 (* Pretty printer module *)
 
 open Jparsetree
-open Jimple_global_types  
+open Jimple_global_types
 open Spec
 
-let binop2str bo = 
-  match bo with 
+let binop2str bo =
+  match bo with
   | And -> "&"
   | Or -> "|"
   | Xor -> "^"
@@ -42,37 +42,37 @@ let binop2str bo =
   | Div  -> "/"
 
 let unop2str uo =
-  match uo with 
+  match uo with
   |Lengthof -> "lengthof"
   | Neg -> "new"
 
-let nonstatic_invoke2str i = 
-  match i with 
+let nonstatic_invoke2str i =
+  match i with
   | Special_invoke -> "specialinvoke"
   | Virtual_invoke ->  "virtualinvoke"
-  | Interface_invoke -> "interfaceinvoke" 
+  | Interface_invoke -> "interfaceinvoke"
 
 
 let identifier2str i = i
-let at_identifier2str i = i 
-let quoted_name2str i  = i 
+let at_identifier2str i = i
+let quoted_name2str i  = i
 let full_identifier2str i = i
 let array_brackets2str i = i
 
 let label_name2str =  identifier2str
 
-let name2str n = 
-  match n with 
+let name2str n =
+  match n with
   | Quoted_name s
   | Identifier_name s -> s
 
 let class_name2str = function
-  | Quoted_clname s 
+  | Quoted_clname s
   | Identifier_clname s
   | Full_identifier_clname s -> s
 
-let sign2str = function 
-  | Positive -> "+" 
+let sign2str = function
+  | Positive -> "+"
   | Negative -> "-"
 
 let constant2str = function
@@ -81,7 +81,7 @@ let constant2str = function
    | Float_const (s,f) ->  (sign2str s) ^ (string_of_float f)
    | String_const s -> s
    | Clzz_const s -> s
-   | Null_const -> "NULL"   
+   | Null_const -> "NULL"
 
 let immediate2str = function
   | Immediate_local_name n -> name2str n
@@ -97,7 +97,7 @@ let j_file_type2str = function
   | ClassFile -> "class"
   | InterfaceFile -> "interface"
 
-let  modifier2str = function   
+let  modifier2str = function
    | Abstract ->"abstract"
    | Final ->"final"
    | Native ->"native"
@@ -127,7 +127,7 @@ let j_base_type2str = function
 (* takse some list l of some whatever type and a function f to transform this type in string,
 a separator between element and return a string containing every element *)
 let rec list2str f l sep=
-  match l with 
+  match l with
   | [] -> ""
   | [s] -> f s
   | s::tail -> (f s) ^sep^ (list2str f tail sep )
@@ -136,17 +136,17 @@ let list_option2list lso =
   match lso with
   | None    -> []
   | Some ls -> ls
-  
+
 
 let nonvoid_type2str =function
-  | Base (b,al) ->  j_base_type2str b ^ (list2str array_brackets2str al "")  
-  | Quoted (qn,al) ->  quoted_name2str qn ^ (list2str array_brackets2str al "")  
-  | Ident_NVT (i,al) ->   identifier2str i ^ (list2str array_brackets2str al "")  
-  | Full_ident_NVT (i,al) -> full_identifier2str i ^ (list2str array_brackets2str al "")  
+  | Base (b,al) ->  j_base_type2str b ^ (list2str array_brackets2str al "")
+  | Quoted (qn,al) ->  quoted_name2str qn ^ (list2str array_brackets2str al "")
+  | Ident_NVT (i,al) ->   identifier2str i ^ (list2str array_brackets2str al "")
+  | Full_ident_NVT (i,al) -> full_identifier2str i ^ (list2str array_brackets2str al "")
 
 let parameter2str p =  nonvoid_type2str p
 
-let  j_type2str = function 
+let  j_type2str = function
   | Void -> "void"
   | Non_void t -> nonvoid_type2str t
 
@@ -156,7 +156,7 @@ let throws_clause2str = function
 
 let case_label2str = function
   | Case_label_default -> "default"
-  | Case_label (s,i) ->"case "^sign2str s ^ string_of_int i 
+  | Case_label (s,i) ->"case "^sign2str s ^ string_of_int i
 
 let mkStrOfFieldSignature c t n=
   "<"^class_name2str c ^": "^ j_type2str t ^" "^name2str n^">"
@@ -169,14 +169,14 @@ let case_statement2str = function
   | Case_stmt (cl,ln) -> case_label2str cl ^": goto "^label_name2str ln
 
 let signature2str = function
-  | Method_signature (c,t,n,pl) -> "<"^class_name2str c ^": "^ j_type2str t ^" "^ name2str n 
+  | Method_signature (c,t,n,pl) -> "<"^class_name2str c ^": "^ j_type2str t ^" "^ name2str n
       ^"("^  (list2str parameter2str pl ", " )^")>"
   | Field_signature (c,t,n) ->  mkStrOfFieldSignature c t n
 
 
 let reference2str = function
   |Array_ref (id,im) ->  identifier2str id ^ fixed_array_descriptor2str im
-  |Field_local_ref (n,s) ->  name2str n ^"."^  signature2str s 
+  |Field_local_ref (n,s) ->  name2str n ^"."^  signature2str s
   |Field_sig_ref s ->  signature2str s
 
 let variable2str = function
@@ -196,7 +196,7 @@ let expression2str = function
   | New_multiarray_exp (t,a) -> "newmultiarray["^j_base_type2str t ^"]"^ (list2str array_descriptor2str a "")
   | Cast_exp (t,i) -> "("^nonvoid_type2str t ^")"^ immediate2str i
   | Instanceof_exp (i,t) -> immediate2str i ^"instanceof "^nonvoid_type2str t
-  | Binop_exp (bo,i1,i2) ->   immediate2str i1 ^" "^binop2str bo^" "^immediate2str i2 
+  | Binop_exp (bo,i1,i2) ->   immediate2str i1 ^" "^binop2str bo^" "^immediate2str i2
   | Unop_exp (uo,i) -> unop2str uo  ^" "^  immediate2str i
   | Invoke_exp e -> invoke_expr2str e
   | Immediate_exp e -> immediate2str e
@@ -211,23 +211,25 @@ let statement2str = function
    | Breakpoint_stmt -> "breakpoint"
    | Entermonitor_stmt i ->  "entermonitor "^ immediate2str i^";"
    | Exitmonitor_stmt i ->   "exitmonitor "^ immediate2str i^";"
-   | Tableswitch_stmt (i,cl) -> 
+   | Tableswitch_stmt (i,cl) ->
        "tableswitch("^immediate2str i ^"){"^ (list2str  case_statement2str cl ", ")^"};"
-   | Lookupswitch_stmt(i,cl) -> 
+   | Lookupswitch_stmt(i,cl) ->
        "lookupswitch("^immediate2str i ^"){"^ (list2str  case_statement2str cl ", ")^"};"
-   | Identity_stmt(n,i,t) -> name2str n ^" := "^ at_identifier2str i ^" "^ j_type2str t ^";"  
-   | Identity_no_type_stmt(n,i) -> name2str n ^" := "^ at_identifier2str i ^";" 
-   | Assign_stmt (v,e)-> variable2str v ^" = "^ expression2str e ^";"       
-   | If_stmt (e,l) -> "if "^ expression2str e ^" goto "^ label_name2str l 
-   | Goto_stmt l ->"goto "^label_name2str l^";"   
+   | Identity_stmt(n,i,t) -> name2str n ^" := "^ at_identifier2str i ^" "^ j_type2str t ^";"
+   | Identity_no_type_stmt(n,i) -> name2str n ^" := "^ at_identifier2str i ^";"
+   | Assign_stmt (v,e)-> variable2str v ^" = "^ expression2str e ^";"
+   | If_stmt (e,l) -> "if "^ expression2str e ^" goto "^ label_name2str l
+   | Goto_stmt l ->"goto "^label_name2str l^";"
    | Nop_stmt -> "nop;"
-   | Ret_stmt(Some i) -> "ret "^immediate2str i^";" 
+   | Ret_stmt(Some i) -> "ret "^immediate2str i^";"
    | Ret_stmt(None) -> "ret;"
    | Return_stmt (Some i) -> "return "^immediate2str i^";"
    | Return_stmt (None) -> "return;"
    | Throw_stmt i -> "throw "^immediate2str i^";"
-   | Invoke_stmt e -> invoke_expr2str e^";"       
-	 | Spec_stmt (vars,spec) -> (list2str Vars.string_var vars ", ")^" : "^ (pprinter_core_spec2str) spec ^";"
+   | Invoke_stmt e -> invoke_expr2str e^";"
+   | Spec_stmt (vars,spec) ->
+      (list2str Vars.string_var vars ", ")^" : "
+      ^(SpecOp.pprinter_core_spec2str) spec ^";"
 
 let declaration_or_statement2str =function
   |  DOS_dec d -> declaration2str d
@@ -235,19 +237,19 @@ let declaration_or_statement2str =function
 
 
 let catch_clause2str = function
-  | Catch_clause (c,l1,l2,l3) -> 
+  | Catch_clause (c,l1,l2,l3) ->
       "catch "^class_name2str c ^" "^ label_name2str l1 ^" "^ label_name2str l2 ^" "^ label_name2str l3^";"
 
 let method_body2str = function
   |None -> ";"
   |Some (dl,cl) ->
-     "\n{"^(list2str declaration_or_statement2str dl "\n")^" "^(list2str catch_clause2str cl ", ")^"\n}"  
+     "\n{"^(list2str declaration_or_statement2str dl "\n")^" "^(list2str catch_clause2str cl ", ")^"\n}"
 
 let old_clauses2str ocs = List.fold_left (fun acc oc -> acc^"old "^ method_body2str oc^"\n") "" ocs
 
-let member2str = function 
+let member2str = function
   | Field(ml,j,n) -> (list2str modifier2str ml " ")^" "^ j_type2str j ^" "^name2str n^";"
-  | Method(ml,j,n,pl,tc,rc,ocs,ec,mb) ->  
+  | Method(ml,j,n,pl,tc,rc,ocs,ec,mb) ->
       (list2str modifier2str ml " ") ^" "^  j_type2str j ^" "^ name2str n ^"("^
 	(list2str parameter2str pl ", ")^") "^throws_clause2str tc
         ^"\nrequires"^ method_body2str rc ^"\n"^ old_clauses2str ocs ^"ensures"^
@@ -258,12 +260,12 @@ let extends_clause2str = function
   |cl -> "extends "^(list2str class_name2str cl " ")
 
 let implements_clause2str = function
-  | [] -> "" 
+  | [] -> ""
   | cl -> "implements "^(list2str class_name2str cl " ")
 
 let jimple_file2str = function
-  | JFile (ml,j,c,e,i,meml) -> 
-      (list2str modifier2str ml " ")^ j_file_type2str j ^" "^ 
+  | JFile (ml,j,c,e,i,meml) ->
+      (list2str modifier2str ml " ")^ j_file_type2str j ^" "^
 	class_name2str c  ^" "^extends_clause2str e ^" "^ implements_clause2str i
       ^"\n{\n"^ (list2str member2str meml "\n\n")^"\n}"
 

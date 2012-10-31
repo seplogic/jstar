@@ -1,6 +1,6 @@
 (********************************************************
    This file is part of jStar
-        src/jimplefront/run_parser.ml
+        src/jimplefront/jstar.ml
    Release
         $Release$
    Version
@@ -11,9 +11,10 @@
       LICENSE.txt
  ********************************************************)
 
-
+open Corestar_std
 open Debug
 open Format
+
 open Jparsetree
 open Jimple_global_types
 open Psyntax
@@ -128,7 +129,7 @@ let main () =
          signals;
        if !Config.smt_run then Smt.smt_init();
        (* Load abstract interpretation plugins *)
-       List.iter (fun file_name -> Plugin_manager.load_plugin file_name) !Config.abs_int_plugins;       
+       List.iter (fun file_name -> Plugin_manager.load_plugin file_name) !Config.abs_int_plugins;
 
        let l1,l2,cn = Load_logic.load_logic !logic_file_name
        in
@@ -138,9 +139,10 @@ let main () =
        let abs_rules = {empty_logic with seq_rules=l1; rw_rules=l2; consdecl=cn} in
 
        let spec_list : (Spec_def.class_spec list) = Load.import_flatten
-           Cli_utils.specs_dirs            
+           Cli_utils.specs_dirs
            !spec_file_name
-           (Jparser.spec_file Jlexer.token) in
+           Jparser.spec_file
+           Jlexer.token in
 
        let Jimple_global_types.JFile(_,_,class_name,_,_,_) = program in
 

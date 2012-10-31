@@ -57,7 +57,7 @@ let pp_methodspec f m =
     | Dynamic (s, sp, _) -> ("dynamic", s, sp)
     | Static (s, sp, _) -> ("static", s, sp) in
   Format.fprintf f "@\n@[<2>%a" pp_method_signature_short s;
-  List.iter (fun x -> Format.fprintf f "@\n@[<2>%s%a@]" t spec2str x) sp;
+  List.iter (fun x -> Format.fprintf f "@\n@[<2>%s%a@]" t SpecOp.spec2str x) sp;
   Format.fprintf f "@]"
 
 let pp_class_spec f {

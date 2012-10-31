@@ -13,7 +13,7 @@ export JSTAR_HOME
 SRC_DIRS=src corestar_src
 MAINS=jstar
 LIBS=dynlink str unix
-OB_FLAGS=-cflags -dtypes
+OB_FLAGS=-cflags -dtypes -yaccflags -v
 
 # section with stuff that shouldn't change often
 

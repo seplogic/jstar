@@ -1,7 +1,7 @@
 import "field_logic";
 
 rewrite zero_plus_ten:
- builtin_plus(numeric_const(0),numeric_const(10)) = numeric_const(10)
+ builtin_plus(numeric_const("0"),numeric_const("10")) = numeric_const("10")
 
 rule sub_eq_hack1:
  | |- !sub({val=?v1;cnt=?c1},{val=?v2})

@@ -45,10 +45,10 @@ int main(int argc, char* argv[]) {
   if (!(argc&1)) usage();
   cmd = NULL;
   for (i = 1; i + 1 < argc; i += 2) {
-    if (!strcmp("-m", argv[i])) sscanf(argv[i+1], "%d", &mem.rlim_cur);
-    else if (!strcmp("-c", argv[i])) sscanf(argv[i+1], "%d", &cpu.rlim_cur);
+    if (!strcmp("-m", argv[i])) sscanf(argv[i+1], "%d", (int*)&mem.rlim_cur);
+    else if (!strcmp("-c", argv[i])) sscanf(argv[i+1], "%d", (int*)&cpu.rlim_cur);
     else if (!strcmp("-w", argv[i])) sscanf(argv[i+1], "%d", &wall);
-    else if (!strcmp("-f", argv[i])) sscanf(argv[i+1], "%d", &file.rlim_cur);
+    else if (!strcmp("-f", argv[i])) sscanf(argv[i+1], "%d", (int*)&file.rlim_cur);
     else if (!strcmp("-x", argv[i])) cmd = argv[i+1];
     else usage();
   }
