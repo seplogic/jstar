@@ -327,7 +327,7 @@ let field_signature2str fs =
 %type <Psyntax.test list> test_file
 
 %start spec
-%type <Spec.spec> spec
+%type <Spec.ast_spec> spec
 
 %% /* rules */
 

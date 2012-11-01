@@ -31,7 +31,7 @@ type statement_inner =
   | Return_stmt of Jparsetree.immediate option
   | Throw_stmt of Jparsetree.immediate
   | Invoke_stmt of Jparsetree.invoke_expr
-  | Spec_stmt of Vars.var list * Spec.spec
+  | Spec_stmt of Vars.var list * Spec.ast_spec
 type statement = statement_inner * Printing.source_location option
 type declaration_or_statement =
     DOS_dec of Jparsetree.declaration

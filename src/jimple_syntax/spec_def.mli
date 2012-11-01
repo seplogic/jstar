@@ -13,9 +13,9 @@
 
 
 type methodspec =
-    Dynamic of Jparsetree.method_signature_short * Spec.spec list *
+    Dynamic of Jparsetree.method_signature_short * Spec.ast_spec list *
       Printing.source_location option
-  | Static of Jparsetree.method_signature_short * Spec.spec list *
+  | Static of Jparsetree.method_signature_short * Spec.ast_spec list *
       Printing.source_location option
 type methodspecs = methodspec list
 type apf_define = string * Vars.var * Psyntax.fldlist * Psyntax.pform * bool

@@ -416,7 +416,7 @@ module MethodSet =
     let compare = compare
   end)
 
-type methodSpecs = (spec * Printing.source_location option) MethodMap.t
+type methodSpecs = (ast_spec * Printing.source_location option) MethodMap.t
 
 let emptyMSpecs : methodSpecs = MethodMap.empty
 let addMSpecs msig spec mmap : methodSpecs = MethodMap.add msig spec mmap
@@ -685,7 +685,7 @@ let add_subtype_and_objsubtype_rules spec_list logic =
 (* ====================== Refinement type stuff ================================= *)
 
 
-let refinement_this (logic : logic) (spec1 : spec) (spec2 : spec) (cname : class_name): bool =
+let refinement_this logic spec1 spec2 cname =
 (*DBG  Format.fprintf Format.err_formatter "@[<2>===first===@\n";
   spec2str Format.err_formatter spec1;
   Format.fprintf Format.err_formatter "@]@\n@[<2>===second===@\n";
