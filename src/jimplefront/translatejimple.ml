@@ -135,7 +135,7 @@ let mk_asgn rets pre post args =
   let asgn_rets = List.map (fun v -> variable2var (Var_name v)) rets in
   let asgn_args = List.map immediate2args args in
   let asgn_spec =
-    HashSet.singleton (SpecOp.mk_spec pre post ClassMap.empty) in
+    HashSet.singleton { Spec.pre; post } in
   C.Assignment_core { C.asgn_rets; asgn_args; asgn_spec }
 
 (* TODO: Pattern match separately on [v] and [e], not on [(v, e)], and
@@ -325,9 +325,7 @@ let get_spec_for m fields cname=
   in
   let spec = logical_vars_to_prog spec in
   if is_init_method m then (* we treat <init> in a special way*)
-    { pre=pconjunction spec.pre class_this_fields;
-      post=spec.post;
-      excep=spec.excep }
+    { spec with Spec.pre = pconjunction spec.Spec.pre class_this_fields }
   else spec
 
 
@@ -351,7 +349,6 @@ let get_requires_clause_spec_for m fields cname =
         {
                 pre=dynspec.pre;
                 post=conjoin_with_res_true (dynspec.pre);
-                excep=ClassMap.empty
         }
 
 let get_dyn_spec_for m fields cname =

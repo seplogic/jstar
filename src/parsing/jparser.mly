@@ -48,12 +48,12 @@ let msig_simp (mods,typ,name,args_list) =
 
 let bind_spec_vars
     (mods,typ,name,args_list)
-    {pre=pre;post=post;excep=excep} =
+    { pre; post } =
   (* Make substitution to normalise names *)
   let subst = Psyntax.empty in
   let subst = Psyntax.add (newPVar("this")) (Arg_var(Support_syntax.this_var)) subst in
   (* For each name that is given convert to normalised param name. *)
-  let _,subst =
+  let _, subst =
     List.fold_left
       (fun (n,subst) arg_opt ->
 	(n+1,
@@ -66,9 +66,8 @@ let bind_spec_vars
 	       subst
 	))
 	  (0,subst) args_list in
-  {pre=subst_pform subst pre;
-   post=subst_pform subst post;
-   excep=ClassMap.map (subst_pform subst) excep}
+  { pre = subst_pform subst pre
+  ; post = subst_pform subst post }
 
 let mkDynamic (msig, specs, source_pos) =
   let specs = List.map (bind_spec_vars msig) specs in
@@ -390,7 +389,8 @@ methods_specs:
    | /*empty*/ { [] }
 
 spec:
-   | L_BRACE formula R_BRACE L_BRACE formula R_BRACE exp_posts  {  {pre=$2;post=$5;excep=$7} }
+   | L_BRACE formula R_BRACE L_BRACE formula R_BRACE 
+      { {pre=$2;post=$5} }
 specs:
    | spec ANDALSO specs  { $1 :: $3 }
    | spec  {[$1]}
@@ -400,10 +400,6 @@ method_spec:
    | method_signature_short STATIC COLON specs SEMICOLON source_pos_tag_option { mkStatic($1, $4, $6) }
    | method_signature_short COLON specs source_pos_tag_option { mkDynamic($1, $3, $4) }
    | method_signature_short STATIC COLON specs source_pos_tag_option { mkStatic($1, $4, $5) }
-
-exp_posts:
-   | L_BRACE identifier COLON formula R_BRACE exp_posts { ClassMap.add $2 $4 $6 }
-   | /*empty */ { ClassMap.empty }
 
 modifier:
    | ABSTRACT      {Abstract}

@@ -23,7 +23,7 @@ open Jlogic
 open Jparsetree
 open Psyntax
 open Sepprover
-open Spec 
+open Spec
 open Spec_def
 open Specification
 open Support_syntax
@@ -35,17 +35,17 @@ exception Class_defines_external_spec
 
 (* ================ General stuff =================== *)
 
-let append_rules (logic : logic) (rules : sequent_rule list) : Psyntax.logic = 
+let append_rules (logic : logic) (rules : sequent_rule list) : Psyntax.logic =
 (*	let old_rules,rm,f = logic in
 	(old_rules @ rules,rm,f) *)
   {logic with seq_rules = logic.seq_rules @ rules}
 
-	
+
 let rec same_elements list =
 	match list with
 		| [] -> true
 		| [_] -> true
-		| x::y::zs -> if x=y then same_elements (y::zs) else false  
+		| x::y::zs -> if x=y then same_elements (y::zs) else false
 
 
 (* ===================== Augment the logic with apf stuff of a class and exported apfs of other classes  ====================== *)
@@ -58,26 +58,26 @@ let not_null name = not_null1 (Arg_var name)
 exception BadAPF of string
 
 (* Add rules for the relationship between an apf and apf entry, as well as the apf entry and the body *)
-let add_apf_to_logic (logic : logic) apfdefines classname : Psyntax.logic = 
-  let make_rules_from_defs (name,receiver,parameters, definition, global) rules = 
+let add_apf_to_logic (logic : logic) apfdefines classname : Psyntax.logic =
+  let make_rules_from_defs (name,receiver,parameters, definition, global) rules =
 (* special variables to match the record as pattern matcher isn't that clever *)
-    let recvar = Vars.fresha () in 
-    let definition = subst_pform (add receiver (Arg_var recvar) empty)  definition in 
+    let recvar = Vars.fresha () in
+    let definition = subst_pform (add receiver (Arg_var recvar) empty)  definition in
     let paramvar = Vars.fresha () in
     let param_eq = mkEQ(mkArgRecord parameters,Arg_var paramvar) in
 (* add resulting equality of definition. *)
     let definition = param_eq&&&definition in
 (*    let parvars = VarSet.add receiver (Plogic.fv_fld_list parameters VarSet.empty) in*)
     let parvars = VarSet.add recvar (VarSet.add paramvar VarSet.empty) in
-    let defvars = Psyntax.fv_form definition in 
-    let sparevars = VarSet.diff defvars parvars in  
-    let pvarsubst = subst_kill_vars_to_fresh_prog sparevars in 
-    let evarsubst = subst_kill_vars_to_fresh_exist sparevars in 
-    let pdefinition = subst_pform pvarsubst definition in 
-    let edefinition = subst_pform evarsubst definition in 
-    let bodyname = name ^ "$" ^ classname in 
+    let defvars = Psyntax.fv_form definition in
+    let sparevars = VarSet.diff defvars parvars in
+    let pvarsubst = subst_kill_vars_to_fresh_prog sparevars in
+    let evarsubst = subst_kill_vars_to_fresh_exist sparevars in
+    let pdefinition = subst_pform pvarsubst definition in
+    let edefinition = subst_pform evarsubst definition in
+    let bodyname = name ^ "$" ^ classname in
 (* open on left *)
-    rules @ 
+    rules @
     (mk_seq_rule ((mkEmpty,(objtype recvar classname)&&&(apf_match name recvar paramvar),mkEmpty,mkEmpty),
 		  [[(mkEmpty,((objtype recvar classname)&&&(apf_match bodyname recvar paramvar)),mkEmpty,mkEmpty)]],
 		  ("apf_open_left_" ^ name))
@@ -99,16 +99,16 @@ let add_apf_to_logic (logic : logic) apfdefines classname : Psyntax.logic =
     match apfdefines with
       [] -> rules
     | apf::apfdefines -> inner apfdefines (make_rules_from_defs apf rules)
-  in 
-  let rules = inner apfdefines logic.seq_rules in 
+  in
+  let rules = inner apfdefines logic.seq_rules in
   {logic with seq_rules = rules}
 
 let augmented_logic_for_class class_name sf (logic : logic) : logic =
-  let rec add_globals_and_apf_info sf (logic : logic) : logic = 
+  let rec add_globals_and_apf_info sf (logic : logic) : logic =
     match sf with
       cs::sf ->
          let apfs_to_add = if class_name=cs.classname then cs.apf else (List.filter (fun (a,b,x,y,w) -> w) cs.apf) in
-	 let logic = add_apf_to_logic logic apfs_to_add (Pprinter.class_name2str cs.classname) in 
+	 let logic = add_apf_to_logic logic apfs_to_add (Pprinter.class_name2str cs.classname) in
 	             add_globals_and_apf_info sf logic
     | [] -> logic
 	in add_globals_and_apf_info sf logic
@@ -122,7 +122,7 @@ let parent_relation spec_list =
 		let parents = cs.extends @ cs.implements in (* stephan mult inh *)
 		List.fold_left (fun rel p -> (p,cs.classname) :: rel) relation parents
 	) [] spec_list
-	
+
 let remove_duplicates list =
 	List.fold_left (fun rest element -> if List.mem element rest then rest else element :: rest) [] list
 
@@ -169,12 +169,12 @@ let a_topological_ordering_of_all_classes spec_file =
 			cs.classname :: classlist
 		) spec_file [] in
 	ts @ others
-	
+
 let parent_classes_and_interfaces classname spec_list =
 	let cs = List.find (fun cs -> cs.classname=classname) spec_list in
 	cs.extends @ cs.implements  (* stephan mult inh *)
-	
-		
+
+
 
 (* =================== Stuff exports and axioms both use ======================== *)
 
@@ -204,7 +204,7 @@ let rules_for_implication imp prov : sequent_rule list =
 		split_inner conjuncts [] in
 	let rules = List.map (fun ((conjunct : Psyntax.pform_at),(others : Psyntax.pform)) ->
 			let qi,eqs = match conjunct with
-				| P_SPred (pred_name,first_arg :: other_args) -> 
+				| P_SPred (pred_name,first_arg :: other_args) ->
 						let freevars = fv_args_list other_args VarSet.empty in
 						let free_anyvars = VarSet.filter (fun var -> match var with AnyVar _ -> true | _ -> false) freevars in
 						let var_newvar_pairs = VarSet.fold (fun var pairs -> (var,Vars.fresha ()) :: pairs) free_anyvars [] in
@@ -223,7 +223,7 @@ let rules_for_implication imp prov : sequent_rule list =
 		(counter-1,(a,b,name^(string_of_int counter),d,e)::list)
 	) rules (List.length rules,[]) in
 	rules
-	
+
 
 (* =================== Exports clause stuff =============================*)
 
@@ -236,10 +236,10 @@ let logic_with_where_pred_defs exportLocal_predicates (logic : logic) : logic =
 			let defn = subst_pform sub body in
 			let parvars = Psyntax.fv_form [pred] in
 			let defvars = Psyntax.fv_form defn  in
-			let sparevars = VarSet.diff defvars parvars in  
-			let pvarsubst = subst_kill_vars_to_fresh_prog sparevars in 
-			let evarsubst = subst_kill_vars_to_fresh_exist sparevars in 
-			let pdefinition = subst_pform pvarsubst defn in 
+			let sparevars = VarSet.diff defvars parvars in
+			let pvarsubst = subst_kill_vars_to_fresh_prog sparevars in
+			let evarsubst = subst_kill_vars_to_fresh_exist sparevars in
+			let pdefinition = subst_pform pvarsubst defn in
 			let edefinition = subst_pform evarsubst defn in
 			let rules = logic.seq_rules @
 				(mk_seq_rule ((mkEmpty,[pred],mkEmpty,mkEmpty),
@@ -253,20 +253,20 @@ let logic_with_where_pred_defs exportLocal_predicates (logic : logic) : logic =
 			in
 			{logic with seq_rules = rules}
 		) logic exportLocal_predicates
-	
+
 (* Yields the logic augmented with 'where' predicate defs and the implications which are to be checked. *)
 let logic_and_implications_for_exports_verification class_name spec_list logic =
-	let cs = 
+	let cs =
     try
-      List.find (fun cs -> cs.classname=class_name) spec_list 
-    with Not_found -> failwith 
+      List.find (fun cs -> cs.classname=class_name) spec_list
+    with Not_found -> failwith
         ("I need a spec for class " ^ (string_of pp_class_name class_name)) in
 	match cs.exports with
 		| None -> (logic,[])
 		| Some (exported_implications,exportLocal_predicates) ->
 			let logic = logic_with_where_pred_defs exportLocal_predicates logic in
-			(logic,exported_implications) 
-		
+			(logic,exported_implications)
+
 (* After exports verification, the exported implications of all classes in the spec file are added to the logic *)
 let add_exported_implications_to_logic spec_list logic : Psyntax.logic =
 	let exported_implications = List.fold_left (fun imps cs ->
@@ -284,15 +284,15 @@ module AxiomMap =
 		type t = class_name * string  (* the class name and axiom name *)
 		let compare = compare
 	end)
-	
+
 type axiom_map = (Psyntax.pform * Psyntax.pform) AxiomMap.t
 
 let filtermap filterfun mapfun list =
 	List.map mapfun (List.filter filterfun list)
-	
+
 let axiommap_filter p axiommap =
 	AxiomMap.fold (fun key value result -> if p key value then AxiomMap.add key value result else result) axiommap AxiomMap.empty
-	
+
 let axiommap2list f axiommap =
 	AxiomMap.fold (fun key value list -> f key value :: list) axiommap []
 
@@ -302,7 +302,7 @@ let spec_file_to_axiom_map spec_list =
 		match cs.axioms with
 			| None -> ()
 			| Some imps ->
-					List.iter (fun (name,antecedent,consequent) -> 
+					List.iter (fun (name,antecedent,consequent) ->
 						axiommap := AxiomMap.add (cs.classname,name) (antecedent,consequent) (!axiommap)
 					) imps
 	) spec_list in
@@ -321,11 +321,11 @@ let spec_file_to_axiom_map spec_list =
 				if same_elements parent_axioms_with_same_name then
 					()
 				else if Config.symb_debug () then
-                                  printf 
+                                  printf
                                       "@{<b>WARNING:@} %s does not list axiom \
                                           %s and its parents do not have the \
                                           same spec for it!@."
-                                      (Pprinter.class_name2str classname) 
+                                      (Pprinter.class_name2str classname)
                                       axiom_name;
 				match parent_axioms_with_same_name with
 					| x :: xs -> axiommap := AxiomMap.add (classname,axiom_name) x (!axiommap)
@@ -343,7 +343,7 @@ module AxiomMap2 =
 		type t = class_name
 		let compare = compare
 	end)
-	
+
 type axiom_map2 = named_implication list AxiomMap2.t
 
 let spec_file_to_axiom_map2 spec_list =
@@ -356,7 +356,7 @@ let spec_file_to_axiom_map2 spec_list =
 	!axiommap
 
 (* Add the axioms of all classes in the spec file to the logic *)
-let add_axiom_implications_to_logic spec_list (logic : logic) : logic = 
+let add_axiom_implications_to_logic spec_list (logic : logic) : logic =
 	let classlist = a_topological_ordering_of_all_classes spec_list in
 	let axiommap = spec_file_to_axiom_map2 spec_list in
 	let new_rules = List.fold_right (fun cl rules ->
@@ -366,14 +366,14 @@ let add_axiom_implications_to_logic spec_list (logic : logic) : logic =
 			let clname = Pprinter.class_name2str cl in
 			let new_rules = List.fold_right (fun (n,a,c) ruls ->
 				let freevars = Psyntax.fv_form (Psyntax.pconjunction a c) in
-				let p = if VarSet.mem this_var freevars then proviso else [] in 
+				let p = if VarSet.mem this_var freevars then proviso else [] in
 				rules_for_implication ("axiom_"^clname^"_"^n,a,c) p
 				@ ruls) named_imps [] in
 			new_rules @ rules
 		with Not_found -> assert false
 	) classlist [] in
 	append_rules logic new_rules
-	
+
 
 (* ====================== Method spec manipulation and completion ====================================== *)
 
@@ -403,14 +403,14 @@ let is_method_abstract (method_signature : method_signature) spec_list =
 			true
 		with Not_found -> false (* By default, a method is non-abstract *)
 
-module MethodMap = 
+module MethodMap =
   Map.Make(struct
     type t = method_signature
     let compare = compare
   end)
 module MethodMapH = Corestar_std.MapHelper (MethodMap)
 
-module MethodSet = 
+module MethodSet =
   Set.Make(struct
     type t = method_signature
     let compare = compare
@@ -421,51 +421,49 @@ type methodSpecs = (spec * Printing.source_location option) MethodMap.t
 let emptyMSpecs : methodSpecs = MethodMap.empty
 let addMSpecs msig spec mmap : methodSpecs = MethodMap.add msig spec mmap
 
-let rec spec_list_to_spec specs = 
-   match specs with 
+let rec spec_list_to_spec specs =
+   match specs with
    | [] -> assert false  (* Should get here *)
    | [spec] -> spec
    | spec :: specs ->
-       spec_conjunction spec (spec_list_to_spec specs)
- 
+       Specification.spec_conjunction spec (spec_list_to_spec specs)
+
 let class_spec_to_ms cs (smmap,dmmap) =
   let cn = (*Pprinter.class_name2str*) cs.classname in
-  List.fold_left 
+  List.fold_left
     (fun (smmap,dmmap) pre_spec
-      -> 
-	match pre_spec with 
-	  Dynamic (ms,spec,pos) -> 
-	    (match ms with 
-	      (mods,a,b,c) -> 
+      ->
+	match pre_spec with
+	  Dynamic (ms,spec,pos) ->
+	    (match ms with
+	      (mods,a,b,c) ->
 		(smmap,addMSpecs (cn,a,b,c) ((spec_list_to_spec spec),pos) dmmap)
 	    )
-   | Spec_def.Static (ms,spec,pos) -> 
-	    (match ms with 
-	      (mods,a,b,c) -> 
+   | Spec_def.Static (ms,spec,pos) ->
+	    (match ms with
+	      (mods,a,b,c) ->
 		(addMSpecs (cn,a,b,c) ((spec_list_to_spec spec),pos) smmap,dmmap)
 	    )
-    ) 
-    (smmap,dmmap) cs.methodspecs 
+    )
+    (smmap,dmmap) cs.methodspecs
 
 
-let remove_this_type_info prepure = 
-  let is_this_type p = 
-    match p with 
+let remove_this_type_info prepure =
+  let is_this_type p =
+    match p with
       P_PPred (name,a::al) -> if name = objtype_name  && a = (Arg_var (Vars.concretep_str this_var_name)) then false else true
-    | _ -> true 
+    | _ -> true
   in List.filter is_this_type prepure
 
-let static_to_dynamic {pre=pre; post=post; excep=excep} =
-  { pre=remove_this_type_info pre; 
-    post=post; 
-    excep=excep }
+let static_to_dynamic { Spec.pre; post } =
+  { Spec.pre = remove_this_type_info pre; post }
 
 let rec filtertype_spat classname spat =
   match spat with
-    P_SPred(name,t1::ar::[])  -> 
-      (try 
-	if t1=Arg_var(this_var) && ((String.rindex name '$') = (String.length name) -1 ) then 
-	  P_SPred(name ^ classname, t1::ar::[]) 
+    P_SPred(name,t1::ar::[])  ->
+      (try
+	if t1=Arg_var(this_var) && ((String.rindex name '$') = (String.length name) -1 ) then
+	  P_SPred(name ^ classname, t1::ar::[])
 	else spat
       with Not_found -> spat)
   | P_SPred(name,al) -> P_SPred(name,al)
@@ -476,14 +474,14 @@ let rec filtertype_spat classname spat =
   | P_PPred(name,al) -> spat
   | P_EQ(_,_) -> spat
   | P_NEQ(_,_) -> spat
-and filtertype classname = List.map (filtertype_spat classname ) 
+and filtertype classname = List.map (filtertype_spat classname )
 
 let rec filterdollar_at spat =
   match spat with
-    P_SPred(name,t1::ar::[])  -> 
-      (try 
-	if t1=Arg_var(this_var) && ((String.rindex name '$') = (String.length name) -1 ) then 
-	  P_SPred(String.sub name 0 (String.length name - 1), t1::ar::[]) 
+    P_SPred(name,t1::ar::[])  ->
+      (try
+	if t1=Arg_var(this_var) && ((String.rindex name '$') = (String.length name) -1 ) then
+	  P_SPred(String.sub name 0 (String.length name - 1), t1::ar::[])
 	else spat
       with Not_found -> spat)
   | P_SPred(name,al) -> P_SPred(name,al)
@@ -496,18 +494,11 @@ let rec filterdollar_at spat =
   | P_NEQ(_,_) -> spat
 and filterdollar x = List.map (filterdollar_at) x
 
+let dynamic_to_static cn { Spec.pre; post } =
+  { Spec.pre = filtertype cn pre; post = filtertype cn post }
 
-let dynamic_to_static cn spec = 
-  match spec with
-    {pre=f1; post=f2; excep=excep}
-      -> {pre=filtertype cn f1; 
-	  post=filtertype cn f2; 
-	  excep=ClassMap.map (filtertype cn) excep }
-
-let filter_dollar_spec {pre=f1; post=f2; excep=excep} =
-  { pre=filterdollar f1; 
-    post=filterdollar f2; 
-    excep=ClassMap.map filterdollar excep }
+let filter_dollar_spec { Spec.pre; post } =
+  { Spec.pre = filterdollar pre; post = filterdollar post }
 
 let fix_spec_inheritance_gaps classes mmap spec_file exclude_function spec_type =
 	let mmapr = ref mmap in
@@ -526,7 +517,7 @@ let fix_spec_inheritance_gaps classes mmap spec_file exclude_function spec_type 
 											if Config.symb_debug() then
                         printf "@{<b>WARNING:@} There is no %s spec listed for %s, and its parents do not agree on one!\n" spec_type (Pprinter.signature2str (Method_signature msig));
 					in
-					propagate_specs cn othersigs  
+					propagate_specs cn othersigs
 	in
 	let rec fix_inner classes =
 		match classes with
@@ -534,7 +525,7 @@ let fix_spec_inheritance_gaps classes mmap spec_file exclude_function spec_type 
 			| cn :: classes ->
 					let parents = parent_classes_and_interfaces cn spec_file in
 					let specs_parents = MethodMap.fold (fun (classname,a,b,c) (spec,pos) list -> if List.mem classname parents then (a,b,c,spec,pos)::list else list) (!mmapr) [] in
-					let _ = propagate_specs cn specs_parents in  
+					let _ = propagate_specs cn specs_parents in
 					fix_inner classes
 	in
 	let _ = fix_inner classes in
@@ -542,15 +533,15 @@ let fix_spec_inheritance_gaps classes mmap spec_file exclude_function spec_type 
 
 let fix_gaps (smmap,dmmap) spec_file =
 	(* Firstly, we derive dynamic from static specs and vice versa. *)
-  let dmmapr = ref dmmap in 
-  let smmapr = ref smmap in 
-  let _ = MethodMap.iter 
-      (fun key (spec,pos) -> 
+  let dmmapr = ref dmmap in
+  let smmapr = ref smmap in
+  let _ = MethodMap.iter
+      (fun key (spec,pos) ->
 	if MethodMap.mem key (!dmmapr) then () else dmmapr := MethodMap.add key ((static_to_dynamic spec),pos) (!dmmapr)
       ) smmap in
-  let _ = MethodMap.iter 
-      (fun (cn,a,b,c) (spec,pos) -> 
-	if MethodMap.mem (cn,a,b,c) (!smmapr) || is_interface cn spec_file || is_method_abstract (cn,a,b,c) spec_file then () 
+  let _ = MethodMap.iter
+      (fun (cn,a,b,c) (spec,pos) ->
+	if MethodMap.mem (cn,a,b,c) (!smmapr) || is_interface cn spec_file || is_method_abstract (cn,a,b,c) spec_file then ()
 	else
 		smmapr := MethodMap.add (cn,a,b,c) ((dynamic_to_static (Pprinter.class_name2str cn) spec),pos) (!smmapr);
 		dmmapr := MethodMap.add (cn,a,b,c) ((filter_dollar_spec spec),pos) !dmmapr
@@ -562,10 +553,10 @@ let fix_gaps (smmap,dmmap) spec_file =
   (!smmapr,!dmmapr)
 
 
-let spec_file_to_method_specs 
+let spec_file_to_method_specs
     (sf : Spec_def.class_spec list) : (methodSpecs * methodSpecs) =
-  let rec sf_2_ms_inner sf (pairmmap) = 
-    match sf with 
+  let rec sf_2_ms_inner sf (pairmmap) =
+    match sf with
       [] -> pairmmap
     | cs::sf -> sf_2_ms_inner sf (class_spec_to_ms cs pairmmap)
   in fix_gaps (sf_2_ms_inner sf (emptyMSpecs,emptyMSpecs)) sf
@@ -573,7 +564,7 @@ let spec_file_to_method_specs
 
 (* ========================== Common/useful rules ================================ *)
 
-	
+
 let mk_subeq (var1,var2) = [P_PPred("subeq",[Arg_var var1;Arg_var var2])]
 let mk_sub (var1,var2) = [P_PPred("sub",[Arg_var var1;Arg_var var2])]
 
@@ -584,7 +575,7 @@ if
  | |- ?x=?y
 or
  | |- !sub(?x,?y)
- 
+
 For every p being an apf predicate P or apf entry P$C, a matching rule will be generated:
  | p(?x,?y) |- p(?x,?z)
 if
@@ -600,7 +591,7 @@ and
  P(?x,?y) | |- ?x!=nil()
 if
  P(?x,?y) | |-
-*) 
+*)
 let add_common_apf_predicate_rules spec_list logic =
 	let make_apf = apf_match in
 	let add_if_not_there element list = if List.mem element list then list else element::list in
@@ -642,7 +633,7 @@ let add_common_apf_predicate_rules spec_list logic =
 	append_rules logic (subeq_rule::(match_rules @ not_null_rules))
 
 (*
-Adds a rule containing the transitive subtype relation, as well as one to reason 
+Adds a rule containing the transitive subtype relation, as well as one to reason
 about whether an object is an instance (but not neccessarily a direct instance) of a type.
 
 For the first rule, if C inherits from B, which in turn inherits from A, then the following gets generated:
@@ -666,14 +657,14 @@ if
  | |- !type(?o,?d) * !subtype(?d,?c)
 or
  | |- ?o!=nil() * !stattype(?o,_e) * !subtype(_e,?c)
-| 
+|
 *)
 let add_subtype_and_objsubtype_rules spec_list logic =
 	let pr = parent_relation spec_list in
 	let tc = transitive_closure pr in
 	let x = Arg_var (Vars.fresha ()) in
 	let y = Arg_var (Vars.fresha ()) in
-	let premise : (Psyntax.psequent list list) = 
+	let premise : (Psyntax.psequent list list) =
 		[(mkEmpty,mkEmpty,mkEQ(x,y),mkEmpty)] ::
 		List.map (fun (ancestor,descendent) -> [mkEmpty,mkEmpty,[P_EQ(x,Jlogic.class2args descendent);P_EQ(y,Jlogic.class2args ancestor)],mkEmpty]) tc in
 	let subtype_rule = mk_seq_rule ((mkEmpty,mkEmpty,Jlogic.mk_subtype1 x y,mkEmpty),premise,"subtype_relation_right") in
@@ -688,7 +679,7 @@ let add_subtype_and_objsubtype_rules spec_list logic =
 		"objsubtype_right"
 	) in
 	append_rules logic [objsubtype_rule;subtype_rule]
-	
+
 
 
 (* ====================== Refinement type stuff ================================= *)
