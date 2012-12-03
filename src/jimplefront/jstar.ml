@@ -50,6 +50,7 @@ let set_grouped () =
 let set_eclipse () =
    Config.eclipse_ref := true
 
+(* TODO: Check that arguments don't have conflicting (same?) names. *)
 let arg_list = Config.args_default @
 [
 ("-e", Arg.Unit(set_eclipse), "run in eclipse");
