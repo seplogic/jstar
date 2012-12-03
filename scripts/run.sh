@@ -75,7 +75,7 @@ rm -rf jstar.out
 mkdir jstar.out
 javac *.java -d jstar.out
 cd jstar.out
-CLASSES=`find -name \*.class | sed 's/.class$//' | sed 's/^\.\///' | tr '/' '.'`
+CLASSES=`find . -name \*.class | sed 's/.class$//' | sed 's/^\.\///' | tr '/' '.'`
 if (($DEBUG)); then
 	echo "CLASSES=$CLASSES"
 fi
