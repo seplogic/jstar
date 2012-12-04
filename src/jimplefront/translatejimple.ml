@@ -214,7 +214,7 @@ let assert_core b =
   | _ -> assert false
 
 
-let jimple_statement2core_statement s : core_statement list =
+let jimple_statement2core_statement s : ast_spec HashSet.t core_statement list =
   match s with
   | Label_stmt l -> [Label_stmt_core l]
   | Breakpoint_stmt -> assert false
@@ -296,7 +296,7 @@ let jimple_stmts2core stms =
     let s=jimple_statement2core_statement stmt_jimple in
     if Config.symb_debug() then
       Format.printf "@\ninto the core statement:@\n  %a @\n"
-      (Debug.list_format "; " Pp_core.pp_stmt_core) s;
+      (Debug.list_format "; " Pp_core.pp_ast_core) s;
     List.map (fun s -> jimple_stmt_create s source_pos) s
   in
   List.flatten (List.map do_one_stmt stms)
