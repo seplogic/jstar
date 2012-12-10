@@ -134,8 +134,7 @@ let mk_array_set av i v =
 let mk_asgn rets pre post args =
   let asgn_rets = List.map (fun v -> variable2var (Var_name v)) rets in
   let asgn_args = List.map immediate2args args in
-  let asgn_spec =
-    HashSet.singleton { Spec.pre; post } in
+  let asgn_spec = { Spec.pre; post } in
   C.Assignment_core { C.asgn_rets; asgn_args; asgn_spec }
 
 (* TODO: Pattern match separately on [v] and [e], not on [(v, e)], and
@@ -193,10 +192,9 @@ let rec translate_assign_stmt  (v:Jparsetree.variable) (e:Jparsetree.expression)
   | Var_name v, Cast_exp (_,e') -> (* TODO : needs something for the cast *)
       translate_assign_stmt (Var_name v) (Immediate_exp(e'))
   | Var_name v , Invoke_exp ie ->
-      let spec, param = get_spec ie in
+      let asgn_spec, param = get_spec ie in
       let asgn_rets = [variable2var (Var_name v)] in
       let asgn_args = List.map immediate2args param in
-      let asgn_spec = HashSet.singleton spec in
       C.Assignment_core { C.asgn_rets; asgn_args; asgn_spec }
   | Var_name v, New_array_exp (t, sz) ->
       let int_zero = immediate2args (mk_zero (Base (Int, []))) in
@@ -214,7 +212,7 @@ let assert_core b =
   | _ -> assert false
 
 
-let jimple_statement2core_statement s : ast_spec HashSet.t core_statement list =
+let jimple_statement2core_statement s : Core.ast_core list =
   match s with
   | Label_stmt l -> [Label_stmt_core l]
   | Breakpoint_stmt -> assert false
@@ -260,12 +258,10 @@ let jimple_statement2core_statement s : ast_spec HashSet.t core_statement list =
   | Throw_stmt(i) -> failwith "TODO(rgrig): must use exception handlers table"
   | Invoke_stmt (e) ->
       if Config.symb_debug() then Printf.printf "\n Translating a jimple Invoke statement %s \n" (Pprinter.statement2str s);
-      let spec, param = get_spec e in
+      let asgn_spec, param = get_spec e in
       let asgn_args = List.map immediate2args param in
-      let asgn_spec = HashSet.singleton spec in
       [C.Assignment_core { C.asgn_rets = []; asgn_args; asgn_spec }]
-  | Spec_stmt (asgn_rets,spec) ->
-      let asgn_spec = HashSet.singleton spec in
+  | Spec_stmt (asgn_rets, asgn_spec) ->
       [C.Assignment_core { C.asgn_rets; asgn_args = []; asgn_spec }]
 
 (* ================   ==================  *)
