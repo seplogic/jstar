@@ -15,6 +15,7 @@
 
 (* Manage methdec infos for a file *) 
 
+open Corestar_std
 open Jparsetree
 open Jimple_global_types
 
@@ -97,7 +98,7 @@ let member2methdec cname m =
 
 
 let make_methdecs_of_list cname meml =
-  Misc.map_option (member2methdec cname) meml
+  map_option (member2methdec cname) meml
   
 
 let get_msig m cname =

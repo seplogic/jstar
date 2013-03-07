@@ -134,7 +134,7 @@ let mk_array_set av i v =
 let mk_asgn rets pre post args =
   let asgn_rets = List.map (fun v -> variable2var (Var_name v)) rets in
   let asgn_args = List.map immediate2args args in
-  let asgn_spec = { Spec.pre; post } in
+  let asgn_spec = HashSet.singleton { Spec.pre; post } in
   C.Assignment_core { C.asgn_rets; asgn_args; asgn_spec }
 
 (* TODO: Pattern match separately on [v] and [e], not on [(v, e)], and
@@ -193,6 +193,7 @@ let rec translate_assign_stmt  (v:Jparsetree.variable) (e:Jparsetree.expression)
       translate_assign_stmt (Var_name v) (Immediate_exp(e'))
   | Var_name v , Invoke_exp ie ->
       let asgn_spec, param = get_spec ie in
+      let asgn_spec = HashSet.singleton asgn_spec in
       let asgn_rets = [variable2var (Var_name v)] in
       let asgn_args = List.map immediate2args param in
       C.Assignment_core { C.asgn_rets; asgn_args; asgn_spec }
@@ -259,9 +260,11 @@ let jimple_statement2core_statement s : Core.ast_core list =
   | Invoke_stmt (e) ->
       if Config.symb_debug() then Printf.printf "\n Translating a jimple Invoke statement %s \n" (Pprinter.statement2str s);
       let asgn_spec, param = get_spec e in
+      let asgn_spec = HashSet.singleton asgn_spec in
       let asgn_args = List.map immediate2args param in
       [C.Assignment_core { C.asgn_rets = []; asgn_args; asgn_spec }]
   | Spec_stmt (asgn_rets, asgn_spec) ->
+      let asgn_spec = HashSet.singleton asgn_spec in
       [C.Assignment_core { C.asgn_rets; asgn_args = []; asgn_spec }]
 
 (* ================   ==================  *)

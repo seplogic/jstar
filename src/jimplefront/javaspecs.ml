@@ -184,7 +184,7 @@ let rules_for_implication imp prov : sequent_rule list =
 	(* imp is assumed to contain only program variables and existential variables *)
 	(* to build a rule, we substitute all program variables (but no existentials) with fresh anyvars *)
 	let free_vars = Psyntax.fv_form (Psyntax.pconjunction prov (Psyntax.pconjunction antecedent consequent)) in
-	let free_prog_vars = VarSet.filter (fun var -> match var with PVar _ -> true | _ -> false) free_vars in
+	let free_prog_vars = VarSet.filter is_pvar free_vars in
 	let sub = VarSet.fold (fun var sub -> add var (Arg_var (Vars.fresha ())) sub) free_prog_vars empty in
 	let proviso : Psyntax.pform = subst_pform sub prov in
 	let antecedent : Psyntax.pform = subst_pform sub antecedent in
@@ -206,7 +206,7 @@ let rules_for_implication imp prov : sequent_rule list =
 			let qi,eqs = match conjunct with
 				| P_SPred (pred_name,first_arg :: other_args) ->
 						let freevars = fv_args_list other_args VarSet.empty in
-						let free_anyvars = VarSet.filter (fun var -> match var with AnyVar _ -> true | _ -> false) freevars in
+						let free_anyvars = VarSet.filter is_avar freevars in
 						let var_newvar_pairs = VarSet.fold (fun var pairs -> (var,Vars.fresha ()) :: pairs) free_anyvars [] in
 						let sub = List.fold_left (fun sub (var,newvar) -> add var (Arg_var newvar) sub) empty var_newvar_pairs in
 						let new_other_args = List.map (subst_args sub) other_args in

@@ -29,17 +29,10 @@ open Spec_def
 open Vars
 
 
-(* TODO(rgrig): Functions in Vars should be used instead of new*Var. *)
-let newPVar x = concretep_str x
-
-let newAnyVar x = AnyVar(0,x)
-
-let newEVar x = EVar(0,x)
-
 let newVar x =
   if x = "_" then freshe()
-  else if String.get x 0 = '_' then newEVar (String.sub x 1 ((String.length x) -1))
-  else newPVar x
+  else if String.get x 0 = '_'then concretee_str (String.sub x 1 ((String.length x) -1))
+  else concretep_str x
 
 
 let msig_simp (mods,typ,name,args_list) =
@@ -51,7 +44,7 @@ let bind_spec_vars
     { pre; post } =
   (* Make substitution to normalise names *)
   let subst = Psyntax.empty in
-  let subst = Psyntax.add (newPVar("this")) (Arg_var(Support_syntax.this_var)) subst in
+  let subst = Psyntax.add (concretep_str "this") (Arg_var(Support_syntax.this_var)) subst in
   (* For each name that is given convert to normalised param name. *)
   let _, subst =
     List.fold_left
@@ -61,7 +54,7 @@ let bind_spec_vars
 	   ty,None -> subst
 	 | ty,Some str ->
 	     Psyntax.add
-	       (newPVar(str))
+	       (concretep_str str)
 	       (Arg_var(Support_syntax.parameter_var n))
 	       subst
 	))
@@ -809,9 +802,9 @@ name:
 
 
 lvariable:
-   | at_identifier { newPVar($1) }
-   | identifier { newVar($1) }
-   | QUESTIONMARK identifier { newAnyVar($2) }
+   | at_identifier { concretep_str $1 }
+   | identifier { newVar $1 }
+   | QUESTIONMARK identifier { concretea_str $2 }
 ;
 
 lvariable_list_ne:
@@ -824,7 +817,7 @@ lvariable_list:
 ;
 
 lvariable_npv:
-   | at_identifier { newPVar($1) }
+   | at_identifier { concretep_str $1 }
    | identifier { newVar($1) }
 ;
 
@@ -855,7 +848,7 @@ paramlist:
 /* Code for matching where not allowing question mark variables:
    no pattern vars*/
 jargument_npv:
-   | RETURN { Arg_var (newPVar(SpecOp.name_ret_v1)) }
+   | RETURN { Arg_var (concretep_str SpecOp.name_ret_v1) }
    | lvariable_npv {Arg_var ($1)}
    | identifier L_PAREN jargument_npv_list R_PAREN {Arg_op($1,$3) }
    | INTEGER_CONSTANT {Arg_string(string_of_int $1)}
@@ -877,7 +870,7 @@ jargument_npv_list:
 
 
 jargument:
-   | RETURN { Arg_var (newPVar(SpecOp.name_ret_v1)) }
+   | RETURN { Arg_var (concretep_str SpecOp.name_ret_v1) }
    | lvariable {Arg_var ($1)}
    | identifier L_PAREN jargument_list R_PAREN {Arg_op($1,$3) }
    | INTEGER_CONSTANT {Arg_string(string_of_int $1)}
