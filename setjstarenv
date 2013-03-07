@@ -1,3 +1,6 @@
-export CORESTAR_HOME=`pwd`/../corestar
-export JSTAR_HOME=`pwd`
-export PATH=`pwd`/bin:$PATH
+export CORESTAR_HOME=$(pwd)/../corestar
+export CORESTAR_LOGIC_LIBRARY=$(pwd)/library/logic
+export CORESTAR_SPECS_LIBRARY=$(pwd)/library/specifications
+export CORESTAR_ABS_LIBRARY=$(pwd)/library/abstractions
+export JSTAR_HOME=$(pwd)
+export PATH=$(pwd)/bin:$PATH
