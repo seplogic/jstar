@@ -35,7 +35,7 @@ if [ -z "$RT_JAR" ]; then
 	RT_JAR=`readlink -f $RT_JAR`
 	RT_JAR=`dirname $RT_JAR`
 	RT_JAR=`dirname $RT_JAR`
-	RT_JAR="$RT_JAR/jre/lib/rt.jar"
+	RT_JAR="$RT_JAR/jre/lib/rt.jar"
 fi
 if [ -z "$JSTAR" ]; then
 	JSTAR="jstar"
@@ -75,7 +75,7 @@ rm -rf jstar.out
 mkdir jstar.out
 javac *.java -d jstar.out
 cd jstar.out
-CLASSES=$(find -name \*.class | sed 's/.class$//' | sed 's/^\.\///' | tr '/' '.')
+CLASSES=$(find . -name \*.class | sed 's/.class$//' | sed 's/^\.\///' | tr '/' '.')
 if (($DEBUG)); then
 	echo "CLASSES=$CLASSES"
 fi
