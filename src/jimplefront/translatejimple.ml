@@ -280,7 +280,6 @@ maybe we should use a stronger condition
 let is_init_method md = Pprinter.name2str md.name_m ="<init>"
 
 
-
 let methdec2signature_str dec =
   Pprinter.class_name2str dec.class_name ^ "." ^ Pprinter.name2str dec.name_m ^ "(" ^ (Pprinter.list2str Pprinter.parameter2str  dec.params ", ") ^ ")"
 
@@ -295,7 +294,7 @@ let jimple_stmts2core stms =
     let s=jimple_statement2core_statement stmt_jimple in
     if Config.symb_debug() then
       Format.printf "@\ninto the core statement:@\n  %a @\n"
-      (Debug.list_format "; " Pp_core.pp_ast_core) s;
+      (Debug.list_format "; " CoreOps.pp_ast_core) s;
     List.map (fun s -> jimple_stmt_create s source_pos) s
   in
   List.flatten (List.map do_one_stmt stms)

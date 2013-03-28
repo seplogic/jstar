@@ -16,8 +16,10 @@
 (* Support functions for symbolic execution and misc conversion facilities *)
 
 
-open Debug
+open Corestar_std
 open Format
+
+(* TODO(rgrig): These shouldn't be opened. *)
 open Jimple_global_types
 open Jlogic
 open Jparsetree
