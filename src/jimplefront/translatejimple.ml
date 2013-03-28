@@ -48,7 +48,6 @@ let mk_parameter n =
   let v=Vars.concretep_str p in
   v
 
-
 (* retrieve static spec of a method from table of specs*)
 let get_static_spec si =
   match si with
@@ -100,6 +99,17 @@ let get_spec  (iexp: Jparsetree.invoke_expr) =
       spec,il
 
 
+let get_name  (iexp: Jparsetree.invoke_expr) =
+  match iexp with
+  | Invoke_nostatic_exp (Virtual_invoke,_,si,il)
+  | Invoke_nostatic_exp (Interface_invoke,_,si,il)
+  | Invoke_nostatic_exp (Special_invoke,_,si,il) 
+  | Invoke_static_exp (si,il) ->
+      let n = match si with
+	| Method_signature (cn,_,mn,ps) -> Pprinter.class_name2str cn ^ "." ^ Pprinter.name2str mn ^ "$$" ^ (Pprinter.list2str Pprinter.parameter2str ps "$$") 
+	| Field_signature (cn,_,fn) -> Pprinter.class_name2str cn ^  "." ^ Pprinter.name2str fn 
+            (* nikos: should this case ever be reached? *) 
+      in n,il
 
 
 
@@ -192,11 +202,10 @@ let rec translate_assign_stmt  (v:Jparsetree.variable) (e:Jparsetree.expression)
   | Var_name v, Cast_exp (_,e') -> (* TODO : needs something for the cast *)
       translate_assign_stmt (Var_name v) (Immediate_exp(e'))
   | Var_name v , Invoke_exp ie ->
-      let asgn_spec, param = get_spec ie in
-      let asgn_spec = HashSet.singleton asgn_spec in
-      let asgn_rets = [variable2var (Var_name v)] in
-      let asgn_args = List.map immediate2args param in
-      C.Assignment_core { C.asgn_rets; asgn_args; asgn_spec }
+      let call_name, param = get_name ie in
+      let call_rets = [variable2var (Var_name v)] in
+      let call_args = List.map immediate2args param in
+      C.Call_core { C.call_name; call_rets; call_args }
   | Var_name v, New_array_exp (t, sz) ->
       let int_zero = immediate2args (mk_zero (Base (Int, []))) in
       let t_zero = immediate2args (mk_zero t) in
@@ -259,11 +268,10 @@ let jimple_statement2core_statement s : Core.ast_core list =
   | Throw_stmt(i) -> failwith "TODO(rgrig): must use exception handlers table"
   | Invoke_stmt (e) ->
       if Config.symb_debug() then Printf.printf "\n Translating a jimple Invoke statement %s \n" (Pprinter.statement2str s);
-      let asgn_spec, param = get_spec e in
-      let asgn_spec = HashSet.singleton asgn_spec in
-      let asgn_args = List.map immediate2args param in
-      [C.Assignment_core { C.asgn_rets = []; asgn_args; asgn_spec }]
-  | Spec_stmt (asgn_rets, asgn_spec) ->
+      let call_name, param = get_name e in
+      let call_args = List.map immediate2args param in
+	[C.Call_core { C.call_name; call_rets = []; call_args }]
+  | Spec_stmt (asgn_rets, asgn_spec) -> 
       let asgn_spec = HashSet.singleton asgn_spec in
       [C.Assignment_core { C.asgn_rets; asgn_args = []; asgn_spec }]
 
@@ -281,13 +289,9 @@ let is_init_method md = Pprinter.name2str md.name_m ="<init>"
 
 
 let methdec2signature_str dec =
-  Pprinter.class_name2str dec.class_name ^ "." ^ Pprinter.name2str dec.name_m ^ "(" ^ (Pprinter.list2str Pprinter.parameter2str  dec.params ", ") ^ ")"
+  Pprinter.class_name2str dec.class_name ^ "." ^ Pprinter.name2str dec.name_m ^ "$$" ^ (Pprinter.list2str Pprinter.parameter2str dec.params "$$")
 
 
-let jimple_stmt_create s source_pos =
-  let node = Cfg_core.mk_node s in
-  Printing.add_location node.Cfg_core.sid source_pos;
-  node
 
 let jimple_stmts2core stms =
   let do_one_stmt (stmt_jimple, source_pos) =
@@ -295,7 +299,7 @@ let jimple_stmts2core stms =
     if Config.symb_debug() then
       Format.printf "@\ninto the core statement:@\n  %a @\n"
       (Debug.list_format "; " CoreOps.pp_ast_core) s;
-    List.map (fun s -> jimple_stmt_create s source_pos) s
+      s (* here we throw away the source position -- might want to restore it for nice error messages *)
   in
   List.flatten (List.map do_one_stmt stms)
 
@@ -455,44 +459,35 @@ let verify_jimple_file
           m.bstmts <- mb
   ) mdl;
 
-  (* generate method bodies in cfg_core format *)
+  (* generate method bodies in ast_core format *)
   let xs =
     List.map (fun m ->
                let sig_str = methdec2signature_str m in
                let body = if Methdec.has_body m then jimple_stmts2core m.bstmts else [] in
-               let requires = if Methdec.has_requires_clause m then jimple_stmts2core m.req_stmts else [] in
+  (*
+		   let requires = if Methdec.has_requires_clause m then jimple_stmts2core m.req_stmts else [] in
                let old_clause = List.map (fun o -> jimple_stmts2core o) m.old_stmts_list in
                let ensures = if Methdec.has_ensures_clause m then jimple_stmts2core m.ens_stmts else [] in
-                 (m, sig_str, body, requires, old_clause, ensures) )
-       mdl in
+  *)
+	       let spec = HashSet.singleton(get_spec_for m fields cname) in 
+               let l = add_static_type_info lo m.locals in
+		 { proc_name = sig_str; proc_spec = spec; proc_body = Some body; proc_rules = l } 
+  ) mdl in 
 
-  (* Print core files generated from methods *)
-  List.iter (fun (m,sig_str,body,req,old,ens) ->
-               begin
-                 if Methdec.has_body m then Cfg_core.print_core (!file) sig_str body;
-                 if Methdec.has_requires_clause m then Cfg_core.print_core (!file) (sig_str ^ ".requires") req;
- (*     TODO:    list.iter (Cfg_core.print_core (!file) (sig_str ^ ".old_exp")) old;  *)
-                 if Methdec.has_ensures_clause m then Cfg_core.print_core (!file) (sig_str ^ ".ensures") ens
-               end ) xs;
+  (* verify globally *)
+  ignore (Alt_abd.verify { q_procs = xs; q_rules = lo; q_infer = true }); 
 
-  (* print dot-file representation of CFG *)
-  let annotate = List.map (fun (m,s,b,r,o,e) ->
-           let b = (b, s) in
-           let r = (r, s^" requires clause") in
-           let o = List.map (fun x -> (x,s^" old expression")) o in
-           let e = (e, s^" ensures clause") in
-             List.flatten [[b]; [r]; o; [e]])
-      xs in
-  Cfg_core.print_icfg_dotty (List.flatten annotate) (!file);
+  (* Print using core function *)
+  let my_file =  Pervasives.open_out "printhis" in
+  Corestar_std.pp_list CoreOps.pp_ast_question (Format.formatter_of_out_channel my_file) xs;
+  Pervasives.close_out my_file;  
 
-  (* now verify each method *)
-  List.iter (fun (m,sig_str,body,req,old,ens) ->
+(* nikos: These extra verifications should be restored at some point?
+   
+   List.iter (fun (m,sig_str,body,req,old,ens) -> 
                   (* verify the body only if the method is non-abstract *)
                   if Methdec.has_body m then
-                    let spec = get_spec_for m fields cname in
-                    let l = add_static_type_info lo m.locals in
 	            (*let _ = Prover.pprint_sequent_rules l in*)
-                    ignore (Symexec.verify sig_str body spec l abs_rules);
                   (* verify the requires clause if present *)
                   if Methdec.has_requires_clause m then
                     let spec = get_requires_clause_spec_for m fields cname in
@@ -504,4 +499,7 @@ let verify_jimple_file
                     let l = add_static_type_info lo m.ens_locals in
                     let frames = List.map (fun o -> Symexec.get_frame o spec.pre l abs_rules) old in
                     ignore (Symexec.verify_ensures (sig_str^" ensures clause") ens spec.post conjoin_with_res_true frames l abs_rules)
-            ) xs
+            ) xs;
+*)
+
+  
