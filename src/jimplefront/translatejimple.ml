@@ -472,6 +472,11 @@ let verify_jimple_file
 		 { C.proc_name = sig_str; proc_spec = spec; proc_body = Some body; proc_rules = l } 
   ) mdl in 
 
+  (* Print using core function *)
+  let my_file =  Pervasives.open_out "printhis" in
+  Corestar_std.pp_list CoreOps.pp_ast_question (Format.formatter_of_out_channel my_file) xs;
+  Pervasives.close_out my_file;  
+
   (* verify globally *)
   ignore
     (Symexec.verify
@@ -480,11 +485,6 @@ let verify_jimple_file
       ; q_infer = true
       ; q_name = "jstar_question" });
 (* TODO(rgrig): [q_name] should depend on the names of files being processed. *)
-
-  (* Print using core function *)
-  let my_file =  Pervasives.open_out "printhis" in
-  Corestar_std.pp_list CoreOps.pp_ast_question (Format.formatter_of_out_channel my_file) xs;
-  Pervasives.close_out my_file;  
 
 (* nikos: These extra verifications should be restored at some point?
    
