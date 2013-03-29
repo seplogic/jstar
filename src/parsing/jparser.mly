@@ -892,7 +892,7 @@ jargument_list:
 
 
 formula:
-   | /*empty*/  { [] }
+     /*empty*/  { [] }
    | EMP  { [] }
    | FALSE { mkFalse}
    | lvariable DOT jargument MAPSTO  jargument { [P_SPred("field", [Arg_var $1; $3; $5] )] }
@@ -909,7 +909,7 @@ formula:
    | L_PAREN formula R_PAREN { $2 }
 
 formula_npv:
-   | /*empty*/ { [] }
+     /*empty*/ { [] }
    | EMP  { []}
    | FALSE { mkFalse}
    | lvariable_npv DOT jargument_npv MAPSTO  jargument_npv { [P_SPred("field", [Arg_var $1; $3; $5] )] }

@@ -14,9 +14,12 @@
 
 (* Pretty printer module *)
 
+(* TODO(rgrig): Don't open these modules. *)
 open Jparsetree
 open Jimple_global_types
 open Spec
+
+(* TODO(rgrig): The functions here should be pretty printers. *)
 
 let binop2str bo =
   match bo with
@@ -172,7 +175,6 @@ let signature2str = function
   | Method_signature (c,t,n,pl) -> "<"^class_name2str c ^": "^ j_type2str t ^" "^ name2str n
       ^"("^  (list2str parameter2str pl ", " )^")>"
   | Field_signature (c,t,n) ->  mkStrOfFieldSignature c t n
-
 
 let reference2str = function
   |Array_ref (id,im) ->  identifier2str id ^ fixed_array_descriptor2str im

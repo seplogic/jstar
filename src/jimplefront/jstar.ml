@@ -26,7 +26,6 @@ let absrules_file_name = ref "abs"
 let eclipse_mode = ref false
 let specs_template_mode = ref false
 
-(* TODO: Check that arguments don't have conflicting (same?) names. *)
 let arg_list =
   Config.args_default
   @ [ "-e", Arg.Set eclipse_mode, "run in eclipse"
