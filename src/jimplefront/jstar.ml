@@ -35,18 +35,13 @@ let set_absrules_file_name n =
 
 
 let set_program_file_name n =
-  program_file_name := n ;
-  Support_symex.file := Filename.basename n
-
+  program_file_name := n
 
 let set_specs_template_mode () =
   Config.specs_template_mode := true
 
 let set_dotty_flag () =
   Config.dotty_print := true
-
-let set_grouped () =
-  Symexec.set_group true
 
 let set_eclipse () =
    Config.eclipse_ref := true
@@ -59,7 +54,6 @@ let arg_list = Config.args_default @
 ("-f", Arg.String(set_program_file_name ), "program file name" );
 ("-l", Arg.String(set_logic_file_name ), "logic file name" );
 ("-s", Arg.String(set_spec_file_name ), "spec file name" );
-("-g", Arg.Unit(set_grouped), "group abstraction nodes" );
 ("-a", Arg.String(set_absrules_file_name ), "abstraction rules file name" );
 ("-dot", Arg.Unit(set_dotty_flag ), "print heaps in dotty format for every node of cfg (default=false) " );
  ]
@@ -105,12 +99,13 @@ let main () =
   let usage_msg="Usage: -l <logic_file_name>  -a <abstraction_file_name>  -s <spec_file_name>  -f <class_file_program>" in
   Arg.parse
       arg_list
-      (fun s -> Format.eprintf "WARNING: Ignored argument %s.@." s)
+      (eprintf "@[WARNING: Ignored argument %s.@.")
       usage_msg;
+  eprintf "@[WTF? %s@\n@]@?" !program_file_name;
 
   if !program_file_name="" then
      eprintf "Program file name not specified. Can't continue....\n %s \n" usage_msg
-  else
+  else begin
      let program=parse_program () in
      if !logic_file_name="" && not !Config.specs_template_mode then
        eprintf "@\nLogic file name not specified. Can't continue....\n %s \n" usage_msg
@@ -123,10 +118,6 @@ let main () =
          fprintf logf "@[<4>Creating empty specs template for class@ %s.@." !program_file_name;
        Mkspecs.print_specs_template program)
      else (
-       let signals = (if Sys.os_type="Win32" then [] else [Sys.sigint; Sys.sigquit; Sys.sigterm]) in
-       List.iter
-	 (fun s ->  Sys.set_signal s (Sys.Signal_handle (fun x -> Symexec.pp_dotty_transition_system (); exit x)))
-         signals;
        if !Config.smt_run then Smt.smt_init();
        (* Load abstract interpretation plugins *)
        List.iter (fun file_name -> Plugin_manager.load_plugin file_name) !Config.abs_int_plugins;
@@ -194,10 +185,8 @@ let main () =
            program
            static_method_specs
            dynamic_method_specs
-           logic abs_rules;
-       Symexec.pp_dotty_transition_system ())
-
-
+           logic abs_rules)
+  end
 
 let _ =
   System.set_signal_handlers ();

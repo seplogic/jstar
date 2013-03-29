@@ -21,8 +21,6 @@ open Spec_def
 open Specification
 open Vars
 open Support_symex
-open Symexec
-open Core
 open Javaspecs
 open Spec
 
@@ -224,7 +222,7 @@ let assert_core b =
 
 let jimple_statement2core_statement s : Core.ast_core list =
   match s with
-  | Label_stmt l -> [Label_stmt_core l]
+  | Label_stmt l -> [C.Label_stmt_core l]
   | Breakpoint_stmt -> assert false
   | Entermonitor_stmt i -> assert false
   | Exitmonitor_stmt i -> assert false
@@ -247,19 +245,19 @@ let jimple_statement2core_statement s : Core.ast_core list =
       then Printf.printf "\n Translating a jimple conditional jump statement  %s\n"  (Pprinter.statement2str s);
    let l1 = fresh_label () in
    let l2 = fresh_label () in
-   [Goto_stmt_core([l1;l2]); Label_stmt_core l1; assert_core b; Goto_stmt_core [l];
-    Label_stmt_core l2; assert_core (negate b)]
+   [C.Goto_stmt_core([l1;l2]); C.Label_stmt_core l1; assert_core b; C.Goto_stmt_core [l];
+    C.Label_stmt_core l2; assert_core (negate b)]
   | Goto_stmt(l) ->
       if Config.symb_debug() then Printf.printf "\n Translating a jimple goto statement  %s\n" (Pprinter.statement2str s);
-      [Goto_stmt_core([l])]
+      [C.Goto_stmt_core([l])]
   | Nop_stmt ->
       if Config.symb_debug() then Printf.printf "\n Translating a jimple Nop statement  %s\n" (Pprinter.statement2str s);
-      [Nop_stmt_core]
+      [C.Nop_stmt_core]
   | Ret_stmt(i)  (* return i ---->  ret_var:=i  or as nop operation if it does not return anything*)
   | Return_stmt(i) ->
       if Config.symb_debug() then Printf.printf "\n Translating a jimple Return statement  %s\n" (Pprinter.statement2str s);
       (match i with
-       | None -> [Nop_stmt_core]
+       | None -> [C.Nop_stmt_core]
        | Some e' ->
 	 let p0 = Arg_var(mk_parameter 0) in (* ddino: should it be a fresh program variable? *)
 	 let post= mkEQ(retvar_term,p0) in
@@ -471,11 +469,17 @@ let verify_jimple_file
   *)
 	       let spec = HashSet.singleton(get_spec_for m fields cname) in 
                let l = add_static_type_info lo m.locals in
-		 { proc_name = sig_str; proc_spec = spec; proc_body = Some body; proc_rules = l } 
+		 { C.proc_name = sig_str; proc_spec = spec; proc_body = Some body; proc_rules = l } 
   ) mdl in 
 
   (* verify globally *)
-  ignore (Alt_abd.verify { q_procs = xs; q_rules = lo; q_infer = true }); 
+  ignore
+    (Symexec.verify
+      { C.q_procs = xs
+      ; q_rules = lo
+      ; q_infer = true
+      ; q_name = "jstar_question" });
+(* TODO(rgrig): [q_name] should depend on the names of files being processed. *)
 
   (* Print using core function *)
   let my_file =  Pervasives.open_out "printhis" in

@@ -12,7 +12,6 @@
  ********************************************************)
 
 
-val file : string ref
 val constant2args : Jparsetree.constant -> Psyntax.args
 val default_for : Jparsetree.j_type -> Jparsetree.name -> Psyntax.args
 val signature2args : Jparsetree.signature -> Psyntax.args
