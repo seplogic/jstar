@@ -186,7 +186,7 @@ let verify_methods
                 Jparsetree.pp_name mname
         | pss ->
           let ancestor_static_spec = spec_list_to_spec pss in
-          if Config.symb_debug () then (
+          if !Config.verbosity >= 4 then (
             let et =
               sprintf "Inheritance check for %s." (Pprinter.name2str mname) in
             if refinement logic ancestor_static_spec static_spec then

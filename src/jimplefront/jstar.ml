@@ -23,40 +23,19 @@ let program_file_name = ref ""
 let logic_file_name = ref "logic"
 let spec_file_name = ref "specs"
 let absrules_file_name = ref "abs"
-
-let set_logic_file_name n =
-  logic_file_name := n
-
-let set_spec_file_name n =
-  spec_file_name := n
-
-let set_absrules_file_name n =
-  absrules_file_name := n
-
-
-let set_program_file_name n =
-  program_file_name := n
-
-let set_specs_template_mode () =
-  Config.specs_template_mode := true
-
-let set_dotty_flag () =
-  Config.dotty_print := true
-
-let set_eclipse () =
-   Config.eclipse_ref := true
+let eclipse_mode = ref false
+let specs_template_mode = ref false
 
 (* TODO: Check that arguments don't have conflicting (same?) names. *)
-let arg_list = Config.args_default @
-[
-("-e", Arg.Unit(set_eclipse), "run in eclipse");
-("-template", Arg.Unit(set_specs_template_mode ), "create empty specs template" );
-("-f", Arg.String(set_program_file_name ), "program file name" );
-("-l", Arg.String(set_logic_file_name ), "logic file name" );
-("-s", Arg.String(set_spec_file_name ), "spec file name" );
-("-a", Arg.String(set_absrules_file_name ), "abstraction rules file name" );
-("-dot", Arg.Unit(set_dotty_flag ), "print heaps in dotty format for every node of cfg (default=false) " );
- ]
+let arg_list =
+  Config.args_default
+  @ [ "-e", Arg.Set eclipse_mode, "run in eclipse"
+    ; "-t", Arg.Set specs_template_mode, "create empty specs template"
+    ; "-f", Arg.Set_string program_file_name, "program file name"
+    ; "-l", Arg.Set_string logic_file_name, "logic file"
+    ; "-s", Arg.Set_string spec_file_name, "specs file"
+    ; "-a", Arg.Set_string absrules_file_name, "abstraction rules file" ]
+let () = Config.check_arg_specs arg_list
 
 
 let parse_program () =
@@ -101,19 +80,12 @@ let main () =
       arg_list
       (eprintf "@[WARNING: Ignored argument %s.@.")
       usage_msg;
-  eprintf "@[WTF? %s@\n@]@?" !program_file_name;
 
   if !program_file_name="" then
-     eprintf "Program file name not specified. Can't continue....\n %s \n" usage_msg
+    eprintf "@[@{<b>ERROR:@} Missing program file name.@\n%s@\n@]" usage_msg
   else begin
-     let program=parse_program () in
-     if !logic_file_name="" && not !Config.specs_template_mode then
-       eprintf "@\nLogic file name not specified. Can't continue....\n %s \n" usage_msg
-     else if !spec_file_name="" && not !Config.specs_template_mode then
-       eprintf "@\nSpecification file name not specified. Can't continue....\n %s \n" usage_msg
-     else if !absrules_file_name="" && not !Config.specs_template_mode then
-       eprintf "@\nAbstraction rules file name not specified. Can't continue....\n %s \n" usage_msg
-     else if !Config.specs_template_mode then
+     let program = parse_program () in
+     if !specs_template_mode then
        (if log log_phase then
          fprintf logf "@[<4>Creating empty specs template for class@ %s.@." !program_file_name;
        Mkspecs.print_specs_template program)

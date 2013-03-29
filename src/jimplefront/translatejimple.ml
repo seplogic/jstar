@@ -11,8 +11,10 @@
       LICENSE.txt
  ********************************************************)
 
+open Corestar_std
+open Format
 
-
+(* TODO(rgrig): Don't open these. *)
 open Psyntax
 open Jlogic
 open Jimple_global_types
@@ -221,6 +223,10 @@ let assert_core b =
 
 
 let jimple_statement2core_statement s : Core.ast_core list =
+  if !Config.verbosity >= 4 then begin
+    let s = Pprinter.statement2str s in
+    printf "@[<2>Translating jimple statement@\n%s@\n@]" s
+  end;
   match s with
   | Label_stmt l -> [C.Label_stmt_core l]
   | Breakpoint_stmt -> assert false
@@ -230,32 +236,27 @@ let jimple_statement2core_statement s : Core.ast_core list =
   | Lookupswitch_stmt(i,cl) -> assert false
   | Identity_stmt(nn,id,ty) ->
       (* nn := id: LinkedLisr   ---> nn:={emp}{return=param0}(id)*)
-      if Config.symb_debug() then
-	Printf.printf "\n Translating a jimple identity statement \n  %s\n" (Pprinter.statement2str s);
       let id'=Immediate_local_name(Identifier_name(id)) in
       let post= mkEQ(retvar_term,immediate2args id') in
       [mk_asgn [nn] [] post []]
   | Identity_no_type_stmt(n,i) -> assert false
   | Assign_stmt(v,e) ->
-      if Config.symb_debug() then
-	Printf.printf "\n Translating a jimple assignment statement  %s\n" (Pprinter.statement2str s);
       [translate_assign_stmt v e]
   | If_stmt(b,l) ->
-      if Config.symb_debug()
-      then Printf.printf "\n Translating a jimple conditional jump statement  %s\n"  (Pprinter.statement2str s);
-   let l1 = fresh_label () in
-   let l2 = fresh_label () in
-   [C.Goto_stmt_core([l1;l2]); C.Label_stmt_core l1; assert_core b; C.Goto_stmt_core [l];
-    C.Label_stmt_core l2; assert_core (negate b)]
+      let l1 = fresh_label () in
+      let l2 = fresh_label () in
+      [ C.Goto_stmt_core [l1; l2]
+      ; C.Label_stmt_core l1
+      ; assert_core b
+      ; C.Goto_stmt_core [l]
+      ; C.Label_stmt_core l2
+      ; assert_core (negate b) ]
   | Goto_stmt(l) ->
-      if Config.symb_debug() then Printf.printf "\n Translating a jimple goto statement  %s\n" (Pprinter.statement2str s);
       [C.Goto_stmt_core([l])]
   | Nop_stmt ->
-      if Config.symb_debug() then Printf.printf "\n Translating a jimple Nop statement  %s\n" (Pprinter.statement2str s);
       [C.Nop_stmt_core]
   | Ret_stmt(i)  (* return i ---->  ret_var:=i  or as nop operation if it does not return anything*)
   | Return_stmt(i) ->
-      if Config.symb_debug() then Printf.printf "\n Translating a jimple Return statement  %s\n" (Pprinter.statement2str s);
       (match i with
        | None -> [C.Nop_stmt_core]
        | Some e' ->
@@ -265,11 +266,10 @@ let jimple_statement2core_statement s : Core.ast_core list =
       )
   | Throw_stmt(i) -> failwith "TODO(rgrig): must use exception handlers table"
   | Invoke_stmt (e) ->
-      if Config.symb_debug() then Printf.printf "\n Translating a jimple Invoke statement %s \n" (Pprinter.statement2str s);
       let call_name, param = get_name e in
       let call_args = List.map immediate2args param in
-	[C.Call_core { C.call_name; call_rets = []; call_args }]
-  | Spec_stmt (asgn_rets, asgn_spec) -> 
+      [C.Call_core { C.call_name; call_rets = []; call_args }]
+  | Spec_stmt (asgn_rets, asgn_spec) ->
       let asgn_spec = HashSet.singleton asgn_spec in
       [C.Assignment_core { C.asgn_rets; asgn_args = []; asgn_spec }]
 
@@ -294,9 +294,9 @@ let methdec2signature_str dec =
 let jimple_stmts2core stms =
   let do_one_stmt (stmt_jimple, source_pos) =
     let s=jimple_statement2core_statement stmt_jimple in
-    if Config.symb_debug() then
-      Format.printf "@\ninto the core statement:@\n  %a @\n"
-      (Debug.list_format "; " CoreOps.pp_ast_core) s;
+    if !Config.verbosity >= 4 then
+      printf "@[<2>@\ninto the core statement:@\n%a@\n@]"
+      (pp_list_sep "; " CoreOps.pp_ast_core) s;
       s (* here we throw away the source position -- might want to restore it for nice error messages *)
   in
   List.flatten (List.map do_one_stmt stms)
