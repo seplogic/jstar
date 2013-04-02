@@ -32,6 +32,8 @@ open Support_syntax
 open System
 open Vars
 
+module PS = Psyntax
+
 exception Class_defines_external_spec
 
 
@@ -79,23 +81,25 @@ let add_apf_to_logic (logic : logic) apfdefines classname : Psyntax.logic =
     let bodyname = name ^ "$" ^ classname in
 (* open on left *)
     rules @
-    (mk_seq_rule ((mkEmpty,(objtype recvar classname)&&&(apf_match name recvar paramvar),mkEmpty,mkEmpty),
-                  [[(mkEmpty,((objtype recvar classname)&&&(apf_match bodyname recvar paramvar)),mkEmpty,mkEmpty)]],
-                  ("apf_open_left_" ^ name))
+      (mk_seq_rule (PS.mk_psequent mkEmpty (objtype recvar classname &&& apf_match name recvar paramvar) mkEmpty,
+                    [[PS.mk_psequent 
+                        mkEmpty 
+                        (objtype recvar classname &&& apf_match bodyname recvar paramvar) 
+                        mkEmpty
+                     ]], 
+                    ("apf_open_left_" ^ name))
      ::
-     mk_seq_rule ((mkEmpty,(apf_match bodyname recvar paramvar),mkEmpty,mkEmpty),
-                  [[mkEmpty,pdefinition,([]),mkEmpty]],
-                  ("apf_body_left_" ^ name))
+      mk_seq_rule (PS.mk_psequent mkEmpty (apf_match bodyname recvar paramvar) mkEmpty, [[ PS.mk_psequent mkEmpty pdefinition [] ]], ("apf_body_left_" ^ name))
      ::
        (* open on right *)
-       mk_seq_rule ((mkEmpty, objtype recvar classname, apf_match name recvar paramvar,mkEmpty),
-                    [[mkEmpty, objtype recvar classname, apf_match bodyname recvar paramvar, mkEmpty]],
+     mk_seq_rule (PS.mk_psequent mkEmpty (objtype recvar classname) (apf_match name recvar paramvar),
+                  [[PS.mk_psequent mkEmpty (objtype recvar classname) (apf_match bodyname recvar paramvar)]],
                     ("apf_open_right_" ^ name))
-     ::
-       mk_seq_rule ((mkEmpty, mkEmpty, apf_match bodyname recvar paramvar,mkEmpty),
-                    [[mkEmpty,mkEmpty,edefinition,mkEmpty]],
-                    ("apf_body_right_" ^ name))
-      ::[])
+     :: mk_seq_rule
+          ( PS.mk_psequent mkEmpty mkEmpty (apf_match bodyname recvar paramvar)
+          , [[PS.mk_psequent mkEmpty mkEmpty edefinition]]
+          , ("apf_body_right_" ^ name) )
+     ::[])
   in let rec inner apfdefines rules =
     match apfdefines with
       [] -> rules
@@ -215,8 +219,9 @@ let rules_for_implication imp prov : sequent_rule list =
                                                 (P_SPred(pred_name,first_arg :: new_other_args),equalities)
                                 | _ -> (conjunct,[])
                         in
-                        mk_seq_rule ((mkEmpty,antecedent,[qi],mkEmpty),
-                                [[[conjunct],others,Psyntax.pconjunction eqs proviso,mkEmpty]], (* Note the use of conjunct here and not qi. *)
+                          mk_seq_rule ( PS.mk_psequent mkEmpty antecedent [qi],
+                                        [[ PS.mk_psequent [conjunct]
+                                             others (PS.pconjunction eqs proviso) ]], (* Note the use of conjunct here and not qi. *)
                                 name)
                 ) (split consequent) in
         (* Finally, adjust the sequent rule names *)
@@ -243,12 +248,18 @@ let logic_with_where_pred_defs exportLocal_predicates (logic : logic) : logic =
                         let pdefinition = subst_pform pvarsubst defn in
                         let edefinition = subst_pform evarsubst defn in
                         let rules = logic.seq_rules @
-                                (mk_seq_rule ((mkEmpty,[pred],mkEmpty,mkEmpty),
-                                        [[mkEmpty,pdefinition,([]),mkEmpty]],
+                          (mk_seq_rule (PS.mk_psequent mkEmpty [pred]
+                                           mkEmpty,
+                                        [[PS.mk_psequent mkEmpty
+                                            pdefinition []]],
                                         ("exports_body_left_" ^ name))
                                 ::
-                                mk_seq_rule ((mkEmpty,mkEmpty,[pred],mkEmpty),
-                                        [[mkEmpty,mkEmpty,edefinition,mkEmpty]],
+                                           mk_seq_rule (PS.mk_psequent
+                                                          mkEmpty
+                                                          mkEmpty [pred],
+                                                        [[PS.mk_psequent
+                                                            mkEmpty
+                                                            mkEmpty edefinition]],
                                         ("exports_body_right_" ^ name))
                                 :: [])
                         in
@@ -607,28 +618,31 @@ let add_common_apf_predicate_rules spec_list logic =
         let param = Vars.fresha() in
         let param' = Vars.fresha() in
         let subeq_rule =
-                mk_seq_rule (([],[],mk_subeq(param,param'),mkEmpty),
-                        [[([],[],mkEQ(Arg_var param,Arg_var param'),mkEmpty)];
-                         [([],[],mk_sub(param,param'),mkEmpty)]],
+          mk_seq_rule (PS.mk_psequent [] [] (mk_subeq (param,param')),
+                       [[ PS.mk_psequent [] [] (mkEQ (Arg_var param,Arg_var param'))];
+                        [ PS.mk_psequent [] [] (mk_sub (param,param'))
+                        ]],
                         "subeq_rule"
                 )
         in
         let match_rules = List.map (fun predname ->
                 let left = make_apf predname recvar param in
                 let right = make_apf predname recvar param' in
-                mk_seq_rule ((mkEmpty,left,right,mkEmpty),
-                        [[left,mkEmpty,mk_subeq(param,param'),mkEmpty]],
+                  mk_seq_rule ( PS.mk_psequent mkEmpty left right,
+                                [[ PS.mk_psequent left mkEmpty
+                                     (mk_subeq (param,param')) ]],
                         (predname^"_match")
                 )
         ) (apf_preds @ apf_entries) in
         let not_null_rules = List.fold_left (fun rules predname ->
                 let form = make_apf predname recvar param in
-                (mk_seq_rule ((mkEmpty,form,not_null recvar,mkEmpty),
-                        [[mkEmpty,form,mkEmpty,mkEmpty]],
+                  (mk_seq_rule (PS.mk_psequent mkEmpty form (not_null recvar),
+                                [[ PS.mk_psequent mkEmpty form mkEmpty
+                                 ]],
                         (predname^"_not_nil1")
                  ) ::
-                 mk_seq_rule ((form,mkEmpty,not_null recvar,mkEmpty),
-                        [[form,mkEmpty,mkEmpty,mkEmpty]],
+                     mk_seq_rule (PS.mk_psequent form mkEmpty (not_null recvar),
+                                  [[ PS.mk_psequent form mkEmpty mkEmpty ]],
                         (predname^"_not_nil2")
                  ) :: rules)
         ) [] apf_preds in
@@ -667,17 +681,22 @@ let add_subtype_and_objsubtype_rules spec_list logic =
         let x = Arg_var (Vars.fresha ()) in
         let y = Arg_var (Vars.fresha ()) in
         let premise : (Psyntax.psequent list list) =
-                [(mkEmpty,mkEmpty,mkEQ(x,y),mkEmpty)] ::
-                List.map (fun (ancestor,descendent) -> [mkEmpty,mkEmpty,[P_EQ(x,Jlogic.class2args descendent);P_EQ(y,Jlogic.class2args ancestor)],mkEmpty]) tc in
-        let subtype_rule = mk_seq_rule ((mkEmpty,mkEmpty,Jlogic.mk_subtype1 x y,mkEmpty),premise,"subtype_relation_right") in
+          [ PS.mk_psequent mkEmpty mkEmpty (mkEQ(x,y)) ] ::
+            List.map (fun (ancestor,descendent) -> [ PS.mk_psequent
+                                                       mkEmpty mkEmpty
+                                                       [P_EQ(x,Jlogic.class2args descendent);P_EQ(y,Jlogic.class2args ancestor)]]) tc in
+        let subtype_rule = mk_seq_rule ( PS.mk_psequent mkEmpty
+                                           mkEmpty (Jlogic.mk_subtype1
+                                                      x y), premise,
+                                         "subtype_relation_right" ) in
         let o = Arg_var (Vars.fresha ()) in
         let c = Arg_var (Vars.fresha ()) in
         let d = Arg_var (Vars.fresha ()) in
         let e = Arg_var (Vars.freshe ()) in
         let objsubtype_rule = mk_seq_rule (
-                (mkEmpty,mkEmpty,[Jlogic.mk_objsubtyp1 o c],mkEmpty),
-                [[(mkEmpty,mkEmpty,(Jlogic.mk_type1 o d) @ (Jlogic.mk_subtype1 d c),mkEmpty)];
-                 [(mkEmpty,mkEmpty,(not_null1 o) @ (Jlogic.mk_statictyp1 o e :: Jlogic.mk_subtype1 e c),mkEmpty)]],
+          PS.mk_psequent mkEmpty mkEmpty [Jlogic.mk_objsubtyp1 o c],
+          [[ PS.mk_psequent mkEmpty mkEmpty ((Jlogic.mk_type1 o d) @ (Jlogic.mk_subtype1 d c))];
+           [ PS.mk_psequent mkEmpty mkEmpty ((not_null1 o) @ (Jlogic.mk_statictyp1 o e :: Jlogic.mk_subtype1 e c))]],
                 "objsubtype_right"
         ) in
         append_rules logic [objsubtype_rule;subtype_rule]

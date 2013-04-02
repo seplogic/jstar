@@ -27,6 +27,7 @@ open Javaspecs
 open Spec
 
 module C = Core
+module PS = Psyntax 
 
 (* global variables *)
 let curr_static_methodSpecs: Javaspecs.methodSpecs ref = ref Javaspecs.emptyMSpecs
@@ -99,6 +100,11 @@ let get_spec  (iexp: Jparsetree.invoke_expr) =
       spec,il
 
 
+let msig2str cn rt mn ps =
+  Pprinter.class_name2str cn ^ "." ^ Pprinter.name2str mn ^ "$$" ^ (Pprinter.list2str Pprinter.parameter2str
+                         ps "$$") ^ "$$" ^ Pprinter.j_type2str rt
+
+
 let get_name  (iexp: Jparsetree.invoke_expr) =
   match iexp with
   | Invoke_nostatic_exp (Virtual_invoke,_,si,il)
@@ -106,9 +112,8 @@ let get_name  (iexp: Jparsetree.invoke_expr) =
   | Invoke_nostatic_exp (Special_invoke,_,si,il) 
   | Invoke_static_exp (si,il) ->
       let n = match si with
-	| Method_signature (cn,_,mn,ps) -> Pprinter.class_name2str cn ^ "." ^ Pprinter.name2str mn ^ "$$" ^ (Pprinter.list2str Pprinter.parameter2str ps "$$") 
-	| Field_signature (cn,_,fn) -> Pprinter.class_name2str cn ^  "." ^ Pprinter.name2str fn 
-            (* nikos: should this case ever be reached? *) 
+	| Method_signature (cn,rt,mn,ps) -> msig2str cn rt mn ps 
+	| Field_signature (cn,_,fn) -> failwith "INTERNAL: cannot invoke a field"
       in n,il
 
 
@@ -285,10 +290,8 @@ maybe we should use a stronger condition
 *)
 let is_init_method md = Pprinter.name2str md.name_m ="<init>"
 
-
 let methdec2signature_str dec =
-  Pprinter.class_name2str dec.class_name ^ "." ^ Pprinter.name2str dec.name_m ^ "$$" ^ (Pprinter.list2str Pprinter.parameter2str dec.params "$$")
-
+  msig2str dec.class_name dec.ret_type dec.name_m dec.params
 
 
 let jimple_stmts2core stms =
@@ -406,9 +409,12 @@ let jimple_locals2stattype_rules (locals : local_var list) : sequent_rule list =
 	) locals in
 	let x = Arg_var (Vars.fresha ()) in
 	LocalMap.fold (fun typ vars rules ->
-		let premise : (Psyntax.psequent list list) = List.map (fun var -> [mkEmpty,mkEmpty,mkEQ(x,var),mkEmpty]) vars in
+		         let premise : (Psyntax.psequent list list) =
+	                   List.map (fun var -> [ PS.mk_psequent
+	                                            mkEmpty mkEmpty
+	                                            (mkEQ(x,var)) ]) vars in
 		mk_seq_rule (
-			(mkEmpty,mkEmpty,[mk_statictyp1 x (Arg_string typ)],mkEmpty),
+		  PS.mk_psequent mkEmpty mkEmpty [mk_statictyp1 x (Arg_string typ)],
 			premise,
 			"static_type_"^typ
 		) :: rules
@@ -418,6 +424,22 @@ let add_static_type_info logic locals : Psyntax.logic =
 	let rules = jimple_locals2stattype_rules locals in
 	Javaspecs.append_rules logic rules
 
+
+(*
+let called_procs_instrs acc i = HashSet.add acc (bla i)
+
+let called_procs_from_body acc ss =
+  List.iter (called_procs_instr acc) ss
+let called_procs_from_proc acc proc = called_procs_from_body acc
+  proc.body
+
+let h = HashSet.create 1 in
+  called_procs_from-proc h proc;
+ss
+*)
+
+let add_dummy_procs xs =
+  failwith "TODO"
 
 
 let verify_jimple_file
@@ -468,14 +490,16 @@ let verify_jimple_file
                let ensures = if Methdec.has_ensures_clause m then jimple_stmts2core m.ens_stmts else [] in
   *)
 	       let spec = HashSet.singleton(get_spec_for m fields cname) in 
-               let l = add_static_type_info lo m.locals in
+               let l = add_static_type_info PS.empty_logic  m.locals in
 		 { C.proc_name = sig_str; proc_spec = spec; proc_body = Some body; proc_rules = l } 
   ) mdl in 
 
+  let xs = add_dummy_procs xs in
+
   (* Print using core function *)
-  let my_file =  Pervasives.open_out "printhis" in
-  Corestar_std.pp_list CoreOps.pp_ast_question (Format.formatter_of_out_channel my_file) xs;
-  Pervasives.close_out my_file;  
+  let file =  open_out "jstar_question.core" in
+  Corestar_std.pp_list CoreOps.pp_ast_question (Format.formatter_of_out_channel file) xs;
+  close_out file;  
 
   (* verify globally *)
   ignore
