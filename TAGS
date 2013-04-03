@@ -1,0 +1,837 @@
+
+src/jimplefront/classverification.ml,1898
+(********************************************************Classverification1,0
+let is_class_abstract jimple_file =is_class_abstract26,488
+let is_interface jimple_file =is_interface30,634
+let parent_classes_and_interfaces (jfile : Jimple_global_types.jimple_file) =parent_classes_and_interfaces35,779
+let verify_exports_implications implications logic_with_where_pred_defs =verify_exports_implications39,1002
+let verify_axioms_implications class_name jimple_file implications axiom_map (logic : logic) =verify_axioms_implications51,1585
+        let m = sprintf "implication verification of axiom %s" name inm62,2262
+          let parent_name = (Pprinter.class_name2str parent) inparent_name69,2612
+            let p_antecedent,p_consequent =p_antecedent71,2690
+            let m =m79,3078
+            let p_antecedent = Sepprover.convert p_antecedent inp_antecedent81,3177
+            let consequent = Sepprover.convert consequent inconsequent82,3242
+let verify_methodsverify_methods95,3912
+    let pss msig (ss,_) = (* process static spec *)pss116,4719
+      let ds, dsp = MethodMap.find msig dynamic_method_specs inds118,4803
+        (let et =et124,5076
+  let dynamic_specs =dynamic_specs133,5475
+  let pds (cn,a,mn,c) (ds,_) = (* process dynamic spec *)pds137,5623
+    let pp p = (* process parent *)pp138,5681
+        let ds',dsp' = MethodMap.find (p,a,mn,c) dynamic_method_specs inds'140,5727
+          let et = sprintf "%s#%s not <: %s#%s"et149,6106
+  let ms = (* methods *)ms158,6523
+  let ms = List.filter Methdec.has_body ms inms162,6651
+  let sigs = (* ... for methods with bodies *)sigs163,6697
+  let sss =sss169,6895
+      let parent_static_specs = List.fold_left (fun list parent ->parent_static_specs173,7267
+          let ancestor_static_spec = spec_list_to_spec pss inancestor_static_spec188,7905
+            let et =et190,8010
+
+src/jimplefront/classverification.mli,411
+(********************************************************Classverification1,0
+val is_interface : Jimple_global_types.jimple_file -> boolis_interface15,334
+val parent_classes_and_interfaces :parent_classes_and_interfaces16,393
+val verify_exports_implications :verify_exports_implications18,493
+val verify_axioms_implications :verify_axioms_implications20,598
+val verify_methods :verify_methods25,823
+
+src/jimplefront/javaspecs.ml,6815
+(********************************************************Javaspecs1,0
+module PS = PsyntaxPS1,650
+exception Class_defines_external_specClass_defines_external_spec37,671
+let append_rules (logic : logic) (rules : sequent_rule list) : Psyntax.logic =append_rules42,769
+let rec are_neighbors_different = functionare_neighbors_different48,977
+    let definition = subst_pform (add receiver (Arg_var recvar) empty)  definition indefinition68,1932
+    let paramvar = Vars.fresha () inparamvar69,2018
+    let param_eq = mkEQ(mkArgRecord parameters,Arg_var paramvar) inparam_eq70,2055
+    let definition = param_eq&&&definition indefinition72,2167
+    let parvars = VarSet.add recvar (VarSet.add paramvar VarSet.empty) inparvars74,2303
+    let defvars = Psyntax.fv_form definition indefvars75,2377
+    let sparevars = VarSet.diff defvars parvars insparevars76,2425
+    let pvarsubst = subst_kill_vars_to_fresh_prog sparevars inpvarsubst77,2476
+    let evarsubst = subst_kill_vars_to_fresh_exist sparevars inevarsubst78,2539
+    let pdefinition = subst_pform pvarsubst definition inpdefinition79,2603
+    let edefinition = subst_pform evarsubst definition inedefinition80,2661
+    let bodyname = name ^ "$" ^ classname inbodyname81,2719
+  in let rec inner apfdefines rules =inner103,3850
+  let rules = inner apfdefines logic.seq_rules inrules108,4012
+let augmented_logic_for_class class_name sf (logic : logic) : logic =augmented_logic_for_class111,4096
+let parent_relation spec_list =parent_relation125,4761
+let rec transitive_closure relation =transitive_closure134,5169
+let rec topological_sort relation =topological_sort152,6342
+let a_topological_ordering_of_all_classes spec_file =a_topological_ordering_of_all_classes167,7465
+let parent_classes_and_interfaces classname spec_list =parent_classes_and_interfaces178,7872
+let rules_for_implication imp prov : sequent_rule list =rules_for_implication187,8224
+        let free_vars = Psyntax.fv_form (Psyntax.pconjunction prov (Psyntax.pconjunction antecedent consequent)) infree_vars191,8526
+        let free_prog_vars = VarSet.filter is_pvar free_vars infree_prog_vars192,8642
+        let sub = VarSet.fold (fun var sub -> add var (Arg_var (Vars.fresha ())) sub) free_prog_vars empty insub193,8706
+        let proviso : Psyntax.pform = subst_pform sub prov inproviso194,8816
+        let antecedent : Psyntax.pform = subst_pform sub antecedent inantecedent195,8878
+        let consequent = subst_pform sub consequent inconsequent196,8949
+        let split conjuncts =split203,9464
+        let rules = List.map (fun ((conjunct : Psyntax.pform_at),(others : Psyntax.pform)) ->rules210,9780
+let logic_with_where_pred_defs exportLocal_predicates (logic : logic) : logic =logic_with_where_pred_defs237,11778
+        let logic = logic_with_where_pred_defs exportLocal_predicates logic inlogic279,14356
+let add_exported_implications_to_logic spec_list logic : Psyntax.logic =add_exported_implications_to_logic283,14590
+module AxiomMap =AxiomMap1,15173
+                type t = class_name * string  (* the class name and axiom name *)t296,15216
+                let compare = comparecompare297,15298
+type axiom_map = (Psyntax.pform * Psyntax.pform) AxiomMap.taxiom_map300,15350
+let filtermap filterfun mapfun list =filtermap302,15411
+let axiommap_filter p axiommap =axiommap_filter305,15503
+        AxiomMap.fold (fun key value result -> if p key value then AxiomMap.add key value result else result) axiommap AxiomMap.emptyresult306,15536
+        AxiomMap.fold (fun key value list -> f key value :: list) axiommap []list309,15702
+let spec_file_to_axiom_map spec_list =spec_file_to_axiom_map311,15781
+        let pr = parent_relation spec_list inpr322,16338
+        let ts = topological_sort pr ints323,16384
+                let parents = parent_classes_and_interfaces classname spec_list inparents325,16468
+                let parent_axiom_map = axiommap_filter (fun (cn,an) imp -> List.mem cn parents) (!axiommap) inparent_axiom_map326,16551
+                let parent_axiom_names = remove_duplicates (axiommap2list (fun (cn,an) _ -> an) parent_axiom_map) inparent_axiom_names327,16662
+                                let parent_axioms_with_same_name = axiommap2list (fun k imp -> imp) (axiommap_filter (fun (cn,an) ni -> an = axiom_name) parent_axiom_map) inparent_axioms_with_same_name332,16989
+                                          %s and its parents do not have the \its338,17490
+let implications_for_axioms_verification class_name axiom_map : named_implication list =implications_for_axioms_verification349,18078
+let add_axiom_implications_to_logic spec_list (logic : logic) : logic =add_axiom_implications_to_logic371,18961
+let is_interface classname spec_list =is_interface392,20156
+let is_method_abstract (method_signature : method_signature) spec_list =is_method_abstract398,20389
+let class_spec_to_ms cs (smmap,dmmap) =class_spec_to_ms443,22042
+let remove_this_type_info prepure =remove_this_type_info463,22643
+let static_to_dynamic { Spec.pre; post } =static_to_dynamic470,22901
+let rec filtertype_spat classname spat =filtertype_spat473,22994
+let rec filterdollar_at spat =filterdollar_at491,23767
+let dynamic_to_static cn { Spec.pre; post } =dynamic_to_static509,24493
+let filter_dollar_spec { Spec.pre; post } =filter_dollar_spec512,24602
+let fix_spec_inheritance_gaps classes mmap spec_file exclude_function spec_type =fix_spec_inheritance_gaps515,24707
+  let rec fix_inner = functionfix_inner537,25811
+let fix_gaps (smmap,dmmap) spec_file =fix_gaps547,26219
+  let dmmapr = ref dmmap indmmapr549,26333
+  let smmapr = ref smmap insmmapr550,26361
+        let classes = topological_sort (parent_relation spec_file) inclasses563,27070
+let spec_file_to_method_specsspec_file_to_method_specs569,27412
+let mk_subeq (var1,var2) = [P_PPred("subeq",[Arg_var var1;Arg_var var2])]mk_subeq581,27805
+let mk_sub (var1,var2) = [P_PPred("sub",[Arg_var var1;Arg_var var2])]mk_sub582,27879
+let add_common_apf_predicate_rules spec_list logic =add_common_apf_predicate_rules608,28357
+        let apf_preds,apf_entries = List.fold_left (fun (apf_preds,apf_entries) cs ->apf_preds611,28547
+        let recvar = Vars.fresha() inrecvar617,28971
+        let param = Vars.fresha() inparam618,29009
+        let param' = Vars.fresha() inparam'619,29046
+        let subeq_rule =subeq_rule620,29084
+        let match_rules = List.map (fun predname ->match_rules628,29432
+        let not_null_rules = List.fold_left (fun rules predname ->not_null_rules637,29906
+let add_subtype_and_objsubtype_rules spec_list logic =add_subtype_and_objsubtype_rules678,31225
+let refinement_this logic spec1 spec2 cname =refinement_this709,32820
+
+src/jimplefront/javaspecs.mli,1963
+(********************************************************Javaspecs1,0
+val append_rules :append_rules15,326
+val apf :apf17,407
+val augmented_logic_for_class :augmented_logic_for_class19,495
+val remove_duplicates : 'a list -> 'a listremove_duplicates22,615
+val parent_classes_and_interfaces :parent_classes_and_interfaces23,658
+val logic_with_where_pred_defs :logic_with_where_pred_defs26,778
+val logic_and_implications_for_exports_verification :logic_and_implications_for_exports_verification29,905
+val add_exported_implications_to_logic :add_exported_implications_to_logic33,1083
+module AxiomMap : Map.S with type key = Jparsetree.class_name * stringAxiomMap1,1185
+type axiom_map = (Psyntax.pform * Psyntax.pform) AxiomMap.taxiom_map36,1256
+val spec_file_to_axiom_map :spec_file_to_axiom_map37,1316
+val implications_for_axioms_verification :implications_for_axioms_verification39,1418
+module AxiomMap2 : Map.S with type key = Jparsetree.class_nameAxiomMap21,1570
+type axiom_map2 = Spec_def.named_implication list AxiomMap2.taxiom_map244,1633
+val add_axiom_implications_to_logic :add_axiom_implications_to_logic45,1695
+val is_interface : Jparsetree.class_name -> Spec_def.class_spec list -> boolis_interface47,1794
+module MethodMap : Map.S with type key = Jparsetree.method_signatureMethodMap1,1871
+module MethodMapH :MethodMapH1,1940
+module MethodSet : Set.S with type elt = Jparsetree.method_signatureMethodSet1,2061
+type methodSpecs = (Spec.ast_spec * Printing.source_location option) MethodMap.tmethodSpecs55,2130
+val emptyMSpecs : methodSpecsemptyMSpecs56,2211
+val spec_list_to_spec : Spec.ast_spec list -> Spec.ast_specspec_list_to_spec57,2241
+val spec_file_to_method_specs :spec_file_to_method_specs58,2301
+val add_common_apf_predicate_rules :add_common_apf_predicate_rules60,2389
+val add_subtype_and_objsubtype_rules :add_subtype_and_objsubtype_rules62,2487
+val refinement_this :refinement_this64,2587
+
+src/jimplefront/jlogic.ml,1270
+(********************************************************Jlogic1,0
+let class2args cl = Arg_string (class_name2str cl)class2args20,395
+let mk_pointsto n si e = [P_SPred("field",[n; si; e])]mk_pointsto23,469
+let mk_subtype1 a1 a2 = [P_PPred("subtype", a1 :: a2 :: [])]mk_subtype126,549
+let mk_subtype cl1 cl2 = mk_subtype1 (class2args cl1) (class2args cl2)mk_subtype27,610
+let base_type2args ty = base_type2args30,683
+let objtype_name = "type"objtype_name34,808
+let mk_type1 a1 a2 = [P_PPred(objtype_name, a1::a2::[])]mk_type135,834
+let mk_type var cl = mk_type1 var (class2args cl)mk_type36,891
+let mk_type_all var cl = [P_PPred(objtype_name, var::(base_type2args cl)::[])]mk_type_all38,942
+let objtype receiver classname = [P_PPred(objtype_name, [(Arg_var receiver);(Arg_string classname)])]objtype40,1022
+let mk_objsubtyp1 a1 a2 = P_PPred("objsubtype", a1 :: a2 :: [])mk_objsubtyp145,1169
+let mk_objsubtyp var cl = mk_objsubtyp1 var (class2args cl)mk_objsubtyp46,1233
+let mk_objnotsubtyp var cl = P_PPred("notobjsubtype", var :: (class2args cl) :: [])mk_objnotsubtyp49,1341
+let mk_statictyp1 a1 a2 = P_PPred("statictype", a1 :: a2 :: [])mk_statictyp152,1457
+let mk_statictyp var cl = mk_statictyp1 var (class2args cl)mk_statictyp53,1521
+
+src/jimplefront/jlogic.mli,881
+(********************************************************Jlogic1,0
+val class2args : Jparsetree.class_name -> Psyntax.argsclass2args15,323
+val mk_pointsto :mk_pointsto16,378
+val mk_subtype1 : Psyntax.args -> Psyntax.args -> Psyntax.pform_at listmk_subtype118,468
+val objtype_name : stringobjtype_name19,540
+val mk_type1 : Psyntax.args -> Psyntax.args -> Psyntax.pform_at listmk_type120,566
+val mk_type : Psyntax.args -> Jparsetree.class_name -> Psyntax.pform_at listmk_type21,635
+val mk_type_all :mk_type_all22,712
+val objtype : Vars.var -> string -> Psyntax.pform_at listobjtype24,796
+val mk_objsubtyp1 : Psyntax.args -> Psyntax.args -> Psyntax.pform_atmk_objsubtyp125,854
+val mk_objsubtyp : Psyntax.args -> Jparsetree.class_name -> Psyntax.pform_atmk_objsubtyp26,923
+val mk_statictyp1 : Psyntax.args -> Psyntax.args -> Psyntax.pform_atmk_statictyp127,1000
+
+src/jimplefront/jstar.ml,2133
+(********************************************************Jstar1,0
+let program_file_name = ref ""program_file_name22,417
+let logic_file_name = ref "logic"logic_file_name23,448
+let spec_file_name = ref "specs"spec_file_name24,482
+let absrules_file_name = ref "abs"absrules_file_name25,515
+let eclipse_mode = ref falseeclipse_mode26,550
+let specs_template_mode = ref falsespecs_template_mode27,579
+let arg_list =arg_list29,616
+let parse_program () =parse_program40,1071
+  let program = program inprogram50,1505
+  let rec spec_to_virt x maps = match x withspec_to_virt51,1532
+  let spec_to_virt_helper x =spec_to_virt_helper62,2200
+let main () =main76,2596
+       let logic = {empty_logic with seq_rules=l1; rw_rules=l2; consdecl=cn} inlogic98,3475
+       let l1,l2,cn = Load_logic.load_abstractions !absrules_file_name inl1100,3556
+       let abs_rules = {empty_logic with seq_rules=l1; rw_rules=l2; consdecl=cn} inabs_rules101,3630
+       let spec_list : (Spec_def.class_spec list) = Load.import_flattenspec_list103,3715
+       let Jimple_global_types.JFile(_,_,class_name,_,_,_) = program inJimple_global_types109,3903
+       let logic = Javaspecs.augmented_logic_for_class class_name spec_list logic inlogic111,3976
+       let logic = Javaspecs.add_common_apf_predicate_rules spec_list logic inlogic112,4061
+       let logic = Javaspecs.add_subtype_and_objsubtype_rules spec_list logic inlogic114,4220
+       let (logic_with_where_pred_defs,implications) = Javaspecs.logic_and_implications_for_exports_verification class_name spec_list logic inlogic_with_where_pred_defs117,4340
+       let logic = Javaspecs.add_exported_implications_to_logic spec_list logic inlogic123,4746
+       let axiom_map = Javaspecs.spec_file_to_axiom_map spec_list inaxiom_map132,5094
+       let implications = Javaspecs.implications_for_axioms_verification class_name axiom_map inimplications133,5163
+       let logic = Javaspecs.add_axiom_implications_to_logic spec_list logic inlogic141,5443
+       let (static_method_specs,dynamic_method_specs) =static_method_specs150,5784
+  let mf = {mf164,6184
+
+src/jimplefront/jstar.mli,347
+(********************************************************Jstar1,0
+val program_file_name : string refprogram_file_name15,327
+val logic_file_name : string reflogic_file_name16,362
+val absrules_file_name : string refabsrules_file_name17,395
+val arg_list : (string * Arg.spec * string) listarg_list18,431
+val main : unit -> unitmain19,480
+
+src/jimplefront/methdec.ml,177
+(********************************************************Methdec1,0
+let make_methdec mos cname ty n pars tc (rlocs,rstms) ostmss (elocs,estms) (locs,b)  =make_methdec24,426
+
+src/jimplefront/methdec.mli,614
+(********************************************************Methdec1,0
+val get_list_methods :get_list_methods15,324
+val get_list_fields :get_list_fields17,416
+val get_class_name : Jimple_global_types.jimple_file -> Jparsetree.class_nameget_class_name19,507
+val make_methdecs_of_list :make_methdecs_of_list20,585
+val get_msig :get_msig23,717
+val has_body : Jimple_global_types.methdec_jimple -> boolhas_body26,849
+val has_requires_clause : Jimple_global_types.methdec_jimple -> boolhas_requires_clause27,907
+val has_ensures_clause : Jimple_global_types.methdec_jimple -> boolhas_ensures_clause28,976
+
+src/jimplefront/mkspecs.ml,109
+(********************************************************Mkspecs1,0
+module J = Jimple_global_typesJ1,353
+
+src/jimplefront/mkspecs.mli,165
+(********************************************************Mkspecs1,0
+val print_specs_template : Jimple_global_types.jimple_file -> unitprint_specs_template15,324
+
+src/jimplefront/support_symex.ml,939
+(********************************************************Support_symex1,0
+let variable2key v = Pprinter.variable2str vvariable2key25,490
+let constant2args c =constant2args36,819
+let signature2args si = signature2args81,2124
+let name2args n =name2args85,2193
+let identifier2args s = identifier2args91,2303
+let immediate2args im = immediate2args95,2364
+let reference2args r = (* not sure we need this. Maybe we need reference2PPred*)reference2args101,2494
+let expression2args e = expression2args108,2782
+let signature_get_name si =signature_get_name183,4866
+let invoke_exp_get_signature ie =invoke_exp_get_signature189,4982
+let this_var_name = Support_syntax.this_var_namethis_var_name196,5113
+let parameter n = "@parameter"^(string_of_int n)^":"parameter198,5163
+let mk_this : Vars.var =mk_this201,5241
+let mk_res : Vars.var =mk_res205,5372
+let make_field_signature  cname ty n =make_field_signature208,5431
+
+src/jimplefront/support_symex.mli,857
+(********************************************************Support_symex1,0
+val constant2args : Jparsetree.constant -> Psyntax.argsconstant2args15,330
+val default_for : Jparsetree.j_type -> Jparsetree.name -> Psyntax.argsdefault_for16,386
+val signature2args : Jparsetree.signature -> Psyntax.argssignature2args17,457
+val name2args : Jparsetree.name -> Psyntax.argsname2args18,515
+val immediate2args : Jparsetree.immediate -> Psyntax.argsimmediate2args19,563
+val variable2var : Jparsetree.variable -> Vars.varvariable2var20,621
+val var2args : Vars.var -> Psyntax.argsvar2args21,672
+val negate : Jparsetree.expression -> Jparsetree.expressionnegate22,712
+val this_var_name : stringthis_var_name23,772
+val parameter : int -> stringparameter24,799
+val mk_this : Vars.varmk_this25,829
+val make_field_signature :make_field_signature26,852
+
+src/jimplefront/translatejimple.ml,1702
+(********************************************************Translatejimple1,0
+module C = CoreC1,552
+      let id'=Immediate_local_name(Identifier_name(id)) inid'249,8594
+      let post= mkEQ(retvar_term,immediate2args id') inpost250,8653
+      let l1 = fresh_label () inl1256,8866
+      let l2 = fresh_label () inl2257,8899
+	 let p0 = Arg_var(mk_parameter 0) in (* ddino: should it be a fresh program variable? *)p0273,9396
+	 let post= mkEQ(retvar_term,p0) inpost274,9486
+      let call_name, param = get_name e incall_name279,9674
+      let call_args = List.map immediate2args param incall_args280,9717
+      let asgn_spec = HashSet.singleton asgn_spec inasgn_spec283,9875
+exception ContainedContained290,10046
+let is_init_method md = Pprinter.name2str md.name_m ="<init>"is_init_method296,10196
+let methdec2signature_str dec =methdec2signature_str298,10259
+let jimple_stmts2core stms =jimple_stmts2core302,10354
+let get_spec_for m fields cname=get_spec_for313,10838
+type local_map = Psyntax.args list AxiomMap.tlocal_map382,13149
+let jimple_locals2stattype_rules (locals : local_var list) : sequent_rule list =jimple_locals2stattype_rules400,13550
+let add_dummy_procs xs =add_dummy_procs446,14952
+let verify_jimple_fileverify_jimple_file450,14997
+  let mdl =  Methdec.make_methdecs_of_list cname (Methdec.get_list_methods f) inmdl461,15368
+  let fields = Methdec.get_list_fields f infields463,15472
+          let mb = List.map (fun (statement, pos) ->mb468,15663
+               let l = add_static_type_info PS.empty_logic  m.locals inl498,17009
+  let xs = add_dummy_procs xs inxs502,17181
+  let file =  open_out "jstar_question.core" infile505,17249
+
+src/jimplefront/translatejimple.mli,361
+(********************************************************Translatejimple1,0
+exception ContainedContained15,332
+val conjoin_with_res_true : Psyntax.pform -> Psyntax.pformconjoin_with_res_true16,352
+module LocalMap :LocalMap1,411
+type local_map = Psyntax.args list Javaspecs.AxiomMap.tlocal_map34,993
+val verify_jimple_file :verify_jimple_file35,1049
+
+src/jimple_syntax/jimple_global_types.ml,3077
+(********************************************************Jimple_global_types1,0
+type statement_inner =statement_inner21,500
+   | Label_stmt of  label_nameLabel_stmt22,523
+   | Breakpoint_stmtBreakpoint_stmt23,554
+   | Entermonitor_stmt of  immediateEntermonitor_stmt24,575
+   | Exitmonitor_stmt of  immediateExitmonitor_stmt25,612
+   | Tableswitch_stmt of  immediate * case_statement listTableswitch_stmt26,648
+   | Lookupswitch_stmt of  immediate * case_statement listLookupswitch_stmt27,706
+   | Identity_stmt of name * at_identifier * j_type (* ddino: in theory it's local_name,at_identifier *)Identity_stmt28,765
+   | Identity_no_type_stmt of name * at_identifier (* ddino: in theory it's local_name,at_identifier *)Identity_no_type_stmt29,870
+   | Assign_stmt of variable * expressionAssign_stmt30,974
+   | If_stmt of expression * label_nameIf_stmt31,1016
+   | Goto_stmt of label_nameGoto_stmt32,1056
+   | Nop_stmtNop_stmt33,1085
+   | Ret_stmt of immediate optionRet_stmt34,1099
+   | Return_stmt of immediate optionReturn_stmt35,1133
+   | Throw_stmt of immediateThrow_stmt36,1170
+   | Invoke_stmt of invoke_exprInvoke_stmt37,1199
+   | Spec_stmt of Vars.var list * ast_specSpec_stmt38,1231
+type statement = statement_inner * source_location optionstatement40,1275
+type declaration_or_statement =declaration_or_statement42,1334
+  |  DOS_dec of declarationDOS_dec43,1366
+  |  DOS_stm of statementDOS_stm44,1394
+type  method_body = (declaration_or_statement list * catch_clause list) optionmethod_body46,1421
+type requires_clause = method_bodyrequires_clause48,1501
+type old_clauses = method_body listold_clauses50,1537
+type ensures_clause = method_bodyensures_clause52,1574
+type  member =member54,1609
+  | Field of  modifier list * j_type *  nameField55,1624
+  | Method of  modifier list * j_type * name * parameter list * throws_clause * requires_clause * old_clauses * ensures_clause * method_bodyMethod56,1669
+type jimple_file =jimple_file58,1811
+  | JFile of modifier list * j_file_type * class_name * extends_clause * implements_clause * (member list)JFile59,1830
+type methdec_jimple = {methdec_jimple62,1939
+ modifiers: modifier list;modifiers63,1963
+ class_name: Jparsetree.class_name;class_name64,1990
+ ret_type:j_type;ret_type65,2026
+ name_m: name;name_m66,2044
+ params: parameter list;params67,2059
+ locals: local_var list;locals68,2084
+ th_clause:throws_clause;th_clause69,2109
+ req_locals: local_var list; (* local variables of the requires clause *)req_locals70,2135
+ mutable req_stmts: statement list; (* the requires clause statements *)req_stmts71,2209
+ mutable old_stmts_list: statement list list; (* the old statements. Their locals are contained in ens_locals *)old_stmts_list72,2282
+ ens_locals: local_var list; (* local variables of the ensures clause and old clauses *)ens_locals73,2395
+ mutable ens_stmts: statement list; (* the ensures clause statements *)ens_stmts74,2484
+ mutable bstmts: statement list; (* this is set after the call of cfg *)bstmts75,2556
+
+src/jimple_syntax/jimple_global_types.mli,2831
+(********************************************************Jimple_global_types1,0
+type statement_inner =statement_inner15,338
+    Label_stmt of Jparsetree.label_nameLabel_stmt16,361
+  | Breakpoint_stmtBreakpoint_stmt17,401
+  | Entermonitor_stmt of Jparsetree.immediateEntermonitor_stmt18,421
+  | Exitmonitor_stmt of Jparsetree.immediateExitmonitor_stmt19,467
+  | Tableswitch_stmt of Jparsetree.immediate * Jparsetree.case_statement listTableswitch_stmt20,512
+  | Lookupswitch_stmt of Jparsetree.immediate *Lookupswitch_stmt21,590
+  | Identity_stmt of Jparsetree.name * Jparsetree.at_identifier *Identity_stmt23,675
+  | Identity_no_type_stmt of Jparsetree.name * Jparsetree.at_identifierIdentity_no_type_stmt25,765
+  | Assign_stmt of Jparsetree.variable * Jparsetree.expressionAssign_stmt26,837
+  | If_stmt of Jparsetree.expression * Jparsetree.label_nameIf_stmt27,900
+  | Goto_stmt of Jparsetree.label_nameGoto_stmt28,961
+  | Nop_stmtNop_stmt29,1000
+  | Ret_stmt of Jparsetree.immediate optionRet_stmt30,1013
+  | Return_stmt of Jparsetree.immediate optionReturn_stmt31,1057
+  | Throw_stmt of Jparsetree.immediateThrow_stmt32,1104
+  | Invoke_stmt of Jparsetree.invoke_exprInvoke_stmt33,1143
+  | Spec_stmt of Vars.var list * Spec.ast_specSpec_stmt34,1185
+type statement = statement_inner * Printing.source_location optionstatement35,1232
+type declaration_or_statement =declaration_or_statement36,1299
+    DOS_dec of Jparsetree.declarationDOS_dec37,1331
+  | DOS_stm of statementDOS_stm38,1369
+type method_body =method_body39,1394
+type requires_clause = method_bodyrequires_clause41,1487
+type old_clauses = method_body listold_clauses42,1522
+type ensures_clause = method_bodyensures_clause43,1558
+type member =member44,1592
+    Field of Jparsetree.modifier list * Jparsetree.j_type * Jparsetree.nameField45,1606
+  | Method of Jparsetree.modifier list * Jparsetree.j_type *Method46,1682
+type jimple_file =jimple_file50,1895
+    JFile of Jparsetree.modifier list * Jparsetree.j_file_type *JFile51,1914
+type methdec_jimple = {methdec_jimple54,2086
+  modifiers : Jparsetree.modifier list;modifiers55,2110
+  class_name : Jparsetree.class_name;class_name56,2150
+  ret_type : Jparsetree.j_type;ret_type57,2188
+  name_m : Jparsetree.name;name_m58,2220
+  params : Jparsetree.parameter list;params59,2248
+  locals : Jparsetree.local_var list;locals60,2286
+  th_clause : Jparsetree.throws_clause;th_clause61,2324
+  req_locals : Jparsetree.local_var list;req_locals62,2364
+  mutable req_stmts : statement list;req_stmts63,2406
+  mutable old_stmts_list : statement list list;old_stmts_list64,2444
+  ens_locals : Jparsetree.local_var list;ens_locals65,2492
+  mutable ens_stmts : statement list;ens_stmts66,2534
+  mutable bstmts : statement list;bstmts67,2572
+
+src/jimple_syntax/jparsetree.ml,8424
+(********************************************************Jparsetree1,0
+type binop= And | Or | Xor | Mod | Cmp | Cmpg | Cmpl | Cmpeq binop19,375
+type binop= And | Or | Xor | Mod | Cmp | Cmpg | Cmpl | Cmpeq And19,375
+type binop= And | Or | Xor | Mod | Cmp | Cmpg | Cmpl | Cmpeq Or19,375
+type binop= And | Or | Xor | Mod | Cmp | Cmpg | Cmpl | Cmpeq Xor19,375
+type binop= And | Or | Xor | Mod | Cmp | Cmpg | Cmpl | Cmpeq Mod19,375
+type binop= And | Or | Xor | Mod | Cmp | Cmpg | Cmpl | Cmpeq Cmp19,375
+type binop= And | Or | Xor | Mod | Cmp | Cmpg | Cmpl | Cmpeq Cmpg19,375
+type binop= And | Or | Xor | Mod | Cmp | Cmpg | Cmpl | Cmpeq Cmpl19,375
+type binop= And | Or | Xor | Mod | Cmp | Cmpg | Cmpl | Cmpeq Cmpeq19,375
+	    | Cmpne | Cmpgt | Cmpge | Cmplt | Cmple | Shl Cmpne20,437
+	    | Cmpne | Cmpgt | Cmpge | Cmplt | Cmple | Shl Cmpgt20,437
+	    | Cmpne | Cmpgt | Cmpge | Cmplt | Cmple | Shl Cmpge20,437
+	    | Cmpne | Cmpgt | Cmpge | Cmplt | Cmple | Shl Cmplt20,437
+	    | Cmpne | Cmpgt | Cmpge | Cmplt | Cmple | Shl Cmple20,437
+	    | Cmpne | Cmpgt | Cmpge | Cmplt | Cmple | Shl Shl20,437
+	    | Shr | Ushr | Plus | Minus | Mult |Div  Shr21,489
+	    | Shr | Ushr | Plus | Minus | Mult |Div  Ushr21,489
+	    | Shr | Ushr | Plus | Minus | Mult |Div  Plus21,489
+	    | Shr | Ushr | Plus | Minus | Mult |Div  Minus21,489
+	    | Shr | Ushr | Plus | Minus | Mult |Div  Mult21,489
+	    | Shr | Ushr | Plus | Minus | Mult |Div  Div21,489
+type unop= Lengthof | Negunop23,537
+type unop= Lengthof | NegLengthof23,537
+type unop= Lengthof | NegNeg23,537
+type nonstatic_invoke = nonstatic_invoke25,564
+  | Special_invoke Special_invoke26,589
+  | Virtual_invokeVirtual_invoke27,609
+  | Interface_invokeInterface_invoke28,628
+type identifier = stringidentifier30,650
+type at_identifier = stringat_identifier31,675
+type quoted_name = string quoted_name33,704
+type full_identifier = stringfull_identifier35,736
+type array_brackets = stringarray_brackets37,767
+type label_name =  identifierlabel_name39,797
+type name = name41,828
+  | Quoted_name of stringQuoted_name42,841
+  | Identifier_name of stringIdentifier_name43,867
+let constructor name = constructor45,898
+type class_name =class_name51,993
+  | Quoted_clname of stringQuoted_clname52,1011
+  | Identifier_clname of stringIdentifier_clname53,1039
+  | Full_identifier_clname of stringFull_identifier_clname54,1071
+type sign = Positive | Negativesign60,1160
+type sign = Positive | NegativePositive60,1160
+type sign = Positive | NegativeNegative60,1160
+type constant=constant62,1193
+   | Int_const of sign * intInt_const63,1208
+   | Int_const_long of sign * intInt_const_long64,1237
+   | Float_const of sign * floatFloat_const65,1271
+   | String_const of stringString_const66,1304
+   | Clzz_const of string    Clzz_const67,1332
+   | Null_const    Null_const68,1362
+type immediate = immediate70,1383
+  | Immediate_local_name of  nameImmediate_local_name71,1401
+  | Immediate_constant of  constantImmediate_constant72,1435
+type fixed_array_descriptor =  immediatefixed_array_descriptor74,1472
+type array_descriptor =  immediate option array_descriptor76,1514
+type j_file_type = ClassFile | InterfaceFilej_file_type78,1558
+type j_file_type = ClassFile | InterfaceFileClassFile78,1558
+type j_file_type = ClassFile | InterfaceFileInterfaceFile78,1558
+type modifier =    modifier80,1604
+   | AbstractAbstract81,1624
+   | FinalFinal82,1638
+   | NativeNative83,1649
+   | PublicPublic84,1661
+   | ProtectedProtected85,1673
+   | PrivatePrivate86,1688
+   | StaticStatic87,1701
+   | SynchronizedSynchronized88,1713
+   | TransientTransient89,1731
+   | VolatileVolatile90,1746
+   | StrictfpStrictfp91,1760
+   | EnumEnum92,1774
+   | AnnotationAnnotation93,1784
+type j_base_type =j_base_type95,1801
+  | Boolean Boolean96,1820
+  | Byte Byte97,1833
+  | Char Char98,1843
+  | Short Short99,1853
+  | Int Int100,1864
+  | Long Long101,1873
+  | Float Float102,1883
+  | Double Double103,1894
+  | Null_type  Null_type104,1906
+  | Class_name of class_nameClass_name105,1922
+type nonvoid_type =nonvoid_type107,1952
+  | Base of  j_base_type * array_brackets listBase108,1972
+  | Quoted of  quoted_name * array_brackets listQuoted109,2019
+  | Ident_NVT of   identifier * array_brackets listIdent_NVT110,2068
+  | Full_ident_NVT of  full_identifier * array_brackets listFull_ident_NVT111,2120
+type parameter =  nonvoid_typeparameter113,2182
+type parameter_named_option =  nonvoid_type * identifier optionparameter_named_option114,2213
+type  j_type = j_type116,2278
+  | Void Void117,2294
+  | Non_void of  nonvoid_typeNon_void118,2304
+type throws_clause = class_name list optionthrows_clause120,2335
+type case_label = case_label122,2380
+  |Case_label_default Case_label_default123,2399
+  | Case_label of sign * int Case_label124,2422
+type declaration = Declaration of j_type option *  name listdeclaration127,2512
+type declaration = Declaration of j_type option *  name listDeclaration127,2512
+type case_statement = Case_stmt of  case_label *  label_namecase_statement132,2577
+type case_statement = Case_stmt of  case_label *  label_nameCase_stmt132,2577
+type method_signature_short = modifier list * j_type *  name *  parameter listmethod_signature_short134,2639
+type method_signature = class_name * j_type *  name *  parameter listmethod_signature135,2718
+type field_signature = class_name * j_type *  namefield_signature136,2788
+type signature = signature138,2840
+  | Method_signature of method_signatureMethod_signature139,2858
+  | Field_signature of field_signatureField_signature140,2899
+type reference = reference142,2939
+  |Array_ref of  identifier *  immediateArray_ref143,2957
+  |Field_local_ref of  name *  signatureField_local_ref144,2998
+  |Field_sig_ref of  signatureField_sig_ref145,3039
+type variable = variable147,3071
+  | Var_ref of  referenceVar_ref148,3088
+  | Var_name of  nameVar_name149,3114
+type invoke_expr =invoke_expr151,3137
+  | Invoke_nostatic_exp of nonstatic_invoke * name * signature * immediate list Invoke_nostatic_exp152,3156
+  | Invoke_static_exp of signature * immediate list Invoke_static_exp153,3237
+type expression = expression157,3293
+  | New_simple_exp of j_base_typeNew_simple_exp158,3312
+  | New_array_exp of  nonvoid_type *  fixed_array_descriptor New_array_exp159,3346
+  | New_multiarray_exp of j_base_type *  array_descriptor listNew_multiarray_exp160,3408
+  | Cast_exp of  nonvoid_type *  immediateCast_exp161,3471
+  | Instanceof_exp of  immediate *  nonvoid_typeInstanceof_exp162,3514
+  | Binop_exp of  binop *  immediate *  immediate Binop_exp163,3563
+  | Unop_exp of  unop *  immediateUnop_exp164,3614
+  | Invoke_exp of invoke_exprInvoke_exp165,3649
+  | Immediate_exp of immediateImmediate_exp166,3679
+  | Reference_exp of referenceReference_exp167,3710
+type bool_expr = True | Falsebool_expr169,3742
+type bool_expr = True | FalseTrue169,3742
+type bool_expr = True | FalseFalse169,3742
+type  catch_clause = Catch_clause of class_name * label_name * label_name * label_namecatch_clause176,3778
+type  catch_clause = Catch_clause of class_name * label_name * label_name * label_nameCatch_clause176,3778
+type extends_clause = class_name list (* stephan mult inh *)extends_clause180,3956
+type implements_clause = class_name listimplements_clause182,4018
+type list_class_file = list_class_file185,4061
+  | ListClassFile of  string  listListClassFile186,4085
+type local_var = j_type option * name local_var191,4169
+type nodekind = Start_node | Exit_node | Call_node | Return_Site_node | Stmt_nodenodekind197,4258
+type nodekind = Start_node | Exit_node | Call_node | Return_Site_node | Stmt_nodeStart_node197,4258
+type nodekind = Start_node | Exit_node | Call_node | Return_Site_node | Stmt_nodeExit_node197,4258
+type nodekind = Start_node | Exit_node | Call_node | Return_Site_node | Stmt_nodeCall_node197,4258
+type nodekind = Start_node | Exit_node | Call_node | Return_Site_node | Stmt_nodeReturn_Site_node197,4258
+type nodekind = Start_node | Exit_node | Call_node | Return_Site_node | Stmt_nodeStmt_node197,4258
+let pp_name f = functionpp_name202,4400
+let pp_class_name f = functionpp_class_name206,4486
+let pp_inheritance_clause p f = functionpp_inheritance_clause211,4611
+
+src/jimple_syntax/jparsetree.mli,7623
+(********************************************************Jparsetree1,0
+type binop =binop15,329
+    AndAnd16,342
+  | OrOr17,350
+  | XorXor18,357
+  | ModMod19,365
+  | CmpCmp20,373
+  | CmpgCmpg21,381
+  | CmplCmpl22,390
+  | CmpeqCmpeq23,399
+  | CmpneCmpne24,409
+  | CmpgtCmpgt25,419
+  | CmpgeCmpge26,429
+  | CmpltCmplt27,439
+  | CmpleCmple28,449
+  | ShlShl29,459
+  | ShrShr30,467
+  | UshrUshr31,475
+  | PlusPlus32,484
+  | MinusMinus33,493
+  | MultMult34,503
+  | DivDiv35,512
+type unop = Lengthof | Negunop36,520
+type unop = Lengthof | NegLengthof36,520
+type unop = Lengthof | NegNeg36,520
+type nonstatic_invoke = Special_invoke | Virtual_invoke | Interface_invokenonstatic_invoke37,547
+type nonstatic_invoke = Special_invoke | Virtual_invoke | Interface_invokeSpecial_invoke37,547
+type nonstatic_invoke = Special_invoke | Virtual_invoke | Interface_invokeVirtual_invoke37,547
+type nonstatic_invoke = Special_invoke | Virtual_invoke | Interface_invokeInterface_invoke37,547
+type identifier = stringidentifier38,622
+type at_identifier = stringat_identifier39,647
+type quoted_name = stringquoted_name40,675
+type full_identifier = stringfull_identifier41,701
+type array_brackets = stringarray_brackets42,731
+type label_name = identifierlabel_name43,760
+type name = Quoted_name of string | Identifier_name of stringname44,789
+type name = Quoted_name of string | Identifier_name of stringQuoted_name44,789
+type name = Quoted_name of string | Identifier_name of stringIdentifier_name44,789
+val constructor : name -> boolconstructor45,851
+type class_name =class_name46,882
+    Quoted_clname of stringQuoted_clname47,900
+  | Identifier_clname of stringIdentifier_clname48,928
+  | Full_identifier_clname of stringFull_identifier_clname49,960
+type sign = Positive | Negativesign50,997
+type sign = Positive | NegativePositive50,997
+type sign = Positive | NegativeNegative50,997
+type constant =constant51,1029
+    Int_const of sign * intInt_const52,1045
+  | Int_const_long of sign * intInt_const_long53,1073
+  | Float_const of sign * floatFloat_const54,1106
+  | String_const of stringString_const55,1138
+  | Clzz_const of stringClzz_const56,1165
+  | Null_constNull_const57,1190
+type immediate =immediate58,1205
+    Immediate_local_name of nameImmediate_local_name59,1222
+  | Immediate_constant of constantImmediate_constant60,1255
+type fixed_array_descriptor = immediatefixed_array_descriptor61,1290
+type array_descriptor = immediate optionarray_descriptor62,1330
+type j_file_type = ClassFile | InterfaceFilej_file_type63,1371
+type j_file_type = ClassFile | InterfaceFileClassFile63,1371
+type j_file_type = ClassFile | InterfaceFileInterfaceFile63,1371
+type modifier =modifier64,1416
+    AbstractAbstract65,1432
+  | FinalFinal66,1445
+  | NativeNative67,1455
+  | PublicPublic68,1466
+  | ProtectedProtected69,1477
+  | PrivatePrivate70,1491
+  | StaticStatic71,1503
+  | SynchronizedSynchronized72,1514
+  | TransientTransient73,1531
+  | VolatileVolatile74,1545
+  | StrictfpStrictfp75,1558
+  | EnumEnum76,1571
+  | AnnotationAnnotation77,1580
+type j_base_type =j_base_type78,1595
+    BooleanBoolean79,1614
+  | ByteByte80,1626
+  | CharChar81,1635
+  | ShortShort82,1644
+  | IntInt83,1654
+  | LongLong84,1662
+  | FloatFloat85,1671
+  | DoubleDouble86,1681
+  | Null_typeNull_type87,1692
+  | Class_name of class_nameClass_name88,1706
+type nonvoid_type =nonvoid_type89,1735
+    Base of j_base_type * array_brackets listBase90,1755
+  | Quoted of quoted_name * array_brackets listQuoted91,1801
+  | Ident_NVT of identifier * array_brackets listIdent_NVT92,1849
+  | Full_ident_NVT of full_identifier * array_brackets listFull_ident_NVT93,1899
+type parameter = nonvoid_typeparameter94,1959
+type parameter_named_option = nonvoid_type * identifier optionparameter_named_option95,1989
+type j_type = Void | Non_void of nonvoid_typej_type96,2052
+type j_type = Void | Non_void of nonvoid_typeVoid96,2052
+type j_type = Void | Non_void of nonvoid_typeNon_void96,2052
+type throws_clause = class_name list optionthrows_clause97,2098
+type case_label = Case_label_default | Case_label of sign * intcase_label98,2142
+type case_label = Case_label_default | Case_label of sign * intCase_label_default98,2142
+type case_label = Case_label_default | Case_label of sign * intCase_label98,2142
+type declaration = Declaration of j_type option * name listdeclaration99,2206
+type declaration = Declaration of j_type option * name listDeclaration99,2206
+type case_statement = Case_stmt of case_label * label_namecase_statement100,2266
+type case_statement = Case_stmt of case_label * label_nameCase_stmt100,2266
+type method_signature_short = modifier list * j_type * name * parameter listmethod_signature_short101,2325
+type method_signature = class_name * j_type * name * parameter listmethod_signature102,2402
+type field_signature = class_name * j_type * namefield_signature103,2470
+type signature =signature104,2520
+    Method_signature of method_signatureMethod_signature105,2537
+  | Field_signature of field_signatureField_signature106,2578
+type reference =reference107,2617
+    Array_ref of identifier * immediateArray_ref108,2634
+  | Field_local_ref of name * signatureField_local_ref109,2674
+  | Field_sig_ref of signatureField_sig_ref110,2714
+type variable = Var_ref of reference | Var_name of namevariable111,2745
+type variable = Var_ref of reference | Var_name of nameVar_ref111,2745
+type variable = Var_ref of reference | Var_name of nameVar_name111,2745
+type invoke_expr =invoke_expr112,2801
+    Invoke_nostatic_exp of nonstatic_invoke * name * signature *Invoke_nostatic_exp113,2820
+  | Invoke_static_exp of signature * immediate listInvoke_static_exp115,2906
+type expression =expression116,2958
+    New_simple_exp of j_base_typeNew_simple_exp117,2976
+  | New_array_exp of nonvoid_type * fixed_array_descriptorNew_array_exp118,3010
+  | New_multiarray_exp of j_base_type * array_descriptor listNew_multiarray_exp119,3069
+  | Cast_exp of nonvoid_type * immediateCast_exp120,3131
+  | Instanceof_exp of immediate * nonvoid_typeInstanceof_exp121,3172
+  | Binop_exp of binop * immediate * immediateBinop_exp122,3219
+  | Unop_exp of unop * immediateUnop_exp123,3266
+  | Invoke_exp of invoke_exprInvoke_exp124,3299
+  | Immediate_exp of immediateImmediate_exp125,3329
+  | Reference_exp of referenceReference_exp126,3360
+type bool_expr = True | Falsebool_expr127,3391
+type bool_expr = True | FalseTrue127,3391
+type bool_expr = True | FalseFalse127,3391
+type catch_clause =catch_clause128,3421
+    Catch_clause of class_name * label_name * label_name * label_nameCatch_clause129,3441
+type extends_clause = class_name listextends_clause130,3511
+type implements_clause = class_name listimplements_clause131,3549
+type list_class_file = ListClassFile of string listlist_class_file132,3590
+type list_class_file = ListClassFile of string listListClassFile132,3590
+type local_var = j_type option * namelocal_var133,3642
+type nodekind =nodekind134,3680
+    Start_nodeStart_node135,3696
+  | Exit_nodeExit_node136,3711
+  | Call_nodeCall_node137,3725
+  | Return_Site_nodeReturn_Site_node138,3739
+  | Stmt_nodeStmt_node139,3760
+val pp_name : Format.formatter -> name -> unitpp_name140,3774
+val pp_class_name : Format.formatter -> class_name -> unitpp_class_name141,3821
+val pp_inheritance_clause :pp_inheritance_clause142,3880
+val pp_method_signature_short :pp_method_signature_short144,3964
+
+src/jimple_syntax/pprinter.ml,2466
+(********************************************************Pprinter1,0
+let binop2str bo =binop2str24,518
+let unop2str uo =unop2str47,889
+let nonstatic_invoke2str i =nonstatic_invoke2str52,967
+let identifier2str i = iidentifier2str59,1132
+let at_identifier2str i = iat_identifier2str60,1157
+let quoted_name2str i  = iquoted_name2str61,1185
+let full_identifier2str i = ifull_identifier2str62,1212
+let array_brackets2str i = iarray_brackets2str63,1242
+let label_name2str =  identifier2strlabel_name2str65,1272
+let name2str n =name2str67,1310
+let class_name2str = functionclass_name2str72,1388
+let sign2str = functionsign2str77,1497
+let constant2str = functionconstant2str81,1562
+let immediate2str = functionimmediate2str89,1849
+let fixed_array_descriptor2str s = "["^immediate2str s^"]"fixed_array_descriptor2str93,1964
+let array_descriptor2str = functionarray_descriptor2str95,2024
+let j_file_type2str = functionj_file_type2str99,2106
+let  modifier2str = functionmodifier2str103,2196
+let j_base_type2str = functionj_base_type2str118,2576
+let list_option2list lso =list_option2list138,3129
+let nonvoid_type2str =functionnonvoid_type2str144,3211
+let parameter2str p =  nonvoid_type2str pparameter2str150,3569
+let  j_type2str = functionj_type2str152,3612
+let throws_clause2str = functionthrows_clause2str156,3696
+let case_label2str = functioncase_label2str160,3802
+let mkStrOfFieldSignature c t n=mkStrOfFieldSignature164,3929
+let declaration2str = functiondeclaration2str167,4026
+let case_statement2str = functioncase_statement2str171,4200
+let signature2str = functionsignature2str174,4307
+let reference2str = functionreference2str179,4542
+let variable2str = functionvariable2str184,4749
+let invoke_expr2str = functioninvoke_expr2str188,4840
+let expression2str = functionexpression2str195,5129
+let bool_expr2str = functionbool_expr2str207,5818
+let statement2str = functionstatement2str211,5888
+let declaration_or_statement2str =functiondeclaration_or_statement2str236,7162
+let catch_clause2str = functioncatch_clause2str241,7281
+let method_body2str = functionmethod_body2str245,7455
+let old_clauses2str ocs = List.fold_left (fun acc oc -> acc^"old "^ method_body2str oc^"\n") "" ocsold_clauses2str250,7626
+let extends_clause2str = functionextends_clause2str260,8159
+let implements_clause2str = functionimplements_clause2str264,8259
+let jimple_file2str = functionjimple_file2str268,8367
+
+src/jimple_syntax/pprinter.mli,916
+(********************************************************Pprinter1,0
+val binop2str : Jparsetree.binop -> stringbinop2str15,327
+val name2str : Jparsetree.name -> stringname2str16,370
+val class_name2str : Jparsetree.class_name -> stringclass_name2str17,411
+val j_base_type2str : Jparsetree.j_base_type -> stringj_base_type2str18,464
+val list2str : ('a -> string) -> 'a list -> string -> stringlist2str19,519
+val parameter2str : Jparsetree.nonvoid_type -> stringparameter2str20,580
+val j_type2str : Jparsetree.j_type -> stringj_type2str21,634
+val mkStrOfFieldSignature :mkStrOfFieldSignature22,679
+val signature2str : Jparsetree.signature -> stringsignature2str24,781
+val variable2str : Jparsetree.variable -> stringvariable2str25,832
+val expression2str : Jparsetree.expression -> stringexpression2str26,881
+val statement2str : Jimple_global_types.statement_inner -> stringstatement2str27,934
+
+src/jimple_syntax/spec_def.ml,1280
+(********************************************************Spec_def1,0
+type methodspec =methodspec24,429
+      Dynamic of method_signature_short * (ast_spec list) * source_location optionDynamic25,447
+  |   Static of method_signature_short * (ast_spec list) * source_location optionStatic26,530
+type methodspecs =methodspecs28,613
+type apf_define = (string * var * fldlist * Psyntax.pform * bool)apf_define31,653
+type apf_defines = apf_define listapf_defines33,720
+type named_implication = (string * Psyntax.pform * Psyntax.pform)named_implication35,756
+type exportLocal_predicate = (string * var list * Psyntax.pform)exportLocal_predicate37,823
+type exports_clause = (named_implication list * exportLocal_predicate list) optionexports_clause39,889
+type axioms_clause = named_implication list optionaxioms_clause41,973
+type class_spec = {class_spec43,1025
+	class_or_interface: j_file_type;class_or_interface44,1045
+	classname: class_name;classname45,1079
+	extends: extends_clause;extends46,1103
+	implements: implements_clause;implements47,1129
+	apf: apf_defines;apf48,1161
+	exports: exports_clause;exports49,1180
+	axioms: axioms_clause;axioms50,1206
+	methodspecs: methodspecs }methodspecs51,1230
+let pp_methodspec f m =pp_methodspec55,1317
+
+src/jimple_syntax/spec_def.mli,1318
+(********************************************************Spec_def1,0
+type methodspec =methodspec15,327
+    Dynamic of Jparsetree.method_signature_short * Spec.ast_spec list *Dynamic16,345
+  | Static of Jparsetree.method_signature_short * Spec.ast_spec list *Static18,455
+type methodspecs = methodspec listmethodspecs20,564
+type apf_define = string * Vars.var * Psyntax.fldlist * Psyntax.pform * boolapf_define21,599
+type apf_defines = apf_define listapf_defines22,676
+type named_implication = string * Psyntax.pform * Psyntax.pformnamed_implication23,711
+type exportLocal_predicate = string * Vars.var list * Psyntax.pformexportLocal_predicate24,775
+type exports_clause =exports_clause25,843
+type axioms_clause = named_implication list optionaxioms_clause27,930
+type class_spec = {class_spec28,981
+  class_or_interface : Jparsetree.j_file_type;class_or_interface29,1001
+  classname : Jparsetree.class_name;classname30,1048
+  extends : Jparsetree.extends_clause;extends31,1085
+  implements : Jparsetree.implements_clause;implements32,1124
+  apf : apf_defines;apf33,1169
+  exports : exports_clause;exports34,1190
+  axioms : axioms_clause;axioms35,1218
+  methodspecs : methodspecs;methodspecs36,1244
+val pp_class_spec : Format.formatter -> class_spec -> unitpp_class_spec38,1275
+
+src/parsing/support_syntax.ml,197
+(********************************************************Support_syntax1,0
+let bop_to_prover_arg = functionbop_to_prover_arg18,380
+let bop_to_prover_pred bop i1 i2 = bop_to_prover_pred40,990
+
+src/parsing/support_syntax.mli,480
+(********************************************************Support_syntax1,0
+val bop_to_prover_arg : Jparsetree.binop -> stringbop_to_prover_arg15,327
+val bop_to_prover_pred :bop_to_prover_pred16,378
+val parameter : int -> stringparameter18,479
+val parameter_var : int -> Vars.varparameter_var19,509
+val this_var_name : stringthis_var_name20,545
+val this_var : Vars.varthis_var21,572
+val res_var_name : stringres_var_name22,596
+val res_var : Vars.varres_var23,622

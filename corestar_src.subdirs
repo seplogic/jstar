@@ -1,0 +1,10 @@
+-I corestar_src/abs_int
+-I corestar_src/parsing
+-I corestar_src/plugin_interface
+-I corestar_src/prover
+-I corestar_src/proverfront
+-I corestar_src/prover_syntax
+-I corestar_src/symexec
+-I corestar_src/symexec_ast
+-I corestar_src/symexec_front
+-I corestar_src/utils

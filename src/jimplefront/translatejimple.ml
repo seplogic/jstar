@@ -101,8 +101,13 @@ let get_spec  (iexp: Jparsetree.invoke_expr) =
 
 
 let msig2str cn rt mn ps =
-  Pprinter.class_name2str cn ^ "." ^ Pprinter.name2str mn ^ "$$" ^ (Pprinter.list2str Pprinter.parameter2str
-                         ps "$$") ^ "$$" ^ Pprinter.j_type2str rt
+  Pprinter.class_name2str cn 
+  ^ "." 
+  ^ Pprinter.name2str mn 
+  ^ "$$" 
+  ^ (Pprinter.list2str Pprinter.parameter2str ps "$$") 
+  ^ "$$"  
+  ^ Pprinter.j_type2str rt
 
 
 let get_name  (iexp: Jparsetree.invoke_expr) =
@@ -425,21 +430,31 @@ let add_static_type_info logic locals : Psyntax.logic =
 	Javaspecs.append_rules logic rules
 
 
-(*
-let called_procs_instrs acc i = HashSet.add acc (bla i)
 
-let called_procs_from_body acc ss =
-  List.iter (called_procs_instr acc) ss
-let called_procs_from_proc acc proc = called_procs_from_body acc
-  proc.body
+let add_if_called_proc acc stmt = 
+  match stmt with
+    | C.Call_core c -> HashSet.add acc c.C.call_name 
+    | _ -> ()
 
-let h = HashSet.create 1 in
-  called_procs_from-proc h proc;
-ss
-*)
+let called_procs_from_body acc body =
+   List.iter (add_if_called_proc acc) body
+
+let called_procs_from_proc acc proc = 
+  match proc.C.proc_body with
+    | Some b -> called_procs_from_body acc b
+    | None -> ()
+
+let remove_proc acc proc =
+  HashSet.remove acc proc.C.proc_name
+
+let dummy_proc n =
+  { C.proc_name = n; proc_spec = (HashSet.create 1); proc_body = None; proc_rules = PS.empty_logic } 
 
 let add_dummy_procs xs =
-  failwith "TODO"
+  let h = HashSet.create 1 in
+  List.iter (called_procs_from_proc h) xs;
+  List.iter (remove_proc h) xs;
+  xs@(HashSet.fold (fun x y -> cons (dummy_proc x) y) h []) 
 
 
 let verify_jimple_file
