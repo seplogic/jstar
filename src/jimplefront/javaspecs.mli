@@ -52,9 +52,9 @@ module MethodMapH :
       (MethodMap.key -> 'a -> bool) -> 'a MethodMap.t -> 'a MethodMap.t
   end
 module MethodSet : Set.S with type elt = Jparsetree.method_signature
-type methodSpecs = (Spec.ast_spec * Printing.source_location option) MethodMap.t
+type methodSpecs = (Core.ast_triple * Printing.source_location option) MethodMap.t
 val emptyMSpecs : methodSpecs
-val spec_list_to_spec : Spec.ast_spec list -> Spec.ast_spec
+val spec_list_to_spec : Core.ast_triple list -> Core.ast_triple
 val spec_file_to_method_specs :
   Spec_def.class_spec list -> methodSpecs * methodSpecs
 val add_common_apf_predicate_rules :
@@ -63,7 +63,7 @@ val add_subtype_and_objsubtype_rules :
   Spec_def.class_spec list -> Psyntax.logic -> Psyntax.logic
 val refinement_this :
   Psyntax.logic
-  -> Spec.ast_spec
-  -> Spec.ast_spec
+  -> Core.ast_triple
+  -> Core.ast_triple
   -> Jparsetree.class_name
   -> bool

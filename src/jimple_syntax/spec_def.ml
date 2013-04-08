@@ -17,13 +17,12 @@
 open Jparsetree
 open Printing
 open Psyntax
-open Spec
 open Vars
 
 
 type methodspec =
-      Dynamic of method_signature_short * (ast_spec list) * source_location option
-  |   Static of method_signature_short * (ast_spec list) * source_location option
+      Dynamic of method_signature_short * (Core.ast_triple list) * source_location option
+  |   Static of method_signature_short * (Core.ast_triple list) * source_location option
 
 type methodspecs =
     methodspec list
@@ -57,7 +56,7 @@ let pp_methodspec f m =
     | Dynamic (s, sp, _) -> ("dynamic", s, sp)
     | Static (s, sp, _) -> ("static", s, sp) in
   Format.fprintf f "@\n@[<2>%a" pp_method_signature_short s;
-  List.iter (fun x -> Format.fprintf f "@\n@[<2>%s%a@]" t SpecOp.spec2str x) sp;
+  List.iter (fun x -> Format.fprintf f "@\n@[<2>%s%a@]" t CoreOps.pp_ast_triple x) sp;
   Format.fprintf f "@]"
 
 let pp_class_spec f {

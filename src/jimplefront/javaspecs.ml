@@ -25,7 +25,6 @@ open Jlogic
 open Jparsetree
 open Psyntax
 open Sepprover
-open Spec
 open Spec_def
 open Specification
 open Support_syntax
@@ -428,7 +427,7 @@ module MethodSet =
     let compare = compare
   end)
 
-type methodSpecs = (ast_spec * Printing.source_location option) MethodMap.t
+type methodSpecs = (Core.ast_triple * Printing.source_location option) MethodMap.t
 
 let emptyMSpecs : methodSpecs = MethodMap.empty
 let addMSpecs msig spec mmap : methodSpecs = MethodMap.add msig spec mmap
@@ -438,7 +437,7 @@ let rec spec_list_to_spec specs =
    | [] -> assert false  (* Should get here *)
    | [spec] -> spec
    | spec :: specs ->
-       Specification.spec_conjunction spec (spec_list_to_spec specs)
+       Specification.join_triples spec (spec_list_to_spec specs)
 
 let class_spec_to_ms cs (smmap,dmmap) =
   let cn = (*Pprinter.class_name2str*) cs.classname in
@@ -467,8 +466,8 @@ let remove_this_type_info prepure =
     | _ -> true
   in List.filter is_this_type prepure
 
-let static_to_dynamic { Spec.pre; post } =
-  { Spec.pre = remove_this_type_info pre; post }
+let static_to_dynamic { Core.pre; post } =
+  { Core.pre = remove_this_type_info pre; post }
 
 let rec filtertype_spat classname spat =
   match spat with
@@ -506,11 +505,11 @@ let rec filterdollar_at spat =
   | P_NEQ(_,_) -> spat
 and filterdollar x = List.map (filterdollar_at) x
 
-let dynamic_to_static cn { Spec.pre; post } =
-  { Spec.pre = filtertype cn pre; post = filtertype cn post }
+let dynamic_to_static cn { Core.pre; post } =
+  { Core.pre = filtertype cn pre; post = filtertype cn post }
 
-let filter_dollar_spec { Spec.pre; post } =
-  { Spec.pre = filterdollar pre; post = filterdollar post }
+let filter_dollar_spec { Core.pre; post } =
+  { Core.pre = filterdollar pre; post = filterdollar post }
 
 let fix_spec_inheritance_gaps classes mmap spec_file exclude_function spec_type =
   let mmapr = ref mmap in

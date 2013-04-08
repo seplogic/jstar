@@ -17,6 +17,7 @@ exception Give_up
 
 open Jparsetree
 
+(* TODO(rgrig): Don't open these. *)
 open Core
 open Jimple_global_types
 open Lexing
@@ -24,7 +25,6 @@ open Load
 open Parsing
 open Printing
 open Psyntax
-open Spec
 open Spec_def
 open Vars
 
@@ -311,16 +311,13 @@ let field_signature2str fs =
 %type <Jimple_global_types.jimple_file> file
 
 %start spec_file
-%type <Spec_def.class_spec Load.importoption list> spec_file
+%type <Spec_def.class_spec Load.entry list> spec_file
 
 %start question_file
 %type <Psyntax.question list> question_file
 
-%start test_file
-%type <Psyntax.test list> test_file
-
 %start spec
-%type <Spec.ast_spec> spec
+%type <Core.ast_triple> spec
 
 %% /* rules */
 
@@ -848,7 +845,7 @@ paramlist:
 /* Code for matching where not allowing question mark variables:
    no pattern vars*/
 jargument_npv:
-   | RETURN { Arg_var (concretep_str SpecOp.name_ret_v1) }
+   | RETURN { Arg_var (concretep_str CoreOps.name_ret_v1) }
    | lvariable_npv {Arg_var ($1)}
    | identifier L_PAREN jargument_npv_list R_PAREN {Arg_op($1,$3) }
    | INTEGER_CONSTANT {Arg_string(string_of_int $1)}
@@ -870,7 +867,7 @@ jargument_npv_list:
 
 
 jargument:
-   | RETURN { Arg_var (concretep_str SpecOp.name_ret_v1) }
+   | RETURN { Arg_var (concretep_str CoreOps.name_ret_v1) }
    | lvariable {Arg_var ($1)}
    | identifier L_PAREN jargument_list R_PAREN {Arg_op($1,$3) }
    | INTEGER_CONSTANT {Arg_string(string_of_int $1)}
@@ -930,32 +927,17 @@ boolean:
    | FALSE { false }
 ;
 
-
-
 question:
    | IMPLICATION COLON formula_npv VDASH formula_npv {Implication($3,$5)}
    | INCONSISTENCY COLON formula_npv {Inconsistency($3)}
    | FRAME COLON formula_npv VDASH formula_npv {Frame($3,$5)}
    | ABS COLON formula_npv {Abs($3)}
    | ABDUCTION COLON formula_npv VDASH formula_npv {Abduction($3,$5)}
-
-
-test:
-   | IMPLICATION COLON formula_npv VDASH formula_npv QUESTIONMARK boolean {TImplication($3,$5,$7)}
-   | INCONSISTENCY COLON formula_npv QUESTIONMARK boolean {TInconsistency($3,$5)}
-   | FRAME COLON formula_npv VDASH formula_npv QUESTIONMARK formula_npv {TFrame($3,$5,$7)}
-   | ABS COLON formula_npv QUESTIONMARK formula_npv {TAbs($3,$5)}
-
-
+;
 
 question_file:
    | EOF  { [] }
    | question question_file  {$1 :: $2}
-
-
-test_file:
-   | EOF  { [] }
-   | test test_file  {$1 :: $2}
-
+;
 
 %% (* trailer *)

@@ -15,9 +15,13 @@ open Corestar_std
 open Debug
 open Format
 
+(* TODO(rgrig): Don't open these. *)
 open Jparsetree
 open Jimple_global_types
 open Psyntax
+
+module PA = ParserAst
+module PS = Psyntax
 
 let program_file_name = ref ""
 let logic_file_name = ref "logic"
@@ -93,18 +97,23 @@ let main () =
        (* Load abstract interpretation plugins *)
        List.iter (fun file_name -> Plugin_manager.load_plugin file_name) !Config.abs_int_plugins;
 
-       let l1,l2,cn = Load_logic.load_logic !logic_file_name
+       let parse x fn = System.parse_file Parser.file Lexer.token fn x in
+       let add_rule logic = function
+         | PA.Rule r -> PS.add_rule logic r
+         | _ -> failwith "INTERNAL" in
+       let logic =
+         List.fold_left add_rule PS.empty_logic
+          (Load.load ~path:Cli_utils.logic_dirs (parse "logic") !logic_file_name)
        in
-       let logic = {empty_logic with seq_rules=l1; rw_rules=l2; consdecl=cn} in
+       let abs_rules =
+         List.fold_left add_rule PS.empty_logic
+          (Load.load ~path:Cli_utils.abs_dirs (parse "abs") !absrules_file_name)
+       in
 
-       let l1,l2,cn = Load_logic.load_abstractions !absrules_file_name in
-       let abs_rules = {empty_logic with seq_rules=l1; rw_rules=l2; consdecl=cn} in
-
-       let spec_list : (Spec_def.class_spec list) = Load.import_flatten
-           Cli_utils.specs_dirs
-           !spec_file_name
-           Jparser.spec_file
-           Jlexer.token in
+       let parse fn =
+         System.parse_file Jparser.spec_file Jlexer.token fn "specs" in
+       let spec_list =
+         Load.load ~path:Cli_utils.specs_dirs parse !spec_file_name in
 
        let Jimple_global_types.JFile(_,_,class_name,_,_,_) = program in
 

@@ -11,13 +11,13 @@
       LICENSE.txt
  ********************************************************)
 
-
 (* Pretty printer module *)
+
+open Corestar_std
 
 (* TODO(rgrig): Don't open these modules. *)
 open Jparsetree
 open Jimple_global_types
-open Spec
 
 (* TODO(rgrig): The functions here should be pretty printers. *)
 
@@ -229,9 +229,9 @@ let statement2str = function
    | Return_stmt (None) -> "return;"
    | Throw_stmt i -> "throw "^immediate2str i^";"
    | Invoke_stmt e -> invoke_expr2str e^";"
-   | Spec_stmt (vars,spec) ->
+   | Spec_stmt (vars, triple) ->
       (list2str Vars.string_var vars ", ")^" : "
-      ^(SpecOp.pprinter_core_spec2str) spec ^";"
+      ^ string_of CoreOps.pp_ast_triple triple ^";"
 
 let declaration_or_statement2str =function
   |  DOS_dec d -> declaration2str d

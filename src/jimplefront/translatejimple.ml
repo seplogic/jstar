@@ -24,7 +24,6 @@ open Specification
 open Vars
 open Support_symex
 open Javaspecs
-open Spec
 
 module C = Core
 module PS = Psyntax 
@@ -95,7 +94,7 @@ let get_spec  (iexp: Jparsetree.invoke_expr) =
   | Invoke_nostatic_exp (Special_invoke,n,_,il) ->
       (* Make "this" be the final parameter, i.e. subst @this: for @parametern: *)
       let subst = Psyntax.add (mk_this) (Arg_var (mk_parameter (List.length il))) Psyntax.empty in
-      sub_spec subst spec,(il@[Immediate_local_name(n)])
+      sub_triple subst spec,(il@[Immediate_local_name(n)])
   | Invoke_static_exp (si,il) ->
       spec,il
 
@@ -123,7 +122,7 @@ let get_name  (iexp: Jparsetree.invoke_expr) =
 
 
 
-let retvar_term = Arg_var(SpecOp.ret_v1)
+let retvar_term = Arg_var CoreOps.ret_v1
 
 (* make terms related to array representation *) (* {{{ *)
 let mk_array a i j v =
@@ -154,7 +153,7 @@ let mk_array_set av i v =
 let mk_asgn rets pre post args =
   let asgn_rets = List.map (fun v -> variable2var (Var_name v)) rets in
   let asgn_args = List.map immediate2args args in
-  let asgn_spec = HashSet.singleton { Spec.pre; post } in
+  let asgn_spec = HashSet.singleton { Core.pre; post } in
   C.Assignment_core { C.asgn_rets; asgn_args; asgn_spec }
 
 (* TODO: Pattern match separately on [v] and [e], not on [(v, e)], and
@@ -333,7 +332,7 @@ let get_spec_for m fields cname=
   in
   let spec = logical_vars_to_prog spec in
   if is_init_method m then (* we treat <init> in a special way*)
-    { spec with Spec.pre = pconjunction spec.Spec.pre class_this_fields }
+    { spec with Core.pre = pconjunction spec.Core.pre class_this_fields }
   else spec
 
 
@@ -355,8 +354,8 @@ let get_requires_clause_spec_for m fields cname =
         let dynspec = logical_vars_to_prog dynspec in
         (* Now construct the desired spec *)
         {
-                pre=dynspec.pre;
-                post=conjoin_with_res_true (dynspec.pre);
+                Core.pre=dynspec.Core.pre;
+                post=conjoin_with_res_true (dynspec.Core.pre);
         }
 
 let get_dyn_spec_for m fields cname =
@@ -513,7 +512,7 @@ let verify_jimple_file
 
   (* Print using core function *)
   let file =  open_out "jstar_question.core" in
-  Corestar_std.pp_list CoreOps.pp_ast_question (Format.formatter_of_out_channel file) xs;
+  Corestar_std.pp_list CoreOps.pp_ast_proc (Format.formatter_of_out_channel file) xs;
   close_out file;  
 
   (* verify globally *)

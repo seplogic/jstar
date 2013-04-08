@@ -13,7 +13,6 @@
 
 open Jparsetree
 open Printing
-open Spec
 (***************************************************
  from jparsetree
 ***************************************************)
@@ -35,7 +34,7 @@ type statement_inner =
    | Return_stmt of immediate option
    | Throw_stmt of immediate
    | Invoke_stmt of invoke_expr
-   | Spec_stmt of Vars.var list * ast_spec
+   | Spec_stmt of Vars.var list * Core.ast_triple
 
 type statement = statement_inner * source_location option
 
