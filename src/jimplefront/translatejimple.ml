@@ -456,69 +456,74 @@ let add_dummy_procs xs =
   xs@(HashSet.fold (fun x y -> cons (dummy_proc x) y) h []) 
 
 
-let verify_jimple_file
-    (f : Jimple_global_types.jimple_file)
+
+
+
+let verify_jimple_files
+    (file_list : Jimple_global_types.jimple_file list)
     (lo : logic)
     (abs_rules : logic)
     (sspecs: Javaspecs.methodSpecs)
     (dspecs: Javaspecs.methodSpecs) :
     unit =
-  curr_static_methodSpecs:=sspecs;
-  curr_dynamic_methodSpecs:=dspecs;
-  let cname=Methdec.get_class_name f in
-  (* get the method declarations - See make_methdec in methdec.ml *)
-  let mdl =  Methdec.make_methdecs_of_list cname (Methdec.get_list_methods f) in
-  (* get the fields *)
-  let fields = Methdec.get_list_fields f in
+  
+  let process_single_file_and_get_methods f = 
+    curr_static_methodSpecs:=sspecs;
+    curr_dynamic_methodSpecs:=dspecs;
+    let cname=Methdec.get_class_name f in
+    (* get the method declarations - See make_methdec in methdec.ml *)
+    let mdl =  Methdec.make_methdecs_of_list cname (Methdec.get_list_methods f) in
+    let fields = Methdec.get_list_fields f in  
+    (* Adding specification position for init method statements if they do not have their own *)
+    List.iter (fun m ->
+                 if is_init_method m then
+                   let mb = List.map (fun (statement, pos) ->
+                                        match pos with
+                                        | None ->
+                                            let msi = Methdec.get_msig m cname in
+                                            let spec_pos =
+                                              try
+                                                match (MethodMap.find msi !curr_static_methodSpecs) with
+                                                | (spec, pos) -> pos
+                                              with Not_found ->
+                                                try
+                                                  match (MethodMap.find msi !curr_dynamic_methodSpecs) with
+                                                  | (spec, pos) -> pos
+                                                with  Not_found -> None in
+                                            (statement, spec_pos)
+                                        | Some _ -> (statement, pos)
+                                     ) m.bstmts in
+                   m.bstmts <- mb
+              ) mdl;
 
-  (* Adding specification position for init method statements if they do not have their own *)
-  List.iter (fun m ->
-    if is_init_method m then
-          let mb = List.map (fun (statement, pos) ->
-              match pos with
-                | None ->
-                  let msi = Methdec.get_msig m cname in
-                  let spec_pos =
-                    try
-                      match (MethodMap.find msi !curr_static_methodSpecs) with
-                        | (spec, pos) -> pos
-                    with Not_found ->
-                      try
-                        match (MethodMap.find msi !curr_dynamic_methodSpecs) with
-                          | (spec, pos) -> pos
-                      with  Not_found -> None in
-                      (statement, spec_pos)
-                | Some _ -> (statement, pos)
-            ) m.bstmts in
-          m.bstmts <- mb
-  ) mdl;
+    (* generate method bodies in ast_core format *)
+    let xs =
+      List.map (fun m ->
+                  let sig_str = methdec2signature_str m in
+                  let body = if Methdec.has_body m then jimple_stmts2core m.bstmts else [] in
+                  (*
+		    let requires = if Methdec.has_requires_clause m then jimple_stmts2core m.req_stmts else [] in
+                    let old_clause = List.map (fun o -> jimple_stmts2core o) m.old_stmts_list in
+                    let ensures = if Methdec.has_ensures_clause m then jimple_stmts2core m.ens_stmts else [] in
+                  *)
+	          let spec = HashSet.singleton(get_spec_for m fields cname) in 
+                  let l = add_static_type_info PS.empty_logic  m.locals in
+		  { C.proc_name = sig_str; proc_spec = spec; proc_body = Some body; proc_rules = l } 
+               ) mdl in 
 
-  (* generate method bodies in ast_core format *)
-  let xs =
-    List.map (fun m ->
-               let sig_str = methdec2signature_str m in
-               let body = if Methdec.has_body m then jimple_stmts2core m.bstmts else [] in
-  (*
-		   let requires = if Methdec.has_requires_clause m then jimple_stmts2core m.req_stmts else [] in
-               let old_clause = List.map (fun o -> jimple_stmts2core o) m.old_stmts_list in
-               let ensures = if Methdec.has_ensures_clause m then jimple_stmts2core m.ens_stmts else [] in
-  *)
-	       let spec = HashSet.singleton(get_spec_for m fields cname) in 
-               let l = add_static_type_info PS.empty_logic  m.locals in
-		 { C.proc_name = sig_str; proc_spec = spec; proc_body = Some body; proc_rules = l } 
-  ) mdl in 
-
-  let xs = add_dummy_procs xs in
-
-  (* Print using core function *)
-  let file =  open_out "jstar_question.core" in
-  Corestar_std.pp_list CoreOps.pp_ast_proc (Format.formatter_of_out_channel file) xs;
-  close_out file;  
-
+    let xs = add_dummy_procs xs in
+    
+    (* Print using core function *)
+    let file =  open_out "jstar_question.core" in
+    Corestar_std.pp_list CoreOps.pp_ast_proc (Format.formatter_of_out_channel file) xs;
+    close_out file;  
+    xs
+  in
+  let proc_all_files=List.flatten (List.map process_single_file_and_get_methods file_list) in
   (* verify globally *)
   ignore
     (Symexec.verify
-      { C.q_procs = xs
+      { C.q_procs = proc_all_files
       ; q_rules = lo
       ; q_infer = true
       ; q_name = "jstar_question" });

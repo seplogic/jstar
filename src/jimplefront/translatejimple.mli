@@ -32,7 +32,7 @@ module LocalMap :
     val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
   end
 type local_map = Psyntax.args list Javaspecs.AxiomMap.t
-val verify_jimple_file :
-  Jimple_global_types.jimple_file ->
+val verify_jimple_files :
+  Jimple_global_types.jimple_file list ->
   Psyntax.logic ->
   Psyntax.logic -> Javaspecs.methodSpecs -> Javaspecs.methodSpecs -> unit

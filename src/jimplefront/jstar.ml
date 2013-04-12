@@ -78,7 +78,7 @@ let parse_program program_file_name =
 		| x -> x) f )
 
 
-let verify_one_program spec_list abs_rules logic program =
+let make_logic_for_one_program spec_list logic program =
        let Jimple_global_types.JFile(_,_,class_name,_,_,_) = program in
        let logic = Javaspecs.augmented_logic_for_class class_name spec_list logic in
        let logic = Javaspecs.add_common_apf_predicate_rules spec_list logic in
@@ -112,24 +112,22 @@ let verify_one_program spec_list abs_rules logic program =
 	    axiom_map
 	    logic;
        let logic = Javaspecs.add_axiom_implications_to_logic spec_list logic in
+       logic
        (*let _ = Prover.pprint_sequent_rules logic in*)
        (* End of axioms clause treatment *)
 
-      if log log_specs then ( 
-	 fprintf
-	    logf
-	    "@[<2>Specifications%a@."
-	    (pp_list Spec_def.pp_class_spec) spec_list);
-       let (static_method_specs,dynamic_method_specs) =
-	 Javaspecs.spec_file_to_method_specs spec_list in
-       if log log_phase then 
-	 fprintf logf "@[Starting symbolic execution.@.";
-       Classverification.verify_methods
-	   program
-	   static_method_specs
-	   dynamic_method_specs
-	   logic abs_rules
 
+let verify_all_methods spec_list abs_rules logic  programs =
+  if log log_specs then ( 
+    fprintf
+      logf
+      "@[<2>Specifications%a@."
+      (pp_list Spec_def.pp_class_spec) spec_list);
+  let (static_method_specs,dynamic_method_specs) =
+    Javaspecs.spec_file_to_method_specs spec_list in
+  if log log_phase then 
+    fprintf logf "@[Starting symbolic execution.@.";
+  Classverification.verify_methods programs static_method_specs dynamic_method_specs logic abs_rules
 
 
 let main () =
@@ -169,8 +167,9 @@ let main () =
          System.parse_file Jparser.spec_file Jlexer.token fn "specs" in
        let spec_list =
          Load.load ~path:Cli_utils.specs_dirs parse !spec_file_name in
-       List.iter (fun p -> verify_one_program spec_list abs_rules logic p) programs )
-
+       let logic=
+         List.fold_left (fun l p -> make_logic_for_one_program spec_list l p ) logic programs in
+       verify_all_methods spec_list logic abs_rules programs)       
 
 
 let _ =

@@ -92,24 +92,19 @@ let verify_axioms_implications class_name jimple_file implications axiom_map (lo
       ) parents
   ) implications
 
-let verify_methods
+
+
+let verify_methods_dynamic_dispatch_behavioral_subtyping_inheritance 
     (jimple_file : Jimple_global_types.jimple_file)
     (static_method_specs : Javaspecs.methodSpecs)
     (dynamic_method_specs : Javaspecs.methodSpecs)
     (logic : logic)
     (abslogic : logic) : unit =
+
   let Jimple_global_types.JFile(_,_,class_name,_,_,_) = jimple_file in
   let parents = parent_classes_and_interfaces jimple_file in
   let keep_cn = MethodMapH.filter (fun (cn,_,_,_) _ -> cn = class_name) in
   let static_specs = keep_cn static_method_specs in
-
-  (* Body verification - call symbolic execution for all methods in the jimple file *)
-  Translatejimple.verify_jimple_file
-      jimple_file
-      logic
-      abslogic
-      static_method_specs
-      dynamic_method_specs;
 
   (* Dynamic dispatch *)
   if not (is_class_abstract jimple_file || is_interface jimple_file) then
@@ -195,3 +190,28 @@ let verify_methods
               (printf "@{<b>NOK@}"; pp_json_location_opt static_pos et "");
             printf "%s@." et))
       sss
+
+
+(* verify methods for a list of files *)
+let verify_methods
+    (jimple_files : Jimple_global_types.jimple_file list)
+    (static_method_specs : Javaspecs.methodSpecs)
+    (dynamic_method_specs : Javaspecs.methodSpecs)
+    (logic : logic)
+    (abslogic : logic) : unit =
+
+  (* Body verification - call symbolic execution for all methods in the jimple file *)
+  Translatejimple.verify_jimple_files
+      jimple_files
+      logic
+      abslogic
+      static_method_specs
+      dynamic_method_specs;
+  List.iter (fun jf ->
+               verify_methods_dynamic_dispatch_behavioral_subtyping_inheritance 
+                 jf
+                 static_method_specs
+                 dynamic_method_specs
+                 logic
+                 abslogic)  
+    jimple_files 
