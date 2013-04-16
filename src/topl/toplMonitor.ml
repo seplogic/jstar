@@ -32,12 +32,12 @@ module RMap = StringMap
 type guard =
   | True
   | EqCt of int * value  (* index in event, and constant to compare to *)
-  | EqReg of int * register (* index in event, and index of register *)
+  | EqReg of int * register (* index in event, and register name *)
   | Not of guard
   | And of guard list
 
 type action = int RMap.t
-  (** Register [x] is set from component [IntMap.find x action] of the letter.*)
+  (** Register [x] is set from component [RMap.find x action] of the letter.*)
 
 type step =
   { guard : guard
