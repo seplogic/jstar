@@ -15,6 +15,8 @@ open Corestar_std
 open Debug
 open Format
 
+open ToplPreprocessor (* XXX *)
+
 (* TODO(rgrig): Don't open these. *)
 open Jparsetree
 open Jimple_global_types

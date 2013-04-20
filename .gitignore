@@ -2,6 +2,8 @@
 *.swp
 .depend
 .install.mk
+/.vimrc
+/TODO
 /tmp
 TAGS
 _build
