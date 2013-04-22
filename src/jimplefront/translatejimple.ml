@@ -500,10 +500,14 @@ let get_call_args p =
 
 
 let make_instrumented_proc p =
-  let call_emit= {C.call_name = "emit"; C.call_rets =[]; C.call_args=[]} in
+  let emit_call= {C.call_name = "emit"; 
+                  C.call_rets =[]; 
+                  C.call_args=Psyntax.Arg_var(Vars.concretep_str ("call_"^p.C.proc_name))::get_call_args p} in
   let call_p= {C.call_name = p.C.proc_name; call_rets =get_call_rets p; call_args=get_call_args p} in
-  let call_emit' ={C.call_name = "emit"; call_rets =[]; call_args=[]} in
-  let proc_body'=Some ([C.Call_core call_emit; C.Call_core call_p ; C.Call_core call_emit'])  in
+  let emit_ret ={C.call_name = "emit"; 
+                 call_rets =[]; 
+                 call_args=[Psyntax.Arg_var(Vars.concretep_str ("ret_"^p.C.proc_name))]} in
+  let proc_body'=Some ([C.Call_core emit_call; C.Call_core call_p ; C.Call_core emit_ret])  in  
   {C.proc_name = p.C.proc_name^"_I"; proc_spec = p.C.proc_spec ; proc_body=proc_body'; proc_rules=p.C.proc_rules}
 
 
