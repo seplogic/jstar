@@ -455,8 +455,56 @@ let add_dummy_procs xs =
   List.iter (remove_proc h) xs;
   xs@(HashSet.fold (fun x y -> cons (dummy_proc x) y) h []) 
 
+let par_proc : (string,(int*int)) Hashtbl.t = Hashtbl.create 100
+
+let rec get_call_stm stml =
+  match stml with
+  | [] -> []
+  | C.Call_core p ::stml' -> C.Call_core p::get_call_stm stml'
+  | _::stml' -> get_call_stm stml'
+
+let do_call_stm c_stm = 
+  match c_stm with
+  | C.Call_core c -> 
+      let num_rets =List.length c.C.call_rets in
+      let num_args =List.length c.C.call_args in
+      (try
+        let (r,a)=Hashtbl.find par_proc c.C.call_name in
+        Hashtbl.replace par_proc c.C.call_name (max num_rets r, max num_args a)
+      with _ -> Hashtbl.add par_proc c.C.call_name (num_rets,num_args))
+  | _ -> assert false    
+
+let compute_args procs =
+  let call_statements = List.flatten (List.map (fun p -> match p.C.proc_body with 
+                                  |None -> [] 
+                                  |Some b -> get_call_stm b ) procs) in
+  List.iter do_call_stm call_statements
 
 
+let get_call_rets p =
+  let rec f n = 
+    if n>=0 then 
+      (Vars.concretep_str ("$ret_v"^string_of_int(n))):: f (n-1) 
+    else [] in
+  let n= fst (Hashtbl.find par_proc p.C.proc_name) in
+  f n
+
+let get_call_args p =
+  let rec f n = 
+    if n>=0 then 
+      Psyntax.Arg_var (Vars.concretep_str ("@parameter"^string_of_int(n)^":")):: f (n-1) 
+    else [] in
+  let n= snd (Hashtbl.find par_proc p.C.proc_name) in
+  f n
+
+
+
+let make_instrumented_proc p =
+  let call_emit= {C.call_name = "emit"; C.call_rets =[]; C.call_args=[]} in
+  let call_p= {C.call_name = p.C.proc_name; call_rets =get_call_rets p; call_args=get_call_args p} in
+  let call_emit' ={C.call_name = "emit"; call_rets =[]; call_args=[]} in
+  let proc_body'=Some ([C.Call_core call_emit; C.Call_core call_p ; C.Call_core call_emit'])  in
+  {C.proc_name = p.C.proc_name^"_I"; proc_spec = p.C.proc_spec ; proc_body=proc_body'; proc_rules=p.C.proc_rules}
 
 
 let verify_jimple_files
@@ -520,6 +568,10 @@ let verify_jimple_files
     xs
   in
   let proc_all_files=List.flatten (List.map process_single_file_and_get_methods file_list) in
+  (* add instrumented methods for emit *)
+  compute_args proc_all_files;
+  let primed_procedures = List.map make_instrumented_proc proc_all_files in
+  let proc_all_files=proc_all_files @ primed_procedures in 
   (* verify globally *)
   ignore
     (Symexec.verify
