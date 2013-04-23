@@ -3,7 +3,7 @@ open Corestar_std
 open Debug
 open Format
 
-module A = ToplAst
+module A = Topl.PropAst
 
 (* }}} *)
 (* globals *) (* {{{ *)
@@ -430,10 +430,8 @@ let compute_inheritance in_dir = failwith "XXX"
 (* }}} *)
 (* main *) (* {{{ *)
 
-let parseTopl = failwith "XXX"
-
 let read_properties fs =
-  fs |> List.map parseTopl >>= List.map (fun x -> x.A.ast)
+  fs |> List.map Topl.Helper.parse >>= List.map (fun x -> x.A.ast)
 
 (*
   printf "@[";

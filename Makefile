@@ -12,20 +12,19 @@ export JSTAR_HOME
 
 SRC_DIRS=src corestar_src
 MAINS=jstar
-LIBS=dynlink str unix
-OB_FLAGS=-cflags -dtypes -yaccflags -v
+OB_FLAGS=-cflags -dtypes -yaccflags -v -use-ocamlfind
 
 # section with stuff that shouldn't change often
 
 SHELL=/bin/bash
 SRC_SUBDIRS=$(addsuffix .subdirs,$(SRC_DIRS))
-OCAMLBUILD=ocamlbuild $(OB_FLAGS) `cat $(SRC_SUBDIRS)` $(addprefix -lib ,$(LIBS))
+OCAMLBUILD=ocamlbuild $(OB_FLAGS) `cat $(SRC_SUBDIRS)`
 
 build: native
 
 native byte: $(SRC_SUBDIRS)
-	$(OCAMLBUILD) $(addsuffix .$@,$(MAINS))
-	for f in $(MAINS); do ln -sf ../`readlink $$f.$@` bin/$$f; rm $$f.$@; done
+	@$(OCAMLBUILD) $(addsuffix .$@,$(MAINS))
+	@for f in $(MAINS); do ln -sf ../`readlink $$f.$@` bin/$$f; rm $$f.$@; done
 
 test: test-native
 
@@ -42,14 +41,14 @@ all: build test
 
 clean:
 	ocamlbuild -clean
-	rm -f lib/*.a lib/*.cmxa lib/*.cmxs bin/* *.subdirs
+	rm -f *.subdirs
 	rm -rf corestar_src # DEV
 	$(MAKE) -C unit_tests clean
 	$(MAKE) -C scripts clean # DEV
 	$(MAKE) -C doc/tutorial clean # DEV
 
 %.subdirs: %
-	ls -F $*/ | grep / | sed "s./.." | sed "s.^.-I $*/." > $*.subdirs
+	@ls -F $*/ | grep / | sed "s./.." | sed "s.^.-I $*/." > $*.subdirs
 
 corestar_src:
 	ln -sf "$(CORESTAR_HOME)/src" corestar_src
