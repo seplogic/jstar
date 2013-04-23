@@ -4,6 +4,7 @@ open Debug
 open Format
 
 module A = Topl.PropAst
+module JG = Jimple_global_types
 
 (* }}} *)
 (* globals *) (* {{{ *)
@@ -415,17 +416,14 @@ let get_overrides h c m =
   let qualify c =  mk_full_method_name c m.method_name in
   (List.map qualify ancestors, m.method_arity)
 
-let compute_inheritance in_dir = failwith "XXX"
-(*
+let compute_inheritance js =
   let h = Hashtbl.create 0 in
-  let record_class c =
-    let parents = match c.BH.c_extends with
-      | None -> c.BH.c_implements
-      | Some e -> e :: c.BH.c_implements in
-    Hashtbl.replace h c.BH.c_name parents in
-  ClassMapper.iter in_dir record_class;
+  let record_jimple (JG.JFile (_, _, cn, xs, ys, _)) =
+    let cn = Pprinter.class_name2str cn in
+    let zs = List.map Pprinter.class_name2str (xs @ ys) in
+    Hashtbl.replace h cn zs in
+  List.iter record_jimple js;
   h
-  *)
 
 (* }}} *)
 (* main *) (* {{{ *)
