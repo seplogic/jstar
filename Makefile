@@ -19,12 +19,15 @@ OB_FLAGS=-cflags -dtypes -yaccflags -v -use-ocamlfind
 SHELL=/bin/bash
 SRC_SUBDIRS=$(addsuffix .subdirs,$(SRC_DIRS))
 OCAMLBUILD=ocamlbuild $(OB_FLAGS) `cat $(SRC_SUBDIRS)`
+CPLN=corestar_scripts/_build/cpln.byte
 
 build: native
 
-native byte: $(SRC_SUBDIRS)
+native byte: $(SRC_SUBDIRS) corestar_scripts
+	@$(MAKE) -C corestar_scripts byte
 	@$(OCAMLBUILD) $(addsuffix .$@,$(MAINS))
-	@for f in $(MAINS); do ln -sf ../`readlink $$f.$@` bin/$$f; rm $$f.$@; done
+	@mkdir -p bin
+	@for f in $(MAINS); do $(CPLN) $$f.$@ bin/$$f; rm $$f.$@; done
 
 test: test-native
 
@@ -34,17 +37,14 @@ test-native test-byte: test-%: %
 doc:
 	$(MAKE) -C doc/tutorial # DEV
 
-scripts:
-	$(MAKE) -C scripts # DEV
-
 all: build test
 
 clean:
 	ocamlbuild -clean
 	rm -f *.subdirs
-	rm -rf corestar_src # DEV
+	rm -rf bin
+	rm -rf corestar_src corestar_scripts # DEV
 	$(MAKE) -C unit_tests clean
-	$(MAKE) -C scripts clean # DEV
 	$(MAKE) -C doc/tutorial clean # DEV
 
 %.subdirs: %
@@ -53,7 +53,10 @@ clean:
 corestar_src:
 	ln -sf "$(CORESTAR_HOME)/src" corestar_src
 
-.PHONY: build clean doc test
+corestar_scripts:
+	ln -sf "$(CORESTAR_HOME)/scripts" corestar_scripts
+
+.PHONY: build byte clean doc native test
 
 -include .install.mk
 
