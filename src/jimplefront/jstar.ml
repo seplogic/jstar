@@ -32,17 +32,28 @@ let spec_file_name = ref "specs"
 let absrules_file_name = ref "abs"
 let eclipse_mode = ref false
 let specs_template_mode = ref false
-let file_list = ref []
+
+let jimple_files = ref []
+let topl_files = ref []
+let spec_files = ref [] (* TODO(rgrig): Not used yet, but should. *)
+let rule_files = ref [] (* TODO(rgrig): Not used yet, but should. *)
+let set_file fn =
+  let ts =
+    [ ".jimple", jimple_files
+    ; ".topl", topl_files
+    ; ".spec", spec_files
+    ; ".rules", rule_files ] in
+  let record (suffix, ref) =
+    if Filename.check_suffix fn suffix then ref =:: fn in
+  List.iter record ts
 
 let arg_list =
   Config.args_default
-  @ [ "-e", Arg.Set eclipse_mode, "run in eclipse"
-    ; "-t", Arg.Set specs_template_mode, "create empty specs template"
-(*    ; "-f", Arg.Set_string program_file_name, "program file name" *)
-    ; "-f", Arg.Rest (fun f -> file_list := f :: !file_list) , "list of file names"
+  @ [ "-a", Arg.Set_string absrules_file_name, "abstraction rules file"
+    ; "-e", Arg.Set eclipse_mode, "run in eclipse"
     ; "-l", Arg.Set_string logic_file_name, "logic file"
     ; "-s", Arg.Set_string spec_file_name, "specs file"
-    ; "-a", Arg.Set_string absrules_file_name, "abstraction rules file" ]
+    ; "-t", Arg.Set specs_template_mode, "create empty specs template" ]
 let () = Config.check_arg_specs arg_list
 
 
@@ -121,29 +132,27 @@ let make_logic_for_one_program spec_list logic program =
 
 
 let verify_all_methods spec_list abs_rules logic  programs =
-  if log log_specs then ( 
+  if log log_specs then (
     fprintf
       logf
       "@[<2>Specifications%a@."
       (pp_list Spec_def.pp_class_spec) spec_list);
   let (static_method_specs,dynamic_method_specs) =
     Javaspecs.spec_file_to_method_specs spec_list in
-  if log log_phase then 
+  if log log_phase then
     fprintf logf "@[Starting symbolic execution.@.";
   Classverification.verify_methods programs static_method_specs dynamic_method_specs logic abs_rules
 
 
 let main () =
-  let usage_msg="Usage: -l <logic_file_name>  -a <abstraction_file_name>  -s <spec_file_name>  -f <class_file_program>" in
-  Arg.parse
-      arg_list
-      (eprintf "@[WARNING: Ignored argument %s.@.")
-      usage_msg;
+  let usage_msg =
+    Printf.sprintf "usage: %s [options] <jimple_programs>" Sys.argv.(0) in
+  Arg.parse arg_list set_file usage_msg;
 
     eprintf "@\nFile to be analyzed: ";
-    List.iter (fun s -> eprintf "%s " s ) !file_list;
+    List.iter (fun s -> eprintf "%s " s ) !jimple_files;
     eprintf "@\n";
-     let programs = List.map parse_program !file_list in
+     let programs = List.map parse_program !jimple_files in
      if !specs_template_mode then
        (if log log_phase then
 	  fprintf logf "@[<4>Creating empty specs template for class@.@.";
@@ -170,12 +179,12 @@ let main () =
          System.parse_file Jparser.spec_file Jlexer.token fn "specs" in
        let spec_list =
          Load.load ~path:Cli_utils.specs_dirs parse !spec_file_name in
-       let logic=
-         List.fold_left (fun l p -> make_logic_for_one_program spec_list l p ) logic programs in
-       verify_all_methods spec_list logic abs_rules programs)       
+       let logic =
+         List.fold_left (make_logic_for_one_program spec_list) logic programs in
+       verify_all_methods spec_list logic abs_rules programs)
 
 
-let _ =
+let () =
   System.set_signal_handlers ();
   let mf = {
     mark_open_tag = (function

@@ -26,7 +26,7 @@ open Support_symex
 open Javaspecs
 
 module C = Core
-module PS = Psyntax 
+module PS = Psyntax
 
 (* global variables *)
 let curr_static_methodSpecs: Javaspecs.methodSpecs ref = ref Javaspecs.emptyMSpecs
@@ -100,12 +100,12 @@ let get_spec  (iexp: Jparsetree.invoke_expr) =
 
 
 let msig2str cn rt mn ps =
-  Pprinter.class_name2str cn 
-  ^ "." 
-  ^ Pprinter.name2str mn 
-  ^ "$$" 
-  ^ (Pprinter.list2str Pprinter.parameter2str ps "$$") 
-  ^ "$$"  
+  Pprinter.class_name2str cn
+  ^ "."
+  ^ Pprinter.name2str mn
+  ^ "$$"
+  ^ (Pprinter.list2str Pprinter.parameter2str ps "$$")
+  ^ "$$"
   ^ Pprinter.j_type2str rt
 
 
@@ -113,10 +113,10 @@ let get_name  (iexp: Jparsetree.invoke_expr) =
   match iexp with
   | Invoke_nostatic_exp (Virtual_invoke,_,si,il)
   | Invoke_nostatic_exp (Interface_invoke,_,si,il)
-  | Invoke_nostatic_exp (Special_invoke,_,si,il) 
+  | Invoke_nostatic_exp (Special_invoke,_,si,il)
   | Invoke_static_exp (si,il) ->
       let n = match si with
-	| Method_signature (cn,rt,mn,ps) -> msig2str cn rt mn ps 
+	| Method_signature (cn,rt,mn,ps) -> msig2str cn rt mn ps
 	| Field_signature (cn,_,fn) -> failwith "INTERNAL: cannot invoke a field"
       in n,il
 
@@ -430,15 +430,15 @@ let add_static_type_info logic locals : Psyntax.logic =
 
 
 
-let add_if_called_proc acc stmt = 
+let add_if_called_proc acc stmt =
   match stmt with
-    | C.Call_core c -> HashSet.add acc c.C.call_name 
+    | C.Call_core c -> HashSet.add acc c.C.call_name
     | _ -> ()
 
 let called_procs_from_body acc body =
    List.iter (add_if_called_proc acc) body
 
-let called_procs_from_proc acc proc = 
+let called_procs_from_proc acc proc =
   match proc.C.proc_body with
     | Some b -> called_procs_from_body acc b
     | None -> ()
@@ -447,13 +447,13 @@ let remove_proc acc proc =
   HashSet.remove acc proc.C.proc_name
 
 let dummy_proc n =
-  { C.proc_name = n; proc_spec = (HashSet.create 1); proc_body = None; proc_rules = PS.empty_logic } 
+  { C.proc_name = n; proc_spec = (HashSet.create 1); proc_body = None; proc_rules = PS.empty_logic }
 
 let add_dummy_procs xs =
   let h = HashSet.create 1 in
   List.iter (called_procs_from_proc h) xs;
   List.iter (remove_proc h) xs;
-  xs@(HashSet.fold (fun x y -> cons (dummy_proc x) y) h []) 
+  xs@(HashSet.fold (fun x y -> cons (dummy_proc x) y) h [])
 
 let par_proc : (string,(int*int)) Hashtbl.t = Hashtbl.create 100
 
@@ -463,36 +463,36 @@ let rec get_call_stm stml =
   | C.Call_core p ::stml' -> C.Call_core p::get_call_stm stml'
   | _::stml' -> get_call_stm stml'
 
-let do_call_stm c_stm = 
+let do_call_stm c_stm =
   match c_stm with
-  | C.Call_core c -> 
+  | C.Call_core c ->
       let num_rets =List.length c.C.call_rets in
       let num_args =List.length c.C.call_args in
       (try
         let (r,a)=Hashtbl.find par_proc c.C.call_name in
         Hashtbl.replace par_proc c.C.call_name (max num_rets r, max num_args a)
       with _ -> Hashtbl.add par_proc c.C.call_name (num_rets,num_args))
-  | _ -> assert false    
+  | _ -> assert false
 
 let compute_args procs =
-  let call_statements = List.flatten (List.map (fun p -> match p.C.proc_body with 
-                                  |None -> [] 
+  let call_statements = List.flatten (List.map (fun p -> match p.C.proc_body with
+                                  |None -> []
                                   |Some b -> get_call_stm b ) procs) in
   List.iter do_call_stm call_statements
 
 
 let get_call_rets p =
-  let rec f n = 
-    if n>=0 then 
-      (Vars.concretep_str ("$ret_v"^string_of_int(n))):: f (n-1) 
+  let rec f n =
+    if n>=0 then
+      (Vars.concretep_str ("$ret_v"^string_of_int(n))):: f (n-1)
     else [] in
   let n= fst (Hashtbl.find par_proc p.C.proc_name) in
   f n
 
 let get_call_args p =
-  let rec f n = 
-    if n>=0 then 
-      Psyntax.Arg_var (Vars.concretep_str ("@parameter"^string_of_int(n)^":")):: f (n-1) 
+  let rec f n =
+    if n>=0 then
+      Psyntax.Arg_var (Vars.concretep_str ("@parameter"^string_of_int(n)^":")):: f (n-1)
     else [] in
   let n= snd (Hashtbl.find par_proc p.C.proc_name) in
   f n
@@ -500,14 +500,14 @@ let get_call_args p =
 
 
 let make_instrumented_proc p =
-  let emit_call= {C.call_name = "emit"; 
-                  C.call_rets =[]; 
+  let emit_call= {C.call_name = "emit";
+                  C.call_rets =[];
                   C.call_args=Psyntax.Arg_var(Vars.concretep_str ("call_"^p.C.proc_name))::get_call_args p} in
   let call_p= {C.call_name = p.C.proc_name; call_rets =get_call_rets p; call_args=get_call_args p} in
-  let emit_ret ={C.call_name = "emit"; 
-                 call_rets =[]; 
+  let emit_ret ={C.call_name = "emit";
+                 call_rets =[];
                  call_args=[Psyntax.Arg_var(Vars.concretep_str ("ret_"^p.C.proc_name))]} in
-  let proc_body'=Some ([C.Call_core emit_call; C.Call_core call_p ; C.Call_core emit_ret])  in  
+  let proc_body'=Some ([C.Call_core emit_call; C.Call_core call_p ; C.Call_core emit_ret])  in
   {C.proc_name = p.C.proc_name^"_I"; proc_spec = p.C.proc_spec ; proc_body=proc_body'; proc_rules=p.C.proc_rules}
 
 
@@ -518,14 +518,14 @@ let verify_jimple_files
     (sspecs: Javaspecs.methodSpecs)
     (dspecs: Javaspecs.methodSpecs) :
     unit =
-  
-  let process_single_file_and_get_methods f = 
+
+  let process_single_file_and_get_methods f =
     curr_static_methodSpecs:=sspecs;
     curr_dynamic_methodSpecs:=dspecs;
     let cname=Methdec.get_class_name f in
     (* get the method declarations - See make_methdec in methdec.ml *)
     let mdl =  Methdec.make_methdecs_of_list cname (Methdec.get_list_methods f) in
-    let fields = Methdec.get_list_fields f in  
+    let fields = Methdec.get_list_fields f in
     (* Adding specification position for init method statements if they do not have their own *)
     List.iter (fun m ->
                  if is_init_method m then
@@ -558,24 +558,24 @@ let verify_jimple_files
                     let old_clause = List.map (fun o -> jimple_stmts2core o) m.old_stmts_list in
                     let ensures = if Methdec.has_ensures_clause m then jimple_stmts2core m.ens_stmts else [] in
                   *)
-	          let spec = HashSet.singleton(get_spec_for m fields cname) in 
+	          let spec = HashSet.singleton(get_spec_for m fields cname) in
                   let l = add_static_type_info PS.empty_logic  m.locals in
-		  { C.proc_name = sig_str; proc_spec = spec; proc_body = Some body; proc_rules = l } 
-               ) mdl in 
+		  { C.proc_name = sig_str; proc_spec = spec; proc_body = Some body; proc_rules = l }
+               ) mdl in
 
     let xs = add_dummy_procs xs in
-    
+
     (* Print using core function *)
     let file =  open_out "jstar_question.core" in
     Corestar_std.pp_list CoreOps.pp_ast_proc (Format.formatter_of_out_channel file) xs;
-    close_out file;  
+    close_out file;
     xs
   in
   let proc_all_files=List.flatten (List.map process_single_file_and_get_methods file_list) in
   (* add instrumented methods for emit *)
   compute_args proc_all_files;
   let primed_procedures = List.map make_instrumented_proc proc_all_files in
-  let proc_all_files=proc_all_files @ primed_procedures in 
+  let proc_all_files=proc_all_files @ primed_procedures in
   (* verify globally *)
   ignore
     (Symexec.verify
@@ -586,8 +586,8 @@ let verify_jimple_files
 (* TODO(rgrig): [q_name] should depend on the names of files being processed. *)
 
 (* nikos: These extra verifications should be restored at some point?
-   
-   List.iter (fun (m,sig_str,body,req,old,ens) -> 
+
+   List.iter (fun (m,sig_str,body,req,old,ens) ->
                   (* verify the body only if the method is non-abstract *)
                   if Methdec.has_body m then
 	            (*let _ = Prover.pprint_sequent_rules l in*)
@@ -605,4 +605,4 @@ let verify_jimple_files
             ) xs;
 *)
 
-  
+
