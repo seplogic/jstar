@@ -480,11 +480,20 @@ let compute_args procs =
                                   |Some b -> get_call_stm b ) procs) in
   List.iter do_call_stm call_statements
 
+(*
+let get_param p f1 f2 =
+  let rec iter_n n f =
+    if n>=0 then
+      (f n):: iter_n (n-1) f
+    else [] in
+  let (n,m)= Hashtbl.find par_proc p.C.proc_name in
+  (iter_n n f1,iter_n m f2)
+*)
 
 let get_call_rets p =
   let rec f n =
     if n>=0 then
-      (Vars.concretep_str ("$ret_v"^string_of_int(n))):: f (n-1)
+      (CoreOps.return_var n):: f (n-1)
     else [] in
   let n= fst (Hashtbl.find par_proc p.C.proc_name) in
   f n
@@ -492,23 +501,31 @@ let get_call_rets p =
 let get_call_args p =
   let rec f n =
     if n>=0 then
-      Psyntax.Arg_var (Vars.concretep_str ("@parameter"^string_of_int(n)^":")):: f (n-1)
+      Psyntax.Arg_var (CoreOps.parameter_var n):: f (n-1)
     else [] in
   let n= snd (Hashtbl.find par_proc p.C.proc_name) in
   f n
-
 
 
 let make_instrumented_proc p =
   let emit_call= {C.call_name = "emit";
                   C.call_rets =[];
                   C.call_args=Psyntax.Arg_var(Vars.concretep_str ("call_"^p.C.proc_name))::get_call_args p} in
+(*  let (r,a)=get_param p CoreOps.return_var CoreOps.parameter_var in *)
   let call_p= {C.call_name = p.C.proc_name; call_rets =get_call_rets p; call_args=get_call_args p} in
   let emit_ret ={C.call_name = "emit";
                  call_rets =[];
                  call_args=[Psyntax.Arg_var(Vars.concretep_str ("ret_"^p.C.proc_name))]} in
   let proc_body'=Some ([C.Call_core emit_call; C.Call_core call_p ; C.Call_core emit_ret])  in
   {C.proc_name = p.C.proc_name^"_I"; proc_spec = p.C.proc_spec ; proc_body=proc_body'; proc_rules=p.C.proc_rules}
+
+(* this procedure expects the event to be emitted, and the condition for the assert statement *)
+let emit_proc event assert_cond = 
+  let call_enqueue = {C.call_name = "enqueue"; C.call_rets=[]; C.call_args=[event]} in 
+  let call_step = {C.call_name = "step"; C.call_rets=[]; C.call_args=[]} in
+  let call_assert = {C.call_name = "assert"; C.call_rets=[]; C.call_args=[assert_cond]} in
+  let emit_body =Some ([C.Call_core call_enqueue; C.Call_core call_step; C.Call_core call_assert]) in 
+  { C.proc_name = "emit"; C.proc_spec = (HashSet.create 1); C.proc_body = emit_body; C.proc_rules = PS.empty_logic }
 
 
 let verify_jimple_files
