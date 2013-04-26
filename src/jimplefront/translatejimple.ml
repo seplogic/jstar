@@ -480,38 +480,29 @@ let compute_args procs =
                                   |Some b -> get_call_stm b ) procs) in
   List.iter do_call_stm call_statements
 
-(*
-let get_param p f1 f2 =
-  let rec iter_n n f =
-    if n>=0 then
-      (f n):: iter_n (n-1) f
-    else [] in
-  let (n,m)= Hashtbl.find par_proc p.C.proc_name in
-  (iter_n n f1,iter_n m f2)
-*)
+
+let wrap_ret_args a = CoreOps.return_var a
+
+let wrap_call_args a =  Psyntax.Arg_var( CoreOps.parameter_var a)
+
+let rec iter_wrap w n =
+  if n>=0 then
+    w n:: iter_wrap w (n-1)
+  else [] 
 
 let get_call_rets p =
-  let rec f n =
-    if n>=0 then
-      (CoreOps.return_var n):: f (n-1)
-    else [] in
   let n= fst (Hashtbl.find par_proc p.C.proc_name) in
-  f n
+  iter_wrap wrap_ret_args n
 
 let get_call_args p =
-  let rec f n =
-    if n>=0 then
-      Psyntax.Arg_var (CoreOps.parameter_var n):: f (n-1)
-    else [] in
   let n= snd (Hashtbl.find par_proc p.C.proc_name) in
-  f n
+  iter_wrap wrap_call_args n
 
 
 let make_instrumented_proc p =
   let emit_call= {C.call_name = "emit";
                   C.call_rets =[];
                   C.call_args=Psyntax.Arg_var(Vars.concretep_str ("call_"^p.C.proc_name))::get_call_args p} in
-(*  let (r,a)=get_param p CoreOps.return_var CoreOps.parameter_var in *)
   let call_p= {C.call_name = p.C.proc_name; call_rets =get_call_rets p; call_args=get_call_args p} in
   let emit_ret ={C.call_name = "emit";
                  call_rets =[];
