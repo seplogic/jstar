@@ -16,6 +16,7 @@ open Debug
 open Format
 
 open ToplPreprocessor (* XXX *)
+open ToplSpecs
 
 (* TODO(rgrig): Don't open these. *)
 open Jparsetree
