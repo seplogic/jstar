@@ -43,9 +43,11 @@ let set_file fn =
     ; ".topl", topl_files
     ; ".spec", spec_files
     ; ".rules", rule_files ] in
-  let record (suffix, ref) =
-    if Filename.check_suffix fn suffix then ref =:: fn in
-  List.iter record ts
+  let rec record = function
+    | [] -> eprintf "@[@{<b>WARNING@}: %s has unknown extension. Ignoring.@." fn
+    | (suffix, ref) :: ts ->
+        if Filename.check_suffix fn suffix then ref =:: fn else record ts in
+  record ts
 
 let arg_list =
   Config.args_default
@@ -148,10 +150,9 @@ let main () =
   let usage_msg =
     Printf.sprintf "usage: %s [options] <jimple_programs>" Sys.argv.(0) in
   Arg.parse arg_list set_file usage_msg;
+  if !Config.verbosity >= 2 then
+    printf "@[Files to analyze: %a@." (pp_list_sep " " pp_string) !jimple_files;
 
-    eprintf "@\nFile to be analyzed: ";
-    List.iter (fun s -> eprintf "%s " s ) !jimple_files;
-    eprintf "@\n";
      let programs = List.map parse_program !jimple_files in
      if !specs_template_mode then
        (if log log_phase then
