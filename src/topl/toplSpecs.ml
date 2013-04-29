@@ -85,8 +85,15 @@ let make_registers ( a:automaton ) =
         get_regs_from_action st.action m3) m1 tr.steps ) m tl ) a.transitions
         StringSet.empty)
 
-let make_logical_copy_of_store st i =
-  RMap.mapi (fun r _ -> Psyntax.Arg_var(Vars.concretee_str ("log_register_"^r^"_"^(string_of_int i)))) st
+(* Create a set of logical variables corresponding to the store. Each such set is indexed
+   with the transition j examined, and the step i inside the transition. The value -1 for j
+   means a logical copy common to all transitions from a given vertex. *)
+let make_logical_copy_of_store st i j =
+  if j = -1 then 
+  RMap.mapi (fun r _ -> Psyntax.Arg_var(Vars.concretee_str (Printf.sprintf
+                                                              "log_register_%s_%d" r i))) st
+  else RMap.mapi (fun r _ -> Psyntax.Arg_var(Vars.concretee_str (Printf.sprintf
+                                                              "log_register_%s_%d_trans_%d" r i j))) st
 
 let store_eq st l_st =
   RMap.fold (fun r v f -> P_EQ(v,(VMap.find r l_st)) :: f) st []
@@ -211,14 +218,14 @@ let pDeQu n pv el =
   let m = Array.length pv.queue in
   P_EQ(pv.size, Psyntax.mkArgint (m-n)) :: (logical_dequeue pv.queue el n)
 
-let trans_pre_and_post pv el t : (Psyntax.pform * Psyntax.pform) =
+let trans_pre_and_post pv el l_sr0 j t =
   let st = t.steps in
   let tg = t.target in
   let len = List.length st in
   let sr = pv.store in
-  let l_sr =  Array.init (len+1) (make_logical_copy_of_store sr) in
-  let pre = (store_eq sr l_sr.(0))
-    @ List.flatten (list_mapi (fun i s ->
+  let l_sr =  Array.init (len+1) ( fun i ->
+    if i=0 then l_sr0 else make_logical_copy_of_store sr i j ) in
+  let pre = List.flatten (list_mapi (fun i s ->
       step_conditions pv.queue.(i) l_sr.(i) l_sr.(i+1) s) st) in
   let post = [P_EQ(pv.state, Psyntax.Arg_string(tg))]
     @ (store_eq sr l_sr.(len)) @ (pDeQu len pv el) in (pre,post)
@@ -235,7 +242,8 @@ let sign_POr_posts k xs =
   let xs = List.fold_left (fun acc x -> P_Or ([acc], x)) P_False xs in
   simplify_pform_at xs
 
-let get_specs_for_regular tl v pv =
+let get_specs_for_vertex t pv v s =
+  let tl = (try VMap.find v t with Not_found -> []) in
   let pAt = [P_EQ(pv.state, Psyntax.Arg_string v)] in
   (* let m = max_label_length_for_vertex tl in *)
   (* Qud below is defined differently than in the notes: in order to avoid the burden of
@@ -243,20 +251,29 @@ let get_specs_for_regular tl v pv =
   let (el,ef) = make_logical_copy_of_queue pv.queue in
   let mM = Array.length pv.queue in
   let pQud = P_EQ(pv.size, Psyntax.mkArgint mM) :: ef in
-  let (pAllSats,pAllPosts) = List.split (List.map (trans_pre_and_post pv el) tl) in
+  let l_sr0 = make_logical_copy_of_store pv.store 0 (-1) in
+  let pInit = store_eq pv.store l_sr0 in
+  let (pAllSats,pAllPosts) = List.split (list_mapi (trans_pre_and_post pv el l_sr0) tl) in
+  let s_skip = 
+    let pre = pAt @ pInit @ pQud @ List.flatten (sign_pres IntSet.empty pAllSats) in 
+    let post = pAt @ pInit @ (pDeQu 1 pv el) in
+    [{ Core.pre; post }] in
   let subs = index_subsets (List.length tl) in
-  List.map
+  let s_regular = List.map
     ( fun k ->
-      let pre = pAt @ pQud @ List.flatten (sign_pres k pAllSats) in
+      let pre = pAt @ pInit @ pQud @ List.flatten (sign_pres k pAllSats) in
       let post = sign_POr_posts k pAllPosts in
-      { Core.pre; post }) subs
+      { Core.pre; post }) subs in
+  s_regular @ s_skip @ s
 
+(*
 let get_specs_for_skip tl v pv = []
 
 let get_specs_for_vertex t pv v s =
   let trans_list = (try VMap.find v t with Not_found -> []) in
   (get_specs_for_regular trans_list v pv) @ (get_specs_for_skip trans_list v pv)
   @ s
+*)
 
 let get_specs_for_step a pv =
   HashSet.of_list (VSet.fold (get_specs_for_vertex a.transitions pv) a.vertices [])
