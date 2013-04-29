@@ -133,19 +133,6 @@ let make_logic_for_one_program spec_list logic program =
        (* End of axioms clause treatment *)
 
 
-let verify_all_methods spec_list abs_rules logic  programs =
-  if log log_specs then (
-    fprintf
-      logf
-      "@[<2>Specifications%a@."
-      (pp_list Spec_def.pp_class_spec) spec_list);
-  let (static_method_specs,dynamic_method_specs) =
-    Javaspecs.spec_file_to_method_specs spec_list in
-  if log log_phase then
-    fprintf logf "@[Starting symbolic execution.@.";
-  Classverification.verify_methods programs static_method_specs dynamic_method_specs logic abs_rules
-
-
 let main () =
   let usage_msg =
     Printf.sprintf "usage: %s [options] <jimple_programs>" Sys.argv.(0) in
@@ -153,37 +140,47 @@ let main () =
   if !Config.verbosity >= 2 then
     printf "@[Files to analyze: %a@." (pp_list_sep " " pp_string) !jimple_files;
 
-     let programs = List.map parse_program !jimple_files in
-     if !specs_template_mode then
-       (if log log_phase then
-	  fprintf logf "@[<4>Creating empty specs template for class@.@.";
-        List.iter Mkspecs.print_specs_template programs
-       )
-     else (
-       if !Config.smt_run then Smt.smt_init();
-       (* Load abstract interpretation plugins *)
-       List.iter (fun file_name -> Plugin_manager.load_plugin file_name) !Config.abs_int_plugins;
+  let programs = List.map parse_program !jimple_files in
+  if !specs_template_mode then begin
+    if log log_phase then
+      fprintf logf "@[<4>Creating empty specs template for class@.@.";
+    List.iter Mkspecs.print_specs_template programs
+  end else (
+    if !Config.smt_run then Smt.smt_init();
+    (* Load abstract interpretation plugins *)
+    List.iter (fun file_name -> Plugin_manager.load_plugin file_name) !Config.abs_int_plugins;
 
-       let parse x fn = System.parse_file Parser.file Lexer.token fn x in
-       let add_rule logic = function
-         | PA.Rule r -> PS.add_rule logic r
-         | _ -> failwith "INTERNAL" in
-       let logic =
-         List.fold_left add_rule PS.empty_logic
-          (Load.load ~path:Cli_utils.logic_dirs (parse "logic") !logic_file_name)
-       in
-       let abs_rules =
-         List.fold_left add_rule PS.empty_logic
-          (Load.load ~path:Cli_utils.abs_dirs (parse "abs") !absrules_file_name)
-       in
-       let parse fn =
-         System.parse_file Jparser.spec_file Jlexer.token fn "specs" in
-       let spec_list =
-         Load.load ~path:Cli_utils.specs_dirs parse !spec_file_name in
-       let logic =
-         List.fold_left (make_logic_for_one_program spec_list) logic programs in
-       verify_all_methods spec_list logic abs_rules programs)
-
+    let parse x fn = System.parse_file Parser.file Lexer.token fn x in
+    let add_rule logic = function
+      | PA.Rule r -> PS.add_rule logic r
+      | _ -> failwith "INTERNAL" in
+    let logic =
+      List.fold_left add_rule PS.empty_logic
+        (Load.load ~path:Cli_utils.logic_dirs (parse "logic") !logic_file_name)
+    in
+    let abs_rules =
+      List.fold_left add_rule PS.empty_logic
+        (Load.load ~path:Cli_utils.abs_dirs (parse "abs") !absrules_file_name)
+    in
+    let parse fn =
+      System.parse_file Jparser.spec_file Jlexer.token fn "specs" in
+    let specs =
+      Load.load ~path:Cli_utils.specs_dirs parse !spec_file_name in
+    let logic =
+      List.fold_left (make_logic_for_one_program specs) logic programs in
+    let topls = ToplPreprocessor.read_properties !topl_files in
+    let topls = List.map ToplUtil.parse_values topls in
+    let topl_monitor = ToplPreprocessor.compile programs topls in
+    let cores = Classverification.compile_jimple programs specs logic abs_rules in
+    let cores = ToplPreprocessor.instrument_procedures cores in
+    let question =
+      { Core.q_procs = topl_monitor @ cores
+      ; q_rules = logic
+      ; q_infer = true
+      ; q_name = "jstar_question_for_corestar" } in
+    if Symexec.verify question
+    then printf "@[@{<g> OK@}@."
+    else printf "@[@{<b>NOK@}@.")
 
 let () =
   System.set_signal_handlers ();

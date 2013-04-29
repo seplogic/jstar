@@ -22,7 +22,9 @@ val verify_axioms_implications :
   Jimple_global_types.jimple_file ->
   (string * Psyntax.pform * Psyntax.form) list ->
   (Psyntax.form * Psyntax.form) Javaspecs.AxiomMap.t -> Psyntax.logic -> unit
-val verify_methods :
-  Jimple_global_types.jimple_file list ->
-  Javaspecs.methodSpecs ->
-  Javaspecs.methodSpecs -> Psyntax.logic -> Psyntax.logic -> unit
+val compile_jimple :
+  Jimple_global_types.jimple_file list (* jimples *)
+    -> Spec_def.class_spec list (* specs *)
+    -> Psyntax.logic (* logic *)
+    -> Psyntax.logic (* abs *)
+    -> Core.ast_procedure list

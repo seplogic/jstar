@@ -19,6 +19,7 @@ type event =
 
 type value = Psyntax.args
 
+(* TODO(rgrig): Remove this? It seems to never be known statically. *)
 type letter =
   { event : event
   ; data : value list }

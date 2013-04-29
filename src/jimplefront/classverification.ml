@@ -94,7 +94,7 @@ let verify_axioms_implications class_name jimple_file implications axiom_map (lo
 
 
 
-let verify_methods_dynamic_dispatch_behavioral_subtyping_inheritance 
+let verify_methods_dynamic_dispatch_behavioral_subtyping_inheritance
     (jimple_file : Jimple_global_types.jimple_file)
     (static_method_specs : Javaspecs.methodSpecs)
     (dynamic_method_specs : Javaspecs.methodSpecs)
@@ -121,7 +121,7 @@ let verify_methods_dynamic_dispatch_behavioral_subtyping_inheritance
             (Pprinter.name2str mname) in
         printf "@{<b>WARNING@}: %s@." et; pp_json_location_opt dsp et "") in
     (try MethodMap.iter pss static_specs
-    with Not_found -> 
+    with Not_found ->
        failwith "Internal error: Couldn't get dynamic specs for some method.");
 
   (* Behavioural subtyping of non-constructor methods *)
@@ -166,7 +166,7 @@ let verify_methods_dynamic_dispatch_behavioral_subtyping_inheritance
 	MethodMap.iter (fun (_,a,mname,c) (static_spec, static_pos) ->
       (* stephan mult inh *) (* In the single inheritance case, a lookup can be made for the static spec in the single parent class, resulting in parent_static_specs being [spec] if spec was found, and [] otherwise *)
       let parent_static_specs = List.fold_left (fun list parent ->
-        try 
+        try
           match (MethodMap.find (parent,a,mname,c) static_method_specs) with
           | (ss,_) -> ss :: list
         with Not_found -> list
@@ -191,27 +191,14 @@ let verify_methods_dynamic_dispatch_behavioral_subtyping_inheritance
             printf "%s@." et))
       sss
 
-
-(* verify methods for a list of files *)
-let verify_methods
-    (jimple_files : Jimple_global_types.jimple_file list)
-    (static_method_specs : Javaspecs.methodSpecs)
-    (dynamic_method_specs : Javaspecs.methodSpecs)
-    (logic : logic)
-    (abslogic : logic) : unit =
-
-  (* Body verification - call symbolic execution for all methods in the jimple file *)
-  Translatejimple.verify_jimple_files
-      jimple_files
+let compile_jimple js specs logic abs =
+  let sspecs, dspecs = Javaspecs.spec_file_to_method_specs specs in
+  let check_subtyping j =
+    verify_methods_dynamic_dispatch_behavioral_subtyping_inheritance
+      j
+      sspecs
+      dspecs
       logic
-      abslogic
-      static_method_specs
-      dynamic_method_specs;
-  List.iter (fun jf ->
-               verify_methods_dynamic_dispatch_behavioral_subtyping_inheritance 
-                 jf
-                 static_method_specs
-                 dynamic_method_specs
-                 logic
-                 abslogic)  
-    jimple_files 
+      abs in
+  List.iter check_subtyping js;
+  Translatejimple.compile js sspecs dspecs

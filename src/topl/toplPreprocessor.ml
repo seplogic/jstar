@@ -431,6 +431,12 @@ let compute_inheritance js =
 let read_properties fs =
   fs |> List.map Topl.Helper.parse >>= List.map (fun x -> x.A.ast)
 
+let instrument_procedures ps =
+  failwith "XXX"
+
+let compile js ts =
+  failwith "TODO"
+
 (*
   printf "@[";
   let usage = Printf.sprintf

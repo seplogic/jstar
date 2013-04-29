@@ -306,7 +306,7 @@ let jimple_stmts2core stms =
       (pp_list_sep "; " CoreOps.pp_ast_core) s;
       s (* here we throw away the source position -- might want to restore it for nice error messages *)
   in
-  List.flatten (List.map do_one_stmt stms)
+  stms >>= do_one_stmt
 
 (* returns a triple (m,initial_formset, final_formset)*)
 let get_spec_for m fields cname=
@@ -488,7 +488,7 @@ let wrap_call_args a =  Psyntax.Arg_var( CoreOps.parameter_var a)
 let rec iter_wrap w n =
   if n>=0 then
     w n:: iter_wrap w (n-1)
-  else [] 
+  else []
 
 let get_call_rets p =
   let n= fst (Hashtbl.find par_proc p.C.proc_name) in
@@ -511,106 +511,54 @@ let make_instrumented_proc p =
   {C.proc_name = p.C.proc_name^"_I"; proc_spec = p.C.proc_spec ; proc_body=proc_body'; proc_rules=p.C.proc_rules}
 
 (* this procedure expects the event to be emitted, and the condition for the assert statement *)
-let emit_proc event assert_cond = 
-  let call_enqueue = {C.call_name = "enqueue"; C.call_rets=[]; C.call_args=[event]} in 
+let emit_proc event assert_cond =
+  let call_enqueue = {C.call_name = "enqueue"; C.call_rets=[]; C.call_args=[event]} in
   let call_step = {C.call_name = "step"; C.call_rets=[]; C.call_args=[]} in
   let call_assert = {C.call_name = "assert"; C.call_rets=[]; C.call_args=[assert_cond]} in
-  let emit_body =Some ([C.Call_core call_enqueue; C.Call_core call_step; C.Call_core call_assert]) in 
+  let emit_body =Some ([C.Call_core call_enqueue; C.Call_core call_step; C.Call_core call_assert]) in
   { C.proc_name = "emit"; C.proc_spec = (HashSet.create 1); C.proc_body = emit_body; C.proc_rules = PS.empty_logic }
 
+let compile_method cname fields m =
+  let proc_name = methdec2signature_str m in
+  let proc_body =
+    if Methdec.has_body m
+    then Some (jimple_stmts2core m.bstmts)
+    else None in
+  let proc_spec = HashSet.singleton (get_spec_for m fields cname) in
+  let proc_rules = add_static_type_info PS.empty_logic m.locals in
+  { C.proc_name; proc_spec; proc_body; proc_rules }
 
-let verify_jimple_files
-    (file_list : Jimple_global_types.jimple_file list)
-    (lo : logic)
-    (abs_rules : logic)
-    (sspecs: Javaspecs.methodSpecs)
-    (dspecs: Javaspecs.methodSpecs) :
-    unit =
-
-  let process_single_file_and_get_methods f =
-    curr_static_methodSpecs:=sspecs;
-    curr_dynamic_methodSpecs:=dspecs;
-    let cname=Methdec.get_class_name f in
-    (* get the method declarations - See make_methdec in methdec.ml *)
-    let mdl =  Methdec.make_methdecs_of_list cname (Methdec.get_list_methods f) in
-    let fields = Methdec.get_list_fields f in
-    (* Adding specification position for init method statements if they do not have their own *)
-    List.iter (fun m ->
-                 if is_init_method m then
-                   let mb = List.map (fun (statement, pos) ->
-                                        match pos with
-                                        | None ->
-                                            let msi = Methdec.get_msig m cname in
-                                            let spec_pos =
+let compile_class jimple =
+  let cname = Methdec.get_class_name jimple in
+  (* get the method declarations - See make_methdec in methdec.ml *)
+  let mdl = Methdec.make_methdecs_of_list cname (Methdec.get_list_methods jimple) in
+  let fields = Methdec.get_list_fields jimple in
+  (* Adding specification position for init method statements if they do not have their own *)
+  List.iter (fun m ->
+               if is_init_method m then
+                 let mb = List.map (fun (statement, pos) ->
+                                      match pos with
+                                      | None ->
+                                          let msi = Methdec.get_msig m cname in
+                                          let spec_pos =
+                                            try
+                                              match (MethodMap.find msi !curr_static_methodSpecs) with
+                                              | (spec, pos) -> pos
+                                            with Not_found ->
                                               try
-                                                match (MethodMap.find msi !curr_static_methodSpecs) with
+                                                match (MethodMap.find msi !curr_dynamic_methodSpecs) with
                                                 | (spec, pos) -> pos
-                                              with Not_found ->
-                                                try
-                                                  match (MethodMap.find msi !curr_dynamic_methodSpecs) with
-                                                  | (spec, pos) -> pos
-                                                with  Not_found -> None in
-                                            (statement, spec_pos)
-                                        | Some _ -> (statement, pos)
-                                     ) m.bstmts in
-                   m.bstmts <- mb
-              ) mdl;
+                                              with  Not_found -> None in
+                                          (statement, spec_pos)
+                                      | Some _ -> (statement, pos)
+                                   ) m.bstmts in
+                 m.bstmts <- mb
+            ) mdl;
+  List.map (compile_method cname fields) mdl
 
-    (* generate method bodies in ast_core format *)
-    let xs =
-      List.map (fun m ->
-                  let sig_str = methdec2signature_str m in
-                  let body = if Methdec.has_body m then jimple_stmts2core m.bstmts else [] in
-                  (*
-		    let requires = if Methdec.has_requires_clause m then jimple_stmts2core m.req_stmts else [] in
-                    let old_clause = List.map (fun o -> jimple_stmts2core o) m.old_stmts_list in
-                    let ensures = if Methdec.has_ensures_clause m then jimple_stmts2core m.ens_stmts else [] in
-                  *)
-	          let spec = HashSet.singleton(get_spec_for m fields cname) in
-                  let l = add_static_type_info PS.empty_logic  m.locals in
-		  { C.proc_name = sig_str; proc_spec = spec; proc_body = Some body; proc_rules = l }
-               ) mdl in
-
-    let xs = add_dummy_procs xs in
-
-    (* Print using core function *)
-    let file =  open_out "jstar_question.core" in
-    Corestar_std.pp_list CoreOps.pp_ast_proc (Format.formatter_of_out_channel file) xs;
-    close_out file;
-    xs
-  in
-  let proc_all_files=List.flatten (List.map process_single_file_and_get_methods file_list) in
-  (* add instrumented methods for emit *)
-  compute_args proc_all_files;
-  let primed_procedures = List.map make_instrumented_proc proc_all_files in
-  let proc_all_files=proc_all_files @ primed_procedures in
-  (* verify globally *)
-  ignore
-    (Symexec.verify
-      { C.q_procs = proc_all_files
-      ; q_rules = lo
-      ; q_infer = true
-      ; q_name = "jstar_question" });
-(* TODO(rgrig): [q_name] should depend on the names of files being processed. *)
-
-(* nikos: These extra verifications should be restored at some point?
-
-   List.iter (fun (m,sig_str,body,req,old,ens) ->
-                  (* verify the body only if the method is non-abstract *)
-                  if Methdec.has_body m then
-	            (*let _ = Prover.pprint_sequent_rules l in*)
-                  (* verify the requires clause if present *)
-                  if Methdec.has_requires_clause m then
-                    let spec = get_requires_clause_spec_for m fields cname in
-	            let l = add_static_type_info lo m.req_locals in
-                    ignore (Symexec.verify (sig_str^" requires clause") req spec l abs_rules);
-                  (* verify the ensures clause if present *)
-                  if Methdec.has_ensures_clause m then
-                    let spec = get_dyn_spec_for m fields cname in
-                    let l = add_static_type_info lo m.ens_locals in
-                    let frames = List.map (fun o -> Symexec.get_frame o spec.pre l abs_rules) old in
-                    ignore (Symexec.verify_ensures (sig_str^" ensures clause") ens spec.post conjoin_with_res_true frames l abs_rules)
-            ) xs;
-*)
-
-
+(* NOTE(rgrig): I don't handle the code-based requires/ensures. To be
+deprecated, IMO. *)
+let compile js sspecs dspecs =
+  curr_static_methodSpecs := sspecs;
+  curr_dynamic_methodSpecs := dspecs;
+  add_dummy_procs (js >>= compile_class)
