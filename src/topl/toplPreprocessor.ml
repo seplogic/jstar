@@ -279,7 +279,7 @@ let compute_args procs =
 
 let iter_wrap w n =
   let rec f acc i = 
-    if i<0 then List.reverse acc
+    if i<0 then List.rev acc
     else f (w i :: acc) (i-1)
   in f [] (n-1)
 
