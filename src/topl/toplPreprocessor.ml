@@ -8,10 +8,6 @@ module A = Topl.PropAst
 module JG = Jimple_global_types
 
 (* }}} *)
-(* globals *) (* {{{ *)
-let out_dir = ref "out"
-
-(* }}} *)
 (* used to communicate between conversion and instrumentation *) (* {{{ *)
 type method_ =  (* TODO: Use [PropAst.event_tag] instead? *)
   { method_name : string
@@ -22,9 +18,10 @@ type method_ =  (* TODO: Use [PropAst.event_tag] instead? *)
 
 (*
   The instrumenter has three phases:
-    - convert the automaton to an intermediate representation
-    - instrument the bytecode
-    - emit the Java representation of the automaton
+    - convert the topl property to the topl monitor
+    - convert high-level patterns (java/jimple regex)
+      to low-level ones (lists of corestar procedure names, esentially)
+    - generate specs that encode the behavior of the monitor
   A pattern like "c.m()" in the property matches method m in all classes that
   extend c (including c itself). For efficiency, the Java automaton does not
   know anything about inheritance. While the bytecode is instrumented all the
@@ -34,233 +31,20 @@ type method_ =  (* TODO: Use [PropAst.event_tag] instead? *)
   The (first) conversion
     - goes from edge list to adjacency list
     - glues all input properties into one
-    - changes the vertex representation from strings to integers
-    - changes automaton variable representation from strings to integers
     - normalizes method patterns (by processing "using prefix", ... )
     - collects all patterns
-  During printing a bit more processing is needed to go to the Java
-  representation, but only very simple stuff.
  *)
 
 (* shorthands for old types, those that come from prop.mly *)
 type property = (string, string) A.t
 type tag_guard = A.pattern A.tag_guard
 
-(* shorthands for new types, those used in Java *)
-type tag = int
-type vertex = int
-type variable = int
-type value = string (* Java literal *)
-
-type transition =
-  { steps : (A.pattern, variable, value) A.label list
-  ; target : vertex }
-
-type vertex_data =
-  { vertex_property : property
-  ; vertex_name : A.vertex
-  ; outgoing_transitions : transition list }
-
-type automaton =
-  { vertices : vertex_data array
-  ; observables : (property, tag_guard) Hashtbl.t
-  ; pattern_tags : (tag_guard, tag list) Hashtbl.t
-  (* The keys of [pattern_tags] are filled in during the initial conversion,
-    but the values (the tag list) is filled in while the code is being
-    instrumented. *)
-  ; event_names : (int, string) Hashtbl.t }
-
-let check_automaton x =
-  let rec is_decreasing x = function
-    | [] -> true
-    | y :: ys -> x >= y && is_decreasing y ys in
-  let ok _ v = assert (is_decreasing max_int v) in
-  Hashtbl.iter ok x.pattern_tags
-
-(* }}} *)
 (* small functions that help handling automata *) (* {{{ *)
-let to_ints xs =
-  let h = Hashtbl.create 101 in
-  let c = ref (-1) in
-  let f x = if not (Hashtbl.mem h x) then (incr c; Hashtbl.add h x !c) in
-  List.iter f xs; h
-
-let inverse_index f h =
-  let r = Array.make (Hashtbl.length h) None in
-  let one k v = assert (r.(v) = None); r.(v) <- Some (f k) in
-  Hashtbl.iter one h;
-  Array.map from_some r
-
-let get_properties x =
-  x.vertices |> Array.map (fun v -> v.vertex_property) |> Array.to_list
-
 let get_vertices p =
   let f acc t = t.A.source :: t.A.target :: acc in
   "start" :: "error" :: List.fold_left f [] p.A.transitions
 
 (* }}} *)
-(* pretty printing to Java *) (* {{{ *)
-
-let pp_option pp_e f = function
-  | None -> fprintf f "None"
-  | Some s -> fprintf f "Some(%a)" pp_e s
-
-type 'a pp_index =
-  { to_int : 'a -> int
-  ; of_int : int -> 'a
-  ; count : int }
-
-type pp_full_index =
-  { idx_constant : value pp_index
-  ; idx_string : string pp_index }
-
-let array_foldi f z xs =
-  let r = ref z in
-  for i = 0 to Array.length xs - 1 do r := f !r i xs.(i) done;
-  !r
-
-let starts x =
-  let f ks k = function
-    | {vertex_name="start";_} -> k :: ks
-    | _ -> ks in
-  array_foldi f [] x.vertices
-
-let errors x =
-  let f = function
-    | {vertex_name="error"; vertex_property={A.message=e;_};_} -> Some e
-    | _ -> None in
-  x.vertices |> Array.map f |> Array.to_list
-
-let rec pp_v_list pe ppf = function
-  | [] -> ()
-  | [x] -> fprintf ppf "@\n%a" pe x
-  | x :: xs -> fprintf ppf "@\n%a," pe x; pp_v_list pe ppf xs
-
-let pp_int f x = fprintf f "%d" x
-let pp_string f x = fprintf f "%s" x
-let pp_constant_as_int i f c = pp_int f (i.idx_constant.to_int c)
-let pp_string_as_int i f s =
-  let v = (match s with None -> (-1) | Some s -> i.idx_string.to_int s) in
-  pp_int f v
-let pp_list pe f x =
-  fprintf f "@[<2>%d@ %a@]" (List.length x) (pp_list_sep " " pe) x
-let pp_array pe f x = pp_list pe f (Array.to_list x)
-
-let pp_value_guard index f = function
-  | A.Variable (v, i) -> fprintf f "0 %d %d" i v
-  | A.Constant (c, i) -> fprintf f "1 %d %a" i (pp_constant_as_int index) c
-
-let pp_pattern tags f p =
-  fprintf f "%a" (pp_list pp_int) (Hashtbl.find tags p)
-
-let pp_condition index = pp_list (pp_value_guard index)
-
-let pp_assignment f (x, i) =
-  fprintf f "%d %d" x i
-
-let pp_guard tags index f { A.tag_guard = p; A.value_guards = cs } =
-  fprintf f "%a %a" (pp_pattern tags) p (pp_condition index) cs
-
-let pp_action = pp_list pp_assignment
-
-let pp_step tags index f { A.guard = g; A.action = a } =
-  fprintf f "%a %a" (pp_guard tags index) g pp_action a
-
-let pp_transition tags index f { steps = ss; target = t } =
-  fprintf f "%a %d" (pp_list (pp_step tags index)) ss t
-
-let pp_vertex tags index f v =
-  fprintf f "%a %a"
-    (pp_string_as_int index) (Some v.vertex_name)
-    (pp_list (pp_transition tags index)) v.outgoing_transitions
-
-let list_of_hash h =
-  let r = ref [] in
-  for i = Hashtbl.length h - 1 downto 0 do
-    r := (try Some (Hashtbl.find h i) with Not_found -> None) :: !r
-  done;
-  !r
-
-let pp_automaton index f x =
-  let obs_p p = Hashtbl.find x.pattern_tags (Hashtbl.find x.observables p) in
-  let iop = to_ints (get_properties x) in
-  let poi = inverse_index (fun x -> x) iop in
-  let pov =
-    Array.map (fun v -> Hashtbl.find iop v.vertex_property) x.vertices in
-  let obs_tags = Array.to_list (Array.map obs_p poi) in
-  fprintf f "%a@\n" (pp_list pp_int) (starts x);
-  fprintf f "%a@\n" (pp_list (pp_string_as_int index)) (errors x);
-  fprintf f "%a@\n" (pp_array (pp_vertex x.pattern_tags index)) x.vertices;
-  fprintf f "%a@\n" (pp_array pp_int) pov;
-  fprintf f "%a@\n" (pp_list (pp_list pp_int)) obs_tags;
-  fprintf f "%a@\n"
-    (pp_list (pp_string_as_int index)) (list_of_hash x.event_names)
-
-let mk_pp_index p =
-  let mk () =
-    let m = Hashtbl.create 0 in
-    let c = ref (-1) in
-    let add x = if not (Hashtbl.mem m x) then Hashtbl.add m x (incr c; !c) in
-    add, m, c in
-  let mk_idx m c =
-    { to_int = Hashtbl.find m
-    ; of_int = (let a = inverse_index (fun x -> x) m in fun i -> a.(i))
-    ; count = succ !c } in
-  let add_c, ioc, cc = mk () in
-  let add_s, ios, sc = mk () in
-  let value_guard = function A.Constant (c, _) -> add_c c | _ -> () in
-  let event_guard g = List.iter value_guard g.A.value_guards in
-  let label l = event_guard l.A.guard in
-  let transition t = List.iter label t.steps in
-  let vertex_data v =
-    add_s v.vertex_name; List.iter transition v.outgoing_transitions in
-  Array.iter vertex_data p.vertices;
-  Hashtbl.fold (fun _ en () -> add_s en) p.event_names ();
-  List.iter (function None -> () | Some s -> add_s s) (errors p);
-  { idx_constant = mk_idx ioc cc
-  ; idx_string = mk_idx ios sc }
-
-let pp_constants_table j i =
-  let constants =
-    let rec ct n =
-      if n = i.idx_constant.count
-      then []
-      else i.idx_constant.of_int n :: ct (succ n) in
-    ct 0 in
-  let pp_ext f e =
-    fprintf f "@[\"topl\"@ + java.io.File.separator@ + \"Property.%s\"@]" e in
-  fprintf j "@[";
-  fprintf j "package topl;@\n";
-  fprintf j "@[<2>public class Property {";
-  fprintf j "@\n@[<2>public static final Object[] constants =@ ";
-  fprintf j   "new Object[]{%a@]};" (pp_v_list pp_string) constants;
-  fprintf j "@\npublic static Checker checker = null;";
-  fprintf j "@\n@[<2>public static void check(Checker.Event event) {";
-  fprintf j   "@\n@[<2>if (checker != null) {";
-  fprintf j     "@\nchecker.check(event);";
-  fprintf j   "@]@\n}";
-  fprintf j "@]@\n}";
-  fprintf j "@\n@[<2>public static void start() {";
-  fprintf j   "@\n@[<2>if (checker == null) {";
-  fprintf j     "@\n@[<2>checker =@ Checker.Parser.checker(%a,@ %a,@ constants);@]" pp_ext "text"  pp_ext "strings";
-  fprintf j   "@\nchecker.historyLength = 10;";
-  fprintf j   "@\nchecker.statesLimit = 10;";
-  fprintf j   "@\nchecker.captureCallStacks = false;";
-  fprintf j   "@\nchecker.selectionStrategy = Checker.SelectionStrategy.NEWEST;";
-  fprintf j   "@]@\n}";
-  fprintf j "@]@\n}";
-  fprintf j "@\n@[<2>public static void stop() {";
-  fprintf j   "@\nchecker = null;";
-  fprintf j "@]@\n}";
-  fprintf j "@]@\n}@]"
-
-let pp_strings_nonl f index =
-  for i = 0 to pred index.idx_string.count do
-    let s = index.idx_string.of_int i in
-    assert (not (String.contains s '\n'));
-    Printf.fprintf f "%s\n" s
-  done
-
 let generate_checkers out_dir p =
   failwith "XXX"
   (*
@@ -316,6 +100,7 @@ let transform_label ifv ptags {A.guard=g; A.action=a} =
   { A.guard = transform_guard ifv ptags g
   ; A.action = transform_action ifv a }
 
+  (*
 let transform_properties ps =
   let vs p = p |> get_vertices |> List.map (fun v -> (p, v)) in
   let iov = to_ints (ps >>= vs) in
@@ -348,10 +133,12 @@ let transform_properties ps =
     add_transition s {steps=ls; target=t} in
   List.iter (fun p -> List.iter (pe p) p.A.transitions) ps;
   full_p
+*)
 
 (* }}} *)
 (* bytecode instrumentation *) (* {{{ *)
 
+(*
 let does_method_match
   ({ method_name=mn; method_arity=ma }, mt)
   { A.event_type=t; A.method_name=re; A.method_arity=(amin, amax) }
@@ -397,7 +184,10 @@ let get_tag x =
             List.iter at ps;
             Some !cnt
     end else None
+*)
 
+(* }}} *)
+(* specialize monitor *) (* {{{ *)
 let get_ancestors h c =
   let cs = Hashtbl.create 0 in
   let rec ga c =
@@ -426,14 +216,40 @@ let compute_inheritance js =
   List.iter record_jimple js;
   h
 
+let hash_of_list key value xs =
+  let h = Hashtbl.create (List.length xs) in
+  let one x = match key x, value x with
+    | None, _ | _, None -> ()
+    | Some k, Some v -> assert (not (Hashtbl.mem h k)); Hashtbl.add h k v in
+  List.iter one xs;
+  h
+
+let hash_by_names =
+  let key_of_class (JG.JFile (_, _, cn, _, _, _)) = Some cn in
+  let val_of_class (JG.JFile (_, _, cn, xs, ys, ms)) =
+    let key_of_member = function
+      | JG.Field _ -> None
+      | JG.Method (_, _, mn, ps, _, _, _, _, _) -> Some (mn, List.length ps) in
+    let val_of_member = function
+      | JG.Field _ -> None
+      | JG.Method (_, rt, mn, ps, _, _, _, _, _)
+          -> Some (Translatejimple.msig2str cn rt mn ps) in
+    Some (hash_of_list key_of_member val_of_member ms, xs @ ys) in
+  hash_of_list key_of_class val_of_class
+
+let get_overrides cn mn arity =
+  failwith "XXX"
+
+let collect_patterns m =
+  failwith "XXX"
+
+let specialize_monitor js m =
+  let index = hash_by_names js in
+  let patterns = collect_patterns m in
+  failwith "TODO: from jimple patterns to core proc_name lists; inheritance"
+
 (* }}} *)
-(* main *) (* {{{ *)
-
-let read_properties fs =
-  fs |> List.map Topl.Helper.parse >>= List.map (fun x -> x.A.ast)
-
-
-(* Instrument procedures code *)
+(* Instrument procedures code *) (* {{{ *)
 
 let par_proc : (string,(int*int)) Hashtbl.t = Hashtbl.create 100
 
@@ -479,13 +295,13 @@ let get_call_args p =
   iter_wrap wrap_call_args n
 
 let make_call_to_proc p =
-  Psyntax.Arg_var(Vars.concretep_str ("call_"^p.C.proc_name))::get_call_args p 
+  Psyntax.Arg_var(Vars.concretep_str ("call_"^p.C.proc_name))::get_call_args p
 
 let make_ret_from_proc p =
-  [Psyntax.Arg_var(Vars.concretep_str ("ret_"^p.C.proc_name))] 
+  [Psyntax.Arg_var(Vars.concretep_str ("ret_"^p.C.proc_name))]
 
 let make_instrumented_proc_pair p =
-  let proc' = {C.proc_name=p.C.proc_name^"_I"; proc_spec=p.C.proc_spec; proc_body=p.C.proc_body; proc_rules=p.C.proc_rules} in 
+  let proc' = {C.proc_name=p.C.proc_name^"_I"; proc_spec=p.C.proc_spec; proc_body=p.C.proc_body; proc_rules=p.C.proc_rules} in
   let emit_call = {C.call_name = "emit";
                   C.call_rets =[];
                   C.call_args = make_call_to_proc p } in
@@ -497,56 +313,24 @@ let make_instrumented_proc_pair p =
   let proc = {C.proc_name=p.C.proc_name; proc_spec=HashSet.create 0; proc_body; proc_rules=Psyntax.empty_logic} in
   [proc; proc']
 
-(* End instrument procedures code *)
+let instrument_procedures ps =
+  ps >>= make_instrumented_proc_pair
 
+(* End instrument procedures code *) (* }}} *)
+(* main *) (* {{{ *)
 
-let instrument_procedures ps = 
-  ps >>= make_instrumented_proc_pair 
-  
+let read_properties fs =
+  fs |> List.map Topl.Helper.parse >>= List.map (fun x -> x.A.ast)
 
 let construct_monitor ts =
-  failwith "TODO"
+  failwith "TODO: edge list to adj list and other rep stuff"
+
+let build_core_monitor m =
+  failwith "TODO: from ToplMonitor.automaton to Core.ast_procedure list"
 
 let compile js ts =
-  let h = compute_inheritance js in
   let monitor = construct_monitor ts in
-  failwith "TODO"
+  let monitor = specialize_monitor js monitor in
+  build_core_monitor monitor
 
-(*
-  printf "@[";
-  let usage = Printf.sprintf
-    "usage: %s -i <dir> [-o <dir>] <topls>" Sys.argv.(0) in
-  try
-    let fs = ref [] in
-    let in_dir = ref None in
-    let out_dir = ref None in
-    let set_dir r v = match !r with
-      | Some _ -> raise (Arg.Bad "Repeated argument.")
-      | None -> r := Some v in
-    Arg.parse
-      [ "-i", Arg.String (set_dir in_dir), "input directory"
-      ; "-o", Arg.String (set_dir out_dir), "output directory" ]
-      (fun x -> fs := x :: !fs)
-      usage;
-    if !in_dir = None then begin
-      eprintf "@[Missing input directory.@\n%s@." usage;
-      exit 2;
-    end;
-    if !out_dir = None then out_dir := !in_dir;
-    let in_dir, out_dir = U.from_some !in_dir, U.from_some !out_dir in
-    let tmp_dir = U.temp_path "toplc_" in
-    List.iter check_work_directory [in_dir; out_dir; tmp_dir];
-    let ps = read_properties !fs in
-    let h = compute_inheritance in_dir in
-    let p = transform_properties ps in
-    ClassMapper.map in_dir tmp_dir (instrument_class (get_tag p) h);
-    generate_checkers tmp_dir p;
-    U.rm_r out_dir;
-    U.rename tmp_dir out_dir;
-    printf "@."
-  with
-    | Helper.Parsing_failed m
-    | Sys_error m
-        -> eprintf "@[ERROR: %s@." m
-*)
 (* }}} *)

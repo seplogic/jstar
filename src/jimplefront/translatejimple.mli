@@ -32,6 +32,12 @@ module LocalMap :
     val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
   end
 type local_map = Psyntax.args list Javaspecs.AxiomMap.t
+val msig2str
+  : Jparsetree.class_name
+    -> Jparsetree.j_type
+    -> Jparsetree.name
+    -> Jparsetree.nonvoid_type list
+    -> string
 val compile :
   Jimple_global_types.jimple_file list
     -> Javaspecs.methodSpecs
