@@ -13,18 +13,15 @@ type event_type =
   | Call_time
   | Return_time
 
-type event =
+type 'pattern event =
   { event_time : event_type
-  ; proc_name : string }
+  ; pattern : 'pattern }
+  (* NOTE: The pattern is first a pair (regex, arity), which is suposed to be
+  used at the level of the jimple representation together with inheritance
+  information.  In the second phase, the pattern is a list of [Core] procedure
+  names, which are strings. *)
 
 type value = Psyntax.args
-
-(* TODO(rgrig): Remove this? It seems to never be known statically. *)
-type letter =
-  { event : event
-  ; data : value list }
-
-module ESet = Set.Make (struct type t = event let compare = compare end)
 
 type register = string
 
@@ -40,20 +37,20 @@ type guard =
 type action = int RMap.t
   (** Register [x] is set from component [RMap.find x action] of the letter.*)
 
-type step =
+type 'pattern step =
   { guard : guard
   ; action : action
-  ; observable_events : ESet.t }
+  ; observables : 'pattern event }
 
-type transition =
-  { steps : step list
+type 'pattern transition =
+  { steps : 'pattern step list
   ; target : vertex }
 
-type automaton =
+type 'pattern automaton =
   { vertices : VSet.t
   ; start_vertices : VSet.t
   ; error_messages : string VMap.t
-  ; transitions : transition list VMap.t }
+  ; transitions : 'pattern transition list VMap.t }
 
 (* Invariant checks, to be used for debugging. *)
 

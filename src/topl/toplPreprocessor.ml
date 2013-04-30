@@ -434,12 +434,12 @@ let read_properties fs =
 let instrument_procedures ps =
   failwith "XXX"
 
-let construct_monitor super ts =
+let construct_monitor ts =
   failwith "TODO"
 
 let compile js ts =
-  let monitor = construct_monitor (compute_inheritance js) ts in
-  
+  let h = compute_inheritance js in
+  let monitor = construct_monitor ts in
   failwith "TODO"
 
 (*
