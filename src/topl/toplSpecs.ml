@@ -18,7 +18,9 @@ let list_mapi f l =
 let rec range i j = (* [i; i+1; ...; j-1] *)
   if i >= j then [] else i :: range (i + 1) j
 
-let enqueue_specs pv =
+let wrap_call_arg a = PS.mkVar( CoreOps.parameter_var a)
+
+let get_specs_for_enqueue pv =
   let q_sz = Array.length pv.queue in
   let e_sz = Array.length pv.queue.(0) in
   let specs = HashSet.create 0 in
@@ -26,7 +28,7 @@ let enqueue_specs pv =
     let e = pv.queue.(i) in
     let pre = [PS.P_EQ(pv.size, PS.mkArgint i)] in
     let post =
-      let cp i = PS.P_EQ (e.(i), PS.mkVar (CoreOps.parameter_var i)) in
+      let cp i = PS.P_EQ (e.(i), wrap_call_arg i) in
       PS.P_EQ (pv.size, PS.mkArgint (i+1))
       :: List.map cp (range 0 e_sz) in
     HashSet.add specs { Core.pre; post }

@@ -277,22 +277,23 @@ let compute_args procs =
   List.iter do_call_stm call_statements
 
 
-let wrap_ret_args a = CoreOps.return_var a
+let iter_wrap w n =
+  let rec f acc i = 
+    if i<0 then List.reverse acc
+    else f (w i :: acc) (i-1)
+  in f [] (n-1)
 
-let wrap_call_args a =  Psyntax.Arg_var( CoreOps.parameter_var a)
-
-let rec iter_wrap w n =
-  if n>=0 then
-    w n:: iter_wrap w (n-1)
-  else []
+let wrap_ret_arg a = CoreOps.return_var a
 
 let get_call_rets p =
   let n= fst (Hashtbl.find par_proc p.C.proc_name) in
-  iter_wrap wrap_ret_args n
+  iter_wrap wrap_ret_arg n
+
+let wrap_call_arg a = Psyntax.mkVar( CoreOps.parameter_var a)
 
 let get_call_args p =
   let n= snd (Hashtbl.find par_proc p.C.proc_name) in
-  iter_wrap wrap_call_args n
+  iter_wrap wrap_call_arg n
 
 let make_call_to_proc p =
   Psyntax.Arg_var(Vars.concretep_str ("call_"^p.C.proc_name))::get_call_args p
@@ -302,11 +303,11 @@ let make_ret_from_proc p =
 
 let make_instrumented_proc_pair p =
   let proc' = {C.proc_name=p.C.proc_name^"_I"; proc_spec=p.C.proc_spec; proc_body=p.C.proc_body; proc_rules=p.C.proc_rules} in
-  let emit_call = {C.call_name = "emit";
+  let emit_call = {C.call_name = "emit_$$";
                   C.call_rets =[];
                   C.call_args = make_call_to_proc p } in
   let call_p' = {C.call_name = p.C.proc_name^"_I"; call_rets = get_call_rets p; call_args = get_call_args p} in
-  let emit_ret = {C.call_name = "emit";
+  let emit_ret = {C.call_name = "emit_$$";
                  call_rets =[];
                  call_args = make_ret_from_proc p } in
   let proc_body = Some ([C.Call_core emit_call; C.Call_core call_p' ; C.Call_core emit_ret])  in
@@ -317,6 +318,32 @@ let instrument_procedures ps =
   ps >>= make_instrumented_proc_pair
 
 (* End instrument procedures code *) (* }}} *)
+
+
+(* Add emit and friends *) (* {{{ *)
+
+(* this procedure expects the event to be emitted, and the condition for the assert statement *)
+let emit_proc pv =
+  let e_sz = Array.length pv.ToplSpecs.queue.(0) in
+  let call_args = iter_wrap wrap_call_arg e_sz in
+  let call_enqueue = {C.call_name = "enqueue_$$"; C.call_rets=[]; call_args} in
+  let call_step = {C.call_name = "step_$$"; C.call_rets=[]; C.call_args=[]} in
+  let f = Psyntax.mkNEQ(pv.ToplSpecs.state, Psyntax.mkString "error") in
+  let asgn_assert = { C.asgn_rets=[]; asgn_args=[]; asgn_spec = HashSet.singleton {C.pre=f; post=f} } in
+  let emit_body =Some ([C.Call_core call_enqueue; C.Call_core call_step; C.Assignment_core asgn_assert]) in
+  { C.proc_name = "emit_$$"; C.proc_spec = (HashSet.create 0); C.proc_body = emit_body;
+    C.proc_rules = Psyntax.empty_logic } 
+
+let step_proc a pv =
+  let proc_spec = ToplSpecs.get_specs_for_step a pv in
+  { C.proc_name = "step_$$"; proc_spec; proc_body=None; C.proc_rules=Psyntax.empty_logic }
+
+let enqueue_proc pv =
+  let proc_spec = ToplSpecs.get_specs_for_enqueue pv in
+  { C.proc_name = "enqueue_$$"; proc_spec; proc_body=None; C.proc_rules=Psyntax.empty_logic }
+
+(* End emit and friends *) (* }}} *)
+
 (* main *) (* {{{ *)
 
 let read_properties fs =
@@ -325,8 +352,9 @@ let read_properties fs =
 let construct_monitor ts =
   failwith "TODO: edge list to adj list and other rep stuff"
 
-let build_core_monitor m =
-  failwith "TODO: from ToplMonitor.automaton to Core.ast_procedure list"
+let build_core_monitor m = 
+   let pv = ToplSpecs.init_TOPL_program_vars m in
+  [ emit_proc pv; step_proc m pv; enqueue_proc pv ]
 
 let compile js ts =
   let monitor = construct_monitor ts in

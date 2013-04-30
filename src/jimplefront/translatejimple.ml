@@ -512,8 +512,6 @@ let make_instrumented_proc p =
   let proc_body'=Some ([C.Call_core emit_call; C.Call_core call_p ; C.Call_core emit_ret])  in
   {C.proc_name = p.C.proc_name^"_I"; proc_spec = p.C.proc_spec ; proc_body=proc_body'; proc_rules=p.C.proc_rules}
 
-End of moved code *) 
-
 (* this procedure expects the event to be emitted, and the condition for the assert statement *)
 let emit_proc event assert_cond =
   let call_enqueue = {C.call_name = "enqueue"; C.call_rets=[]; C.call_args=[event]} in
@@ -521,6 +519,9 @@ let emit_proc event assert_cond =
   let call_assert = {C.call_name = "assert"; C.call_rets=[]; C.call_args=[assert_cond]} in
   let emit_body =Some ([C.Call_core call_enqueue; C.Call_core call_step; C.Call_core call_assert]) in
   { C.proc_name = "emit"; C.proc_spec = (HashSet.create 1); C.proc_body = emit_body; C.proc_rules = PS.empty_logic }
+
+End of moved code *) 
+
 
 let compile_method cname fields m =
   let proc_name = methdec2signature_str m in
