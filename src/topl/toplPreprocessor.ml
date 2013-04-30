@@ -3,6 +3,7 @@ open Corestar_std
 open Debug
 open Format
 
+module C = Core
 module A = Topl.PropAst
 module JG = Jimple_global_types
 
@@ -431,8 +432,77 @@ let compute_inheritance js =
 let read_properties fs =
   fs |> List.map Topl.Helper.parse >>= List.map (fun x -> x.A.ast)
 
-let instrument_procedures ps =
-  failwith "XXX"
+
+(* Instrument procedures code *)
+
+let par_proc : (string,(int*int)) Hashtbl.t = Hashtbl.create 100
+
+let rec get_call_stm stml =
+  match stml with
+  | [] -> []
+  | C.Call_core p ::stml' -> C.Call_core p::get_call_stm stml'
+  | _::stml' -> get_call_stm stml'
+
+let do_call_stm c_stm =
+  match c_stm with
+  | C.Call_core c ->
+      let num_rets =List.length c.C.call_rets in
+      let num_args =List.length c.C.call_args in
+      (try
+        let (r,a)=Hashtbl.find par_proc c.C.call_name in
+        Hashtbl.replace par_proc c.C.call_name (max num_rets r, max num_args a)
+      with _ -> Hashtbl.add par_proc c.C.call_name (num_rets,num_args))
+  | _ -> assert false
+
+let compute_args procs =
+  let call_statements = List.flatten (List.map (fun p -> match p.C.proc_body with
+                                  |None -> []
+                                  |Some b -> get_call_stm b ) procs) in
+  List.iter do_call_stm call_statements
+
+
+let wrap_ret_args a = CoreOps.return_var a
+
+let wrap_call_args a =  Psyntax.Arg_var( CoreOps.parameter_var a)
+
+let rec iter_wrap w n =
+  if n>=0 then
+    w n:: iter_wrap w (n-1)
+  else []
+
+let get_call_rets p =
+  let n= fst (Hashtbl.find par_proc p.C.proc_name) in
+  iter_wrap wrap_ret_args n
+
+let get_call_args p =
+  let n= snd (Hashtbl.find par_proc p.C.proc_name) in
+  iter_wrap wrap_call_args n
+
+let make_call_to_proc p =
+  Psyntax.Arg_var(Vars.concretep_str ("call_"^p.C.proc_name))::get_call_args p 
+
+let make_ret_from_proc p =
+  [Psyntax.Arg_var(Vars.concretep_str ("ret_"^p.C.proc_name))] 
+
+let make_instrumented_proc_pair p =
+  let proc' = {C.proc_name=p.C.proc_name^"_I"; proc_spec=p.C.proc_spec; proc_body=p.C.proc_body; proc_rules=p.C.proc_rules} in 
+  let emit_call = {C.call_name = "emit";
+                  C.call_rets =[];
+                  C.call_args = make_call_to_proc p } in
+  let call_p' = {C.call_name = p.C.proc_name^"_I"; call_rets = get_call_rets p; call_args = get_call_args p} in
+  let emit_ret = {C.call_name = "emit";
+                 call_rets =[];
+                 call_args = make_ret_from_proc p } in
+  let proc_body = Some ([C.Call_core emit_call; C.Call_core call_p' ; C.Call_core emit_ret])  in
+  let proc = {C.proc_name=p.C.proc_name; proc_spec=HashSet.create 0; proc_body; proc_rules=Psyntax.empty_logic} in
+  [proc; proc']
+
+(* End instrument procedures code *)
+
+
+let instrument_procedures ps = 
+  ps >>= make_instrumented_proc_pair 
+  
 
 let construct_monitor ts =
   failwith "TODO"

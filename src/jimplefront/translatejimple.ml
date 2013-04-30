@@ -455,6 +455,8 @@ let add_dummy_procs xs =
   List.iter (remove_proc h) xs;
   xs@(HashSet.fold (fun x y -> cons (dummy_proc x) y) h [])
 
+(* Following code moved to toplPreprocessor.ml
+
 let par_proc : (string,(int*int)) Hashtbl.t = Hashtbl.create 100
 
 let rec get_call_stm stml =
@@ -509,6 +511,8 @@ let make_instrumented_proc p =
                  call_args=[Psyntax.Arg_var(Vars.concretep_str ("ret_"^p.C.proc_name))]} in
   let proc_body'=Some ([C.Call_core emit_call; C.Call_core call_p ; C.Call_core emit_ret])  in
   {C.proc_name = p.C.proc_name^"_I"; proc_spec = p.C.proc_spec ; proc_body=proc_body'; proc_rules=p.C.proc_rules}
+
+End of moved code *) 
 
 (* this procedure expects the event to be emitted, and the condition for the assert statement *)
 let emit_proc event assert_cond =
