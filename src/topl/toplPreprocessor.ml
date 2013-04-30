@@ -216,28 +216,41 @@ let compute_inheritance js =
   List.iter record_jimple js;
   h
 
-let hash_of_list key value xs =
+let hash_of_list one plus key value xs =
   let h = Hashtbl.create (List.length xs) in
   let one x = match key x, value x with
     | None, _ | _, None -> ()
-    | Some k, Some v -> assert (not (Hashtbl.mem h k)); Hashtbl.add h k v in
+    | Some k, Some v ->
+        (try Hashtbl.add h k (plus v (Hashtbl.find h k))
+        with Not_found -> Hashtbl.add h k (one v)) in
   List.iter one xs;
   h
 
+(* RET: cname -> (((hl_mname * arity) -> ll_mname list) * extends list) *)
 let hash_by_names =
   let key_of_class (JG.JFile (_, _, cn, _, _, _)) = Some cn in
   let val_of_class (JG.JFile (_, _, cn, xs, ys, ms)) =
-    let key_of_member = function
+    let key_of_method = function
       | JG.Field _ -> None
       | JG.Method (_, _, mn, ps, _, _, _, _, _) -> Some (mn, List.length ps) in
-    let val_of_member = function
+    let val_of_method = function
       | JG.Field _ -> None
-      | JG.Method (_, rt, mn, ps, _, _, _, _, _)
-          -> Some (Translatejimple.msig2str cn rt mn ps) in
-    Some (hash_of_list key_of_member val_of_member ms, xs @ ys) in
-  hash_of_list key_of_class val_of_class
+      | JG.Method (_, rt, mn, ps, _, _, _, _, _) ->
+          Some (Translatejimple.msig2str cn rt mn ps) in
+    let one x = [x] in
+    Some (hash_of_list one cons key_of_method val_of_method ms, xs @ ys) in
+  hash_of_list (fun x -> x) undefined key_of_class val_of_class
 
-let get_overrides cn mn arity =
+let get_overrides index cn mn arity =
+  let seen = HashSet.create 0 in
+  let rec f acc cn =
+    if not (HashSet.mem seen cn) then begin
+      HashSet.add seen cn;
+      let ms, parents = Hashtbl.find index cn in
+      failwith "XXX;"
+      List.iter f parents
+    end in
+  f cn;
   failwith "XXX"
 
 let collect_patterns m =
@@ -246,6 +259,11 @@ let collect_patterns m =
 let specialize_monitor js m =
   let index = hash_by_names js in
   let patterns = collect_patterns m in
+  let process_class cname (ms_index, _) =
+    let process_method (hl_name, arity) ll_names =
+      let overrides = get_overrides index cname hl_name arity in
+      failwith "TODO" in
+    failwith "TODO" in
   failwith "TODO: from jimple patterns to core proc_name lists; inheritance"
 
 (* }}} *)
