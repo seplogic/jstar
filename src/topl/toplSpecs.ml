@@ -57,6 +57,19 @@ let max_label_length_for_vertex ( ll:transition list ) =
 let max_label_length ( a:automaton ) =
   VMap.fold (fun _ tl n -> max n (max_label_length_for_vertex tl)) a.transitions 0
 
+let max_arg a =
+  let map_max f xs = xs |> List.map f |> List.fold_left max 0 in
+  let rec max_arg_guard = function
+    | EqCt (i, _) | EqReg (i, _) -> i
+    | Not g -> max_arg_guard g
+    | And gs -> map_max max_arg_guard gs
+    | True -> 0 in
+  let max_arg_action a = RMap.fold (fun _ -> max) a 0 in
+  let max_arg_step s = max (max_arg_guard s.guard) (max_arg_action s.action) in
+  let max_arg_trans t = map_max max_arg_step t.steps in
+  let max_arg_vertex _ ts y = max y (map_max max_arg_trans ts) in
+  VMap.fold max_arg_vertex a.transitions 0
+
 let make_event_queue m n =
   let mk_name i j = Printf.sprintf "queue_event_%d_position_%d" i j in
   Array.init m
@@ -98,11 +111,11 @@ let make_logical_copy_of_store st i j =
 let store_eq st l_st =
   RMap.fold (fun r v f -> P_EQ(v,(VMap.find r l_st)) :: f) st []
 
-let init_TOPL_program_vars vals_per_event ( a:automaton ) =
+let init_TOPL_program_vars a =
   let st = Psyntax.Arg_var(Vars.concretep_str "current_automaton_state") in
   let sr = make_registers a in
   let sz = Psyntax.Arg_var(Vars.concretep_str "current_queue_list_size") in
-  let e = make_event_queue (max_label_length a) (vals_per_event + 1) in
+  let e = make_event_queue (max_label_length a) (2 + max_arg a) in
   { state=st; store=sr; size=sz; queue=e }
 
 let make_logical_copy_of_queue e =

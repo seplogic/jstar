@@ -168,11 +168,11 @@ let main () =
       Load.load ~path:Cli_utils.specs_dirs parse !spec_file_name in
     let logic =
       List.fold_left (make_logic_for_one_program specs) logic programs in
+    let cores = Classverification.compile_jimple programs specs logic abs_rules in
+    let cores = ToplPreprocessor.instrument_procedures cores in
     let topls = ToplPreprocessor.read_properties !topl_files in
     let topls = List.map ToplUtil.parse_values topls in
     let topl_monitor = ToplPreprocessor.compile programs topls in
-    let cores = Classverification.compile_jimple programs specs logic abs_rules in
-    let cores = ToplPreprocessor.instrument_procedures cores in
     let question =
       { Core.q_procs = topl_monitor @ cores
       ; q_rules = logic
