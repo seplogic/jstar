@@ -371,8 +371,51 @@ let build_core_monitor m =
 let read_properties fs =
   fs |> List.map Topl.Helper.parse >>= List.map (fun x -> x.A.ast)
 
+(* Should return a (Str.regexp list * int) ToplMonitor.transition *)
+let convert_transition t =
+  failwith "TODO: transform steps"
+(*
+  let observables = t.observable.event in
+  let convert_label l =
+    { guard = convert_guard l.guard
+    ; action = convert_action l.action
+    ; observables = observables } in
+  { steps = List.map convert_label t.labels
+  ; target = t.target }
+*)
+
 let construct_monitor ts =
-  failwith "TODO: edge list to adj list and other rep stuff"
+  let convert_prop p =
+    let add_v v (vs, starts, errors) =
+      let pv = p.A.name ^ v in
+      let new_vs = TM.VSet.add pv vs in
+      if v = "start" then new_vs, TM.VSet.add pv starts, errors
+      else if v = "error" then new_vs, starts, TM.VMap.add pv p.A.message errors
+      else starts, new_vs, errors in
+    let collect_transition (vs, ts, starts, errors) t = 
+      let new_vs, new_starts, new_errors = (vs,starts,errors) |> add_v t.A.source |> add_v t.A.target in
+      let transition = convert_transition t in
+      let new_ts = TM.VMap.add t.A.source transition ts in
+      new_vs, new_ts, new_starts, new_errors in
+    let vertices, transitions, start_vertices, errors = List.fold_left collect_transition
+      (TM.VSet.empty, TM.VMap.empty, TM.VSet.empty, TM.VMap.empty) p.A.transitions in
+    { TM.vertices = vertices
+    ; TM.start_vertices = start_vertices
+    ; TM.error_messages = errors
+    ; TM.transitions = transitions } in
+  let map_union m1 m2 = TM.VMap.merge (fun _ a b -> match a, b with Some _, _ -> a | None, Some _ -> b | _ -> None) m1 m2 in
+  let collect_prop acc p =
+    let ap = convert_prop p in
+    { TM.vertices = TM.VSet.union acc.TM.vertices ap.TM.vertices
+    ; TM.start_vertices = TM.VSet.union acc.TM.start_vertices ap.TM.start_vertices
+    ; TM.error_messages = map_union acc.TM.error_messages ap.TM.error_messages
+    ; TM.transitions = map_union acc.TM.transitions ap.TM.transitions } in
+  let empty_automaton =  
+    { TM.vertices = TM.VSet.empty
+    ; TM.start_vertices = TM.VSet.empty
+    ; TM.error_messages = TM.VMap.empty
+    ; TM.transitions = TM.VMap.empty } in
+  List.fold_left collect_prop empty_automaton ts
 
 let compile js ts =
   let monitor = construct_monitor ts in
