@@ -19,6 +19,8 @@ open Corestar_std
 open Jparsetree
 open Jimple_global_types
 
+module J = Jparsetree
+
 (* TODO(rgrig): The functions here should be pretty printers. *)
 
 let binop2str bo =
@@ -64,15 +66,9 @@ let array_brackets2str i = i
 
 let label_name2str =  identifier2str
 
-let name2str n =
-  match n with
-  | Quoted_name s
-  | Identifier_name s -> s
+let name2str = string_of J.pp_name
 
-let class_name2str = function
-  | Quoted_clname s
-  | Identifier_clname s
-  | Full_identifier_clname s -> s
+let class_name2str = string_of J.pp_class_name
 
 let sign2str = function
   | Positive -> "+"

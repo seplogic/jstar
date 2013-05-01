@@ -5,7 +5,9 @@ open Format
 
 module C = Core
 module A = Topl.PropAst
+module J = Jparsetree
 module JG = Jimple_global_types
+module TM = ToplMonitor
 
 (* }}} *)
 (* used to communicate between conversion and instrumentation *) (* {{{ *)
@@ -188,33 +190,8 @@ let get_tag x =
 
 (* }}} *)
 (* specialize monitor *) (* {{{ *)
-let get_ancestors h c =
-  let cs = Hashtbl.create 0 in
-  let rec ga c =
-    if not (Hashtbl.mem cs c) then begin
-      Hashtbl.add cs c ();
-      let parents = try Hashtbl.find h c with Not_found -> [] in
-      List.iter ga parents
-    end in
-  ga c;
-  Hashtbl.fold (fun c _ cs -> c :: cs) cs []
-
-let mk_full_method_name c mn = failwith "XXX"
-(*  name_of_class c ^ "." ^ mn *)
-
-let get_overrides h c m =
-  let ancestors = get_ancestors h c in
-  let qualify c =  mk_full_method_name c m.method_name in
-  (List.map qualify ancestors, m.method_arity)
-
-let compute_inheritance js =
-  let h = Hashtbl.create 0 in
-  let record_jimple (JG.JFile (_, _, cn, xs, ys, _)) =
-    let cn = Pprinter.class_name2str cn in
-    let zs = List.map Pprinter.class_name2str (xs @ ys) in
-    Hashtbl.replace h cn zs in
-  List.iter record_jimple js;
-  h
+let mk_hl_name cn mn =
+  Printf.sprintf "%s.%s" cn mn
 
 let hash_of_list one plus key value xs =
   let h = Hashtbl.create (List.length xs) in
@@ -228,43 +205,69 @@ let hash_of_list one plus key value xs =
 
 (* RET: cname -> (((hl_mname * arity) -> ll_mname list) * extends list) *)
 let hash_by_names =
-  let key_of_class (JG.JFile (_, _, cn, _, _, _)) = Some cn in
+  let key_of_class (JG.JFile (_, _, cn, _, _, _)) =
+    Some (string_of J.pp_class_name cn) in
   let val_of_class (JG.JFile (_, _, cn, xs, ys, ms)) =
     let key_of_method = function
       | JG.Field _ -> None
-      | JG.Method (_, _, mn, ps, _, _, _, _, _) -> Some (mn, List.length ps) in
+      | JG.Method (_, _, mn, ps, _, _, _, _, _) ->
+          Some (string_of J.pp_name mn, List.length ps) in
     let val_of_method = function
       | JG.Field _ -> None
       | JG.Method (_, rt, mn, ps, _, _, _, _, _) ->
           Some (Translatejimple.msig2str cn rt mn ps) in
     let one x = [x] in
-    Some (hash_of_list one cons key_of_method val_of_method ms, xs @ ys) in
+    let zs = List.map (string_of J.pp_class_name) (xs @ ys) in
+    Some (hash_of_list one cons key_of_method val_of_method ms, zs) in
   hash_of_list (fun x -> x) undefined key_of_class val_of_class
 
 let get_overrides index cn mn arity =
   let seen = HashSet.create 0 in
+  let empty = Hashtbl.create 0 in
   let rec f acc cn =
     if not (HashSet.mem seen cn) then begin
       HashSet.add seen cn;
-      let ms, parents = Hashtbl.find index cn in
-      failwith "XXX;"
-      List.iter f parents
-    end in
-  f cn;
-  failwith "XXX"
+      let mh, parents =
+        (try Hashtbl.find index cn with Not_found -> empty, []) in
+      let acc =
+        if Hashtbl.mem mh (mn, arity) then mk_hl_name cn mn :: acc else acc in
+      List.fold_left f acc parents
+    end else acc in
+  f [] cn
 
 let collect_patterns m =
-  failwith "XXX"
+  let h = Hashtbl.create 0 in
+  let cp_ev e = Hashtbl.replace h e.TM.pattern [] in
+  let cp_step s = cp_ev s.TM.observables in
+  let cp_transition t = List.iter cp_step t.TM.steps in
+  let cp_vertex _ = List.iter cp_transition in
+  TM.VMap.iter cp_vertex m.TM.transitions;
+  h
+
+let map_patterns h m =
+  let mp_ev e = { e with TM.pattern = Hashtbl.find h e.TM.pattern } in
+  let mp_step s = { s with TM.observables = mp_ev s.TM.observables } in
+  let mp_transition t = { t with TM.steps = List.map mp_step t.TM.steps } in
+  let mp_vertex = List.map mp_transition in
+  { m with TM.transitions = TM.VMap.map mp_vertex m.TM.transitions }
 
 let specialize_monitor js m =
   let index = hash_by_names js in
   let patterns = collect_patterns m in
   let process_class cname (ms_index, _) =
-    let process_method (hl_name, arity) ll_names =
+    let process_method (hl_name, arity) ll_mns =
       let overrides = get_overrides index cname hl_name arity in
-      failwith "TODO" in
-    failwith "TODO" in
-  failwith "TODO: from jimple patterns to core proc_name lists; inheritance"
+      let process_pattern p old_ll_mns acc =
+        let p_rs, p_arity = p in
+        let name_matches mn = List.for_all (flip A.pattern_matches mn) p_rs in
+        if p_arity = arity && List.exists name_matches overrides
+        then (p, ll_mns @ old_ll_mns) :: acc
+        else acc in
+      let updates = Hashtbl.fold process_pattern patterns [] in
+      List.iter (fun (p, vs) -> Hashtbl.replace patterns p vs) updates in
+    Hashtbl.iter process_method ms_index in
+  Hashtbl.iter process_class index;
+  map_patterns patterns m
 
 (* }}} *)
 (* Instrument procedures code *) (* {{{ *)
@@ -296,7 +299,7 @@ let compute_args procs =
 
 
 let iter_wrap w n =
-  let rec f acc i = 
+  let rec f acc i =
     if i<0 then List.rev acc
     else f (w i :: acc) (i-1)
   in f [] (n-1)
@@ -336,8 +339,6 @@ let instrument_procedures ps =
   ps >>= make_instrumented_proc_pair
 
 (* End instrument procedures code *) (* }}} *)
-
-
 (* Add emit and friends *) (* {{{ *)
 
 (* this procedure expects the event to be emitted, and the condition for the assert statement *)
@@ -350,7 +351,7 @@ let emit_proc pv =
   let asgn_assert = { C.asgn_rets=[]; asgn_args=[]; asgn_spec = HashSet.singleton {C.pre=f; post=f} } in
   let emit_body =Some ([C.Call_core call_enqueue; C.Call_core call_step; C.Assignment_core asgn_assert]) in
   { C.proc_name = "emit_$$"; C.proc_spec = (HashSet.create 0); C.proc_body = emit_body;
-    C.proc_rules = Psyntax.empty_logic } 
+    C.proc_rules = Psyntax.empty_logic }
 
 let step_proc a pv =
   let proc_spec = ToplSpecs.get_specs_for_step a pv in
@@ -360,8 +361,11 @@ let enqueue_proc pv =
   let proc_spec = ToplSpecs.get_specs_for_enqueue pv in
   { C.proc_name = "enqueue_$$"; proc_spec; proc_body=None; C.proc_rules=Psyntax.empty_logic }
 
-(* End emit and friends *) (* }}} *)
+let build_core_monitor m =
+   let pv = ToplSpecs.init_TOPL_program_vars m in
+  [ emit_proc pv; step_proc m pv; enqueue_proc pv ]
 
+(* End emit and friends *) (* }}} *)
 (* main *) (* {{{ *)
 
 let read_properties fs =
@@ -369,10 +373,6 @@ let read_properties fs =
 
 let construct_monitor ts =
   failwith "TODO: edge list to adj list and other rep stuff"
-
-let build_core_monitor m = 
-   let pv = ToplSpecs.init_TOPL_program_vars m in
-  [ emit_proc pv; step_proc m pv; enqueue_proc pv ]
 
 let compile js ts =
   let monitor = construct_monitor ts in

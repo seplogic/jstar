@@ -11,6 +11,7 @@
       LICENSE.txt
  ********************************************************)
 
+open Corestar_std
 
 type binop =
     And
@@ -137,9 +138,9 @@ type nodekind =
   | Call_node
   | Return_Site_node
   | Stmt_node
-val pp_name : Format.formatter -> name -> unit
-val pp_class_name : Format.formatter -> class_name -> unit
-val pp_inheritance_clause :
-  string -> Format.formatter -> class_name list -> unit
+val pp_name : name pretty_printer
+val pp_class_name : class_name pretty_printer
+val pp_inheritance_clause
+  : string -> Format.formatter -> class_name list -> unit
 val pp_method_signature_short :
   Format.formatter -> 'a * 'b * name * 'c -> unit
