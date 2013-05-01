@@ -342,12 +342,13 @@ let instrument_procedures ps =
 (* Add emit and friends *) (* {{{ *)
 
 (* this procedure expects the event to be emitted, and the condition for the assert statement *)
-let emit_proc pv =
+let emit_proc a pv =
   let e_sz = Array.length pv.ToplSpecs.queue.(0) in
   let call_args = iter_wrap wrap_call_arg e_sz in
   let call_enqueue = {C.call_name = "enqueue_$$"; C.call_rets=[]; call_args} in
   let call_step = {C.call_name = "step_$$"; C.call_rets=[]; C.call_args=[]} in
-  let f = Psyntax.mkNEQ(pv.ToplSpecs.state, Psyntax.mkString "error") in
+  let errors = TM.VMap.fold (fun k _ acc -> k :: acc) a.TM.error_messages [] in
+  let f = errors >>= (fun e -> Psyntax.mkNEQ(pv.ToplSpecs.state, Psyntax.mkString e)) in
   let asgn_assert = { C.asgn_rets=[]; asgn_args=[]; asgn_spec = HashSet.singleton {C.pre=f; post=f} } in
   let emit_body =Some ([C.Call_core call_enqueue; C.Call_core call_step; C.Assignment_core asgn_assert]) in
   { C.proc_name = "emit_$$"; C.proc_spec = (HashSet.create 0); C.proc_body = emit_body;
@@ -363,7 +364,7 @@ let enqueue_proc pv =
 
 let build_core_monitor m =
    let pv = ToplSpecs.init_TOPL_program_vars m in
-  [ emit_proc pv; step_proc m pv; enqueue_proc pv ]
+   [ emit_proc m pv; step_proc m pv; enqueue_proc pv ]
 
 (* End emit and friends *) (* }}} *)
 (* main *) (* {{{ *)
