@@ -398,8 +398,11 @@ let construct_monitor ts =
       let transition = convert_transition t in
       let new_ts = TM.VMap.add t.A.source transition ts in
       new_vs, new_ts, new_starts, new_errors in
-    let vertices, transitions, start_vertices, errors = List.fold_left collect_transition
-      (TM.VSet.empty, TM.VMap.empty, TM.VSet.empty, TM.VMap.empty) p.A.transitions in
+    let vertices, transitions, start_vertices, errors =
+      List.fold_left
+	collect_transition
+	(TM.VSet.empty, TM.VMap.empty, TM.VSet.empty, TM.VMap.empty)
+	p.A.transitions in
     { TM.vertices = vertices
     ; TM.start_vertices = start_vertices
     ; TM.error_messages = errors
@@ -411,12 +414,7 @@ let construct_monitor ts =
     ; TM.start_vertices = TM.VSet.union acc.TM.start_vertices ap.TM.start_vertices
     ; TM.error_messages = map_union acc.TM.error_messages ap.TM.error_messages
     ; TM.transitions = map_union acc.TM.transitions ap.TM.transitions } in
-  let empty_automaton =  
-    { TM.vertices = TM.VSet.empty
-    ; TM.start_vertices = TM.VSet.empty
-    ; TM.error_messages = TM.VMap.empty
-    ; TM.transitions = TM.VMap.empty } in
-  List.fold_left collect_prop empty_automaton ts
+  List.fold_left collect_prop TM.empty_automaton ts
 
 let compile js ts =
   let monitor = construct_monitor ts in
