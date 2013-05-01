@@ -47,30 +47,6 @@ let get_vertices p =
   "start" :: "error" :: List.fold_left f [] p.A.transitions
 
 (* }}} *)
-let generate_checkers out_dir p =
-  failwith "XXX"
-  (*
-  check_automaton p;
-  let (/) = Filename.concat in
-  U.cp_r (Config.topl_dir/"src"/"topl") out_dir;
-  let topl_dir = out_dir/"topl" in
-  let o n =
-    let c = open_out (topl_dir/("Property." ^ n)) in
-    let f = formatter_of_out_channel c in
-    (c, f) in
-  let (jc, j), (tc, t) = o "java", o "text" in
-  let sc = open_out (topl_dir/"Property.strings") in
-  let index = mk_pp_index p in
-  fprintf j "@[%a@." pp_constants_table index;
-  pp_strings_nonl sc index;
-  fprintf t "@[%a@." (pp_automaton index) p;
-  List.iter close_out_noerr [jc; tc; sc];
-  ignore (Sys.command
-    (Printf.sprintf
-      "javac -sourcepath %s %s"
-      (U.command_escape out_dir)
-      (U.command_escape (topl_dir/"Property.java")))) *)
-
 (* }}} *)
 (* conversion to Java representation *) (* {{{ *)
 
@@ -135,57 +111,6 @@ let transform_properties ps =
     add_transition s {steps=ls; target=t} in
   List.iter (fun p -> List.iter (pe p) p.A.transitions) ps;
   full_p
-*)
-
-(* }}} *)
-(* bytecode instrumentation *) (* {{{ *)
-
-(*
-let does_method_match
-  ({ method_name=mn; method_arity=ma }, mt)
-  { A.event_type=t; A.method_name=re; A.method_arity=(amin, amax) }
-=
-  let bamin = amin <= ma in
-  let bamax = option true ((<=) ma) amax in
-  let bt = option true ((=) mt) t in
-  let bn = A.pattern_matches re mn in
-  let r = bamin && bamax  && bt && bn in
-  if log log_mm then begin
-    printf "@\n@[<2>%s " (if r then "✓" else "✗");
-    printf "(%a, %s, %d)@ matches (%a, %s, [%d..%a])@ gives (%b, %b, (%b,%b))@]"
-      A.pp_event_type mt mn ma
-      (pp_option A.pp_event_type) t
-      re.A.p_string
-      amin
-      (pp_option pp_int) amax
-      bt bn bamin bamax
-  end;
-  r
-
-let get_tag x =
-  let cnt = ref (-1) in
-  fun t (mns, ma) mn ->
-    let en = (* event name *)
-      fprintf str_formatter "%a %s" A.pp_event_type t mn;
-      flush_str_formatter () in
-    let fp p acc =
-      let cm mn = does_method_match ({method_name=mn; method_arity=ma}, t) p in
-      if List.exists cm mns then p :: acc else acc in
-    let fpk p _ = fp p in
-    let fpv _ = fp in
-    if Hashtbl.fold fpv x.observables [] <> [] then begin
-      match Hashtbl.fold fpk x.pattern_tags [] with
-        | [] -> None
-        | ps ->
-            incr cnt;
-            let at p =
-              let ts = Hashtbl.find x.pattern_tags p in
-              (* printf "added tag %d\n" !cnt; *)
-              Hashtbl.replace x.pattern_tags p (!cnt :: ts);
-              Hashtbl.replace x.event_names !cnt en in
-            List.iter at ps;
-            Some !cnt
-    end else None
 *)
 
 (* }}} *)
@@ -393,7 +318,7 @@ let construct_monitor ts =
       if v = "start" then new_vs, TM.VSet.add pv starts, errors
       else if v = "error" then new_vs, starts, TM.VMap.add pv p.A.message errors
       else starts, new_vs, errors in
-    let collect_transition (vs, ts, starts, errors) t = 
+    let collect_transition (vs, ts, starts, errors) t =
       let new_vs, new_starts, new_errors = (vs,starts,errors) |> add_v t.A.source |> add_v t.A.target in
       let transition = convert_transition t in
       let new_ts = TM.VMap.add t.A.source transition ts in
@@ -411,7 +336,7 @@ let construct_monitor ts =
     ; TM.start_vertices = TM.VSet.union acc.TM.start_vertices ap.TM.start_vertices
     ; TM.error_messages = map_union acc.TM.error_messages ap.TM.error_messages
     ; TM.transitions = map_union acc.TM.transitions ap.TM.transitions } in
-  let empty_automaton =  
+  let empty_automaton =
     { TM.vertices = TM.VSet.empty
     ; TM.start_vertices = TM.VSet.empty
     ; TM.error_messages = TM.VMap.empty
