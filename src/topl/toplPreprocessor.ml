@@ -114,6 +114,19 @@ let transform_properties ps =
 *)
 
 (* }}} *)
+(* parse values *) (* {{{ *)
+let parse_values topl =
+  let pv_v v = Jparser.jargument Jlexer.token & Lexing.from_string v in
+  let pv_vg = function
+    | A.Variable _ as vg -> vg
+    | A.Constant (v, i) -> A.Constant (pv_v v, i) in
+  let pv_guard g =
+    { g with A.value_guards = List.map pv_vg g.A.value_guards } in
+  let pv_label l = { l with A.guard = pv_guard l.A.guard } in
+  let pv_transition t = { t with A.labels = List.map pv_label t.A.labels } in
+  { topl with A.transitions = List.map pv_transition topl.A.transitions }
+
+(* }}} *)
 (* specialize monitor *) (* {{{ *)
 let mk_hl_name cn mn =
   Printf.sprintf "%s.%s" cn mn

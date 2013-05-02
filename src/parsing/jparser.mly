@@ -319,6 +319,9 @@ let field_signature2str fs =
 %start spec
 %type <Core.ast_triple> spec
 
+%start jargument     /* used for parsing topl values */
+%type <Psyntax.args> jargument
+
 %% /* rules */
 
 
