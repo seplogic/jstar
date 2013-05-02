@@ -372,18 +372,31 @@ let build_core_monitor m =
 let read_properties fs =
   fs |> List.map Topl.Helper.parse >>= List.map (fun x -> x.A.ast)
 
-(* Should return a (Str.regexp list * int) ToplMonitor.transition *)
-let convert_transition t =
-  failwith "TODO: transform steps"
-(*
-  let observables = t.observable.event in
+let convert_guard guard =
+  let convert = function
+    | A.Variable (vr, i) -> TM.EqReg (i, vr)
+    | A.Constant (vl, i) -> TM.EqCt (i, vl) in
+  TM.And (List.map convert guard.A.value_guards)
+
+let convert_action = List.fold_left (fun m (k, v) -> TM.VMap.add k v m) TM.VMap.empty
+
+let convert_event_time pattern = function
+  | Some A.Call -> TM.Call_time 
+  | Some A.Return -> TM.Return_time
+  | None -> failwith "What TODO?"
+
+(* Should return a (A.pattern list * int) ToplMonitor.transition *)
+let convert_transition p t =
+  let observable = p.A.observable in
   let convert_label l =
-    { guard = convert_guard l.guard
-    ; action = convert_action l.action
-    ; observables = observables } in
-  { steps = List.map convert_label t.labels
-  ; target = t.target }
-*)
+    let observables =
+      { TM.event_time = convert_event_time observable l.A.guard.A.tag_guard.A.event_type
+      ; TM.pattern = [observable], fst l.A.guard.A.tag_guard.A.method_arity } in
+    { TM.guard = convert_guard l.A.guard
+    ; TM.action = convert_action l.A.action
+    ; TM.observables = observables } in
+  { TM.steps = List.map convert_label t.A.labels
+  ; TM.target = t.A.target }
 
 let construct_monitor ts =
   let convert_prop p =
@@ -395,8 +408,9 @@ let construct_monitor ts =
       else starts, new_vs, errors in
     let collect_transition (vs, ts, starts, errors) t = 
       let new_vs, new_starts, new_errors = (vs,starts,errors) |> add_v t.A.source |> add_v t.A.target in
-      let transition = convert_transition t in
-      let new_ts = TM.VMap.add t.A.source transition ts in
+      let transition = convert_transition p t in
+      let outgoing = try TM.VMap.find t.A.source ts with Not_found -> [] in
+      let new_ts = TM.VMap.add t.A.source (transition::outgoing) ts in
       new_vs, new_ts, new_starts, new_errors in
     let vertices, transitions, start_vertices, errors =
       List.fold_left
