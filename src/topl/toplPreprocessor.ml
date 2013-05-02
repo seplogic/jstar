@@ -41,6 +41,7 @@ type method_ =  (* TODO: Use [PropAst.event_tag] instead? *)
 type property = (string, string) A.t
 type tag_guard = A.pattern A.tag_guard
 
+(* }}} *)
 (* small functions that help handling automata *) (* {{{ *)
 let get_vertices p =
   let f acc t = t.A.source :: t.A.target :: acc in
@@ -111,6 +112,64 @@ let transform_properties ps =
   List.iter (fun p -> List.iter (pe p) p.A.transitions) ps;
   full_p
 *)
+
+let convert_guard guard =
+  let convert = function
+    | A.Variable (vr, i) -> TM.EqReg (i, vr)
+    | A.Constant (vl, i) -> TM.EqCt (i, vl) in
+  TM.And (List.map convert guard.A.value_guards)
+
+let convert_action = List.fold_left (fun m (k, v) -> TM.VMap.add k v m) TM.VMap.empty
+
+let convert_event_time pattern = function
+  | Some A.Call -> TM.Call_time 
+  | Some A.Return -> TM.Return_time
+  | None -> failwith "What TODO?"
+
+(* Should return a (A.pattern list * int) ToplMonitor.transition *)
+let convert_transition p t =
+  let observable = p.A.observable in
+  let convert_label l =
+    let observables =
+      { TM.event_time = convert_event_time observable l.A.guard.A.tag_guard.A.event_type
+      ; TM.pattern = [observable], fst l.A.guard.A.tag_guard.A.method_arity } in
+    { TM.guard = convert_guard l.A.guard
+    ; TM.action = convert_action l.A.action
+    ; TM.observables = observables } in
+  { TM.steps = List.map convert_label t.A.labels
+  ; TM.target = t.A.target }
+
+let construct_monitor ts =
+  let convert_prop p =
+    let add_v v (vs, starts, errors) =
+      let pv = p.A.name ^ v in
+      let new_vs = TM.VSet.add pv vs in
+      if v = "start" then new_vs, TM.VSet.add pv starts, errors
+      else if v = "error" then new_vs, starts, TM.VMap.add pv p.A.message errors
+      else starts, new_vs, errors in
+    let collect_transition (vs, ts, starts, errors) t = 
+      let new_vs, new_starts, new_errors = (vs,starts,errors) |> add_v t.A.source |> add_v t.A.target in
+      let transition = convert_transition p t in
+      let outgoing = try TM.VMap.find t.A.source ts with Not_found -> [] in
+      let new_ts = TM.VMap.add t.A.source (transition::outgoing) ts in
+      new_vs, new_ts, new_starts, new_errors in
+    let vertices, transitions, start_vertices, errors =
+      List.fold_left
+	collect_transition
+	(TM.VSet.empty, TM.VMap.empty, TM.VSet.empty, TM.VMap.empty)
+	p.A.transitions in
+    { TM.vertices = vertices
+    ; TM.start_vertices = start_vertices
+    ; TM.error_messages = errors
+    ; TM.transitions = transitions } in
+  let map_union m1 m2 = TM.VMap.merge (fun _ a b -> match a, b with Some _, _ -> a | None, Some _ -> b | _ -> None) m1 m2 in
+  let collect_prop acc p =
+    let ap = convert_prop p in
+    { TM.vertices = TM.VSet.union acc.TM.vertices ap.TM.vertices
+    ; TM.start_vertices = TM.VSet.union acc.TM.start_vertices ap.TM.start_vertices
+    ; TM.error_messages = map_union acc.TM.error_messages ap.TM.error_messages
+    ; TM.transitions = map_union acc.TM.transitions ap.TM.transitions } in
+  List.fold_left collect_prop TM.empty_automaton ts
 
 (* }}} *)
 (* parse values *) (* {{{ *)
@@ -308,64 +367,6 @@ let build_core_monitor m =
 
 let read_properties fs =
   fs |> List.map Topl.Helper.parse >>= List.map (fun x -> x.A.ast)
-
-let convert_guard guard =
-  let convert = function
-    | A.Variable (vr, i) -> TM.EqReg (i, vr)
-    | A.Constant (vl, i) -> TM.EqCt (i, vl) in
-  TM.And (List.map convert guard.A.value_guards)
-
-let convert_action = List.fold_left (fun m (k, v) -> TM.VMap.add k v m) TM.VMap.empty
-
-let convert_event_time pattern = function
-  | Some A.Call -> TM.Call_time 
-  | Some A.Return -> TM.Return_time
-  | None -> failwith "What TODO?"
-
-(* Should return a (A.pattern list * int) ToplMonitor.transition *)
-let convert_transition p t =
-  let observable = p.A.observable in
-  let convert_label l =
-    let observables =
-      { TM.event_time = convert_event_time observable l.A.guard.A.tag_guard.A.event_type
-      ; TM.pattern = [observable], fst l.A.guard.A.tag_guard.A.method_arity } in
-    { TM.guard = convert_guard l.A.guard
-    ; TM.action = convert_action l.A.action
-    ; TM.observables = observables } in
-  { TM.steps = List.map convert_label t.A.labels
-  ; TM.target = t.A.target }
-
-let construct_monitor ts =
-  let convert_prop p =
-    let add_v v (vs, starts, errors) =
-      let pv = p.A.name ^ v in
-      let new_vs = TM.VSet.add pv vs in
-      if v = "start" then new_vs, TM.VSet.add pv starts, errors
-      else if v = "error" then new_vs, starts, TM.VMap.add pv p.A.message errors
-      else starts, new_vs, errors in
-    let collect_transition (vs, ts, starts, errors) t = 
-      let new_vs, new_starts, new_errors = (vs,starts,errors) |> add_v t.A.source |> add_v t.A.target in
-      let transition = convert_transition p t in
-      let outgoing = try TM.VMap.find t.A.source ts with Not_found -> [] in
-      let new_ts = TM.VMap.add t.A.source (transition::outgoing) ts in
-      new_vs, new_ts, new_starts, new_errors in
-    let vertices, transitions, start_vertices, errors =
-      List.fold_left
-	collect_transition
-	(TM.VSet.empty, TM.VMap.empty, TM.VSet.empty, TM.VMap.empty)
-	p.A.transitions in
-    { TM.vertices = vertices
-    ; TM.start_vertices = start_vertices
-    ; TM.error_messages = errors
-    ; TM.transitions = transitions } in
-  let map_union m1 m2 = TM.VMap.merge (fun _ a b -> match a, b with Some _, _ -> a | None, Some _ -> b | _ -> None) m1 m2 in
-  let collect_prop acc p =
-    let ap = convert_prop p in
-    { TM.vertices = TM.VSet.union acc.TM.vertices ap.TM.vertices
-    ; TM.start_vertices = TM.VSet.union acc.TM.start_vertices ap.TM.start_vertices
-    ; TM.error_messages = map_union acc.TM.error_messages ap.TM.error_messages
-    ; TM.transitions = map_union acc.TM.transitions ap.TM.transitions } in
-  List.fold_left collect_prop TM.empty_automaton ts
 
 let compile js ts =
   let monitor = construct_monitor ts in
