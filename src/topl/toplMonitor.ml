@@ -12,6 +12,7 @@ module VMap = StringMap
 type event_type =
   | Call_time
   | Return_time
+  | Any_time
 
 type 'pattern event =
   { event_time : event_type
@@ -51,6 +52,12 @@ type 'pattern automaton =
   ; start_vertices : VSet.t
   ; error_messages : string VMap.t
   ; transitions : 'pattern transition list VMap.t }
+
+let empty_automaton =
+  { vertices = VSet.empty
+  ; start_vertices = VSet.empty
+  ; error_messages = VMap.empty
+  ; transitions = VMap.empty }
 
 (* Invariant checks, to be used for debugging. *)
 

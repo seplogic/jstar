@@ -8,6 +8,7 @@ module A = Topl.PropAst
 module J = Jparsetree
 module JG = Jimple_global_types
 module TM = ToplMonitor
+module TN = ToplNames
 
 (* }}} *)
 (* used to communicate between conversion and instrumentation *) (* {{{ *)
@@ -41,152 +42,84 @@ type method_ =  (* TODO: Use [PropAst.event_tag] instead? *)
 type property = (string, string) A.t
 type tag_guard = A.pattern A.tag_guard
 
+(* }}} *)
 (* small functions that help handling automata *) (* {{{ *)
 let get_vertices p =
   let f acc t = t.A.source :: t.A.target :: acc in
   "start" :: "error" :: List.fold_left f [] p.A.transitions
 
 (* }}} *)
-let generate_checkers out_dir p =
-  failwith "XXX"
-  (*
-  check_automaton p;
-  let (/) = Filename.concat in
-  U.cp_r (Config.topl_dir/"src"/"topl") out_dir;
-  let topl_dir = out_dir/"topl" in
-  let o n =
-    let c = open_out (topl_dir/("Property." ^ n)) in
-    let f = formatter_of_out_channel c in
-    (c, f) in
-  let (jc, j), (tc, t) = o "java", o "text" in
-  let sc = open_out (topl_dir/"Property.strings") in
-  let index = mk_pp_index p in
-  fprintf j "@[%a@." pp_constants_table index;
-  pp_strings_nonl sc index;
-  fprintf t "@[%a@." (pp_automaton index) p;
-  List.iter close_out_noerr [jc; tc; sc];
-  ignore (Sys.command
-    (Printf.sprintf
-      "javac -sourcepath %s %s"
-      (U.command_escape out_dir)
-      (U.command_escape (topl_dir/"Property.java")))) *)
+(* conversion to ToplMonitor representation *) (* {{{ *)
+let convert_guard guard =
+  let convert = function
+    | A.Variable (vr, i) -> TM.EqReg (i, vr)
+    | A.Constant (vl, i) -> TM.EqCt (i, vl) in
+  TM.And (List.map convert guard.A.value_guards)
+
+let convert_action = List.fold_left (fun m (k, v) -> TM.VMap.add k v m) TM.VMap.empty
+
+let convert_event_time = function
+  | Some A.Call -> TM.Call_time
+  | Some A.Return -> TM.Return_time
+  | None -> TM.Any_time
+
+let convert_transition p t : (A.pattern list * int) TM.transition =
+  let convert_label l =
+    let guard = convert_guard l.A.guard in
+    let action = convert_action l.A.action in
+    let p_arity = fst l.A.guard.A.tag_guard.A.method_arity in
+    let p_mname = [l.A.guard.A.tag_guard.A.method_name; p.A.observable] in
+    let pattern = (p_mname, p_arity) in
+    let event_time = convert_event_time l.A.guard.A.tag_guard.A.event_type in
+    let observables = { TM.event_time; pattern } in
+    { TM.guard; action; observables } in
+  { TM.steps = List.map convert_label t.A.labels
+  ; TM.target = t.A.target }
+
+let construct_monitor ts =
+  let convert_prop p =
+    let add_v v (vs, starts, errors) =
+      let pv = p.A.name ^ v in
+      let new_vs = TM.VSet.add pv vs in
+      if v = "start" then new_vs, TM.VSet.add pv starts, errors
+      else if v = "error" then new_vs, starts, TM.VMap.add pv p.A.message errors
+      else starts, new_vs, errors in
+    let collect_transition (vs, ts, starts, errors) t =
+      let new_vs, new_starts, new_errors = (vs,starts,errors) |> add_v t.A.source |> add_v t.A.target in
+      let transition = convert_transition p t in
+      let outgoing = try TM.VMap.find t.A.source ts with Not_found -> [] in
+      let new_ts = TM.VMap.add t.A.source (transition::outgoing) ts in
+      new_vs, new_ts, new_starts, new_errors in
+    let vertices, transitions, start_vertices, errors =
+      List.fold_left
+	collect_transition
+	(TM.VSet.empty, TM.VMap.empty, TM.VSet.empty, TM.VMap.empty)
+	p.A.transitions in
+    { TM.vertices = vertices
+    ; TM.start_vertices = start_vertices
+    ; TM.error_messages = errors
+    ; TM.transitions = transitions } in
+  let map_union m1 m2 = TM.VMap.merge (fun _ a b -> match a, b with Some _, _ -> a | None, Some _ -> b | _ -> None) m1 m2 in
+  let collect_prop acc p =
+    let ap = convert_prop p in
+    { TM.vertices = TM.VSet.union acc.TM.vertices ap.TM.vertices
+    ; TM.start_vertices = TM.VSet.union acc.TM.start_vertices ap.TM.start_vertices
+    ; TM.error_messages = map_union acc.TM.error_messages ap.TM.error_messages
+    ; TM.transitions = map_union acc.TM.transitions ap.TM.transitions } in
+  List.fold_left collect_prop TM.empty_automaton ts
 
 (* }}} *)
-(* conversion to Java representation *) (* {{{ *)
-
-let index_for_var ifv v =
-  try
-    Hashtbl.find ifv v
-  with Not_found ->
-    let i = Hashtbl.length ifv in
-      Hashtbl.replace ifv v i; i
-
-let transform_tag_guard ptags tg =
-  Hashtbl.replace ptags tg []; tg
-
-let transform_value_guard ifv = function
-  | A.Variable (v, i) -> A.Variable (index_for_var ifv v, i)
-  | A.Constant (c, i) -> A.Constant (c, i)
-
-let transform_guard ifv ptags {A.tag_guard=tg; A.value_guards=vgs} =
-  { A.tag_guard = transform_tag_guard ptags tg
-  ; A.value_guards = List.map (transform_value_guard ifv) vgs }
-
-let transform_condition ifv (store_var, event_index) =
-  let store_index = index_for_var ifv store_var in
-    (store_index, event_index)
-
-let transform_action ifv a = List.map (transform_condition ifv) a
-
-let transform_label ifv ptags {A.guard=g; A.action=a} =
-  { A.guard = transform_guard ifv ptags g
-  ; A.action = transform_action ifv a }
-
-  (*
-let transform_properties ps =
-  let vs p = p |> get_vertices |> List.map (fun v -> (p, v)) in
-  let iov = to_ints (ps >>= vs) in
-  let mk_vd (p, v) =
-    { vertex_property = p
-    ; vertex_name = v
-    ; outgoing_transitions = [] } in
-  let full_p =
-    { vertices = inverse_index mk_vd iov
-    ; observables = Hashtbl.create 0
-    ; pattern_tags = Hashtbl.create 0
-    ; event_names = Hashtbl.create 0 } in
-  let add_obs_tags p =
-    let obs_tag =
-      { A.event_type = None
-      ; A.method_name = p.A.observable
-      ; A.method_arity = (0, None) } in
-    Hashtbl.replace full_p.pattern_tags obs_tag [];
-    Hashtbl.replace full_p.observables p obs_tag in
-  List.iter add_obs_tags ps;
-  let add_transition vi t =
-    let vs = full_p.vertices in
-    let ts = vs.(vi).outgoing_transitions in
-    vs.(vi) <- { vs.(vi) with outgoing_transitions = t :: ts } in
-  let ifv = Hashtbl.create 0 in (* variable, string -> integer *)
-  let pe p {A.source=s;A.target=t;A.labels=ls} =
-    let s = Hashtbl.find iov (p, s) in
-    let t = Hashtbl.find iov (p, t) in
-    let ls = List.map (transform_label ifv full_p.pattern_tags) ls in
-    add_transition s {steps=ls; target=t} in
-  List.iter (fun p -> List.iter (pe p) p.A.transitions) ps;
-  full_p
-*)
-
-(* }}} *)
-(* bytecode instrumentation *) (* {{{ *)
-
-(*
-let does_method_match
-  ({ method_name=mn; method_arity=ma }, mt)
-  { A.event_type=t; A.method_name=re; A.method_arity=(amin, amax) }
-=
-  let bamin = amin <= ma in
-  let bamax = option true ((<=) ma) amax in
-  let bt = option true ((=) mt) t in
-  let bn = A.pattern_matches re mn in
-  let r = bamin && bamax  && bt && bn in
-  if log log_mm then begin
-    printf "@\n@[<2>%s " (if r then "✓" else "✗");
-    printf "(%a, %s, %d)@ matches (%a, %s, [%d..%a])@ gives (%b, %b, (%b,%b))@]"
-      A.pp_event_type mt mn ma
-      (pp_option A.pp_event_type) t
-      re.A.p_string
-      amin
-      (pp_option pp_int) amax
-      bt bn bamin bamax
-  end;
-  r
-
-let get_tag x =
-  let cnt = ref (-1) in
-  fun t (mns, ma) mn ->
-    let en = (* event name *)
-      fprintf str_formatter "%a %s" A.pp_event_type t mn;
-      flush_str_formatter () in
-    let fp p acc =
-      let cm mn = does_method_match ({method_name=mn; method_arity=ma}, t) p in
-      if List.exists cm mns then p :: acc else acc in
-    let fpk p _ = fp p in
-    let fpv _ = fp in
-    if Hashtbl.fold fpv x.observables [] <> [] then begin
-      match Hashtbl.fold fpk x.pattern_tags [] with
-        | [] -> None
-        | ps ->
-            incr cnt;
-            let at p =
-              let ts = Hashtbl.find x.pattern_tags p in
-              (* printf "added tag %d\n" !cnt; *)
-              Hashtbl.replace x.pattern_tags p (!cnt :: ts);
-              Hashtbl.replace x.event_names !cnt en in
-            List.iter at ps;
-            Some !cnt
-    end else None
-*)
+(* parse values *) (* {{{ *)
+let parse_values topl =
+  let pv_v v = Jparser.jargument Jlexer.token & Lexing.from_string v in
+  let pv_vg = function
+    | A.Variable _ as vg -> vg
+    | A.Constant (v, i) -> A.Constant (pv_v v, i) in
+  let pv_guard g =
+    { g with A.value_guards = List.map pv_vg g.A.value_guards } in
+  let pv_label l = { l with A.guard = pv_guard l.A.guard } in
+  let pv_transition t = { t with A.labels = List.map pv_label t.A.labels } in
+  { topl with A.transitions = List.map pv_transition topl.A.transitions }
 
 (* }}} *)
 (* specialize monitor *) (* {{{ *)
@@ -317,10 +250,10 @@ let get_call_args p =
   iter_wrap wrap_call_arg n
 
 let make_call_to_proc p =
-  Psyntax.Arg_var(Vars.concretep_str ("call_"^p.C.proc_name))::get_call_args p
+  TN.call_event p.C.proc_name :: get_call_args p
 
 let make_ret_from_proc p =
-  [Psyntax.Arg_var(Vars.concretep_str ("ret_"^p.C.proc_name))]
+  [ TN.return_event p.C.proc_name ]
 
 let make_instrumented_proc_pair p =
   let proc' = {C.proc_name=p.C.proc_name^"_I"; proc_spec=p.C.proc_spec; proc_body=p.C.proc_body; proc_rules=p.C.proc_rules} in
@@ -342,12 +275,13 @@ let instrument_procedures ps =
 (* Add emit and friends *) (* {{{ *)
 
 (* this procedure expects the event to be emitted, and the condition for the assert statement *)
-let emit_proc pv =
+let emit_proc a pv =
   let e_sz = Array.length pv.ToplSpecs.queue.(0) in
   let call_args = iter_wrap wrap_call_arg e_sz in
   let call_enqueue = {C.call_name = "enqueue_$$"; C.call_rets=[]; call_args} in
   let call_step = {C.call_name = "step_$$"; C.call_rets=[]; C.call_args=[]} in
-  let f = Psyntax.mkNEQ(pv.ToplSpecs.state, Psyntax.mkString "error") in
+  let errors = TM.VMap.fold (fun k _ acc -> k :: acc) a.TM.error_messages [] in
+  let f = errors >>= (fun e -> Psyntax.mkNEQ(pv.ToplSpecs.state, Psyntax.mkString e)) in
   let asgn_assert = { C.asgn_rets=[]; asgn_args=[]; asgn_spec = HashSet.singleton {C.pre=f; post=f} } in
   let emit_body =Some ([C.Call_core call_enqueue; C.Call_core call_step; C.Assignment_core asgn_assert]) in
   { C.proc_name = "emit_$$"; C.proc_spec = (HashSet.create 0); C.proc_body = emit_body;
@@ -363,59 +297,13 @@ let enqueue_proc pv =
 
 let build_core_monitor m =
    let pv = ToplSpecs.init_TOPL_program_vars m in
-  [ emit_proc pv; step_proc m pv; enqueue_proc pv ]
+   [ emit_proc m pv; step_proc m pv; enqueue_proc pv ]
 
 (* End emit and friends *) (* }}} *)
 (* main *) (* {{{ *)
 
 let read_properties fs =
   fs |> List.map Topl.Helper.parse >>= List.map (fun x -> x.A.ast)
-
-(* Should return a (Str.regexp list * int) ToplMonitor.transition *)
-let convert_transition t =
-  failwith "TODO: transform steps"
-(*
-  let observables = t.observable.event in
-  let convert_label l =
-    { guard = convert_guard l.guard
-    ; action = convert_action l.action
-    ; observables = observables } in
-  { steps = List.map convert_label t.labels
-  ; target = t.target }
-*)
-
-let construct_monitor ts =
-  let convert_prop p =
-    let add_v v (vs, starts, errors) =
-      let pv = p.A.name ^ v in
-      let new_vs = TM.VSet.add pv vs in
-      if v = "start" then new_vs, TM.VSet.add pv starts, errors
-      else if v = "error" then new_vs, starts, TM.VMap.add pv p.A.message errors
-      else starts, new_vs, errors in
-    let collect_transition (vs, ts, starts, errors) t = 
-      let new_vs, new_starts, new_errors = (vs,starts,errors) |> add_v t.A.source |> add_v t.A.target in
-      let transition = convert_transition t in
-      let new_ts = TM.VMap.add t.A.source transition ts in
-      new_vs, new_ts, new_starts, new_errors in
-    let vertices, transitions, start_vertices, errors = List.fold_left collect_transition
-      (TM.VSet.empty, TM.VMap.empty, TM.VSet.empty, TM.VMap.empty) p.A.transitions in
-    { TM.vertices = vertices
-    ; TM.start_vertices = start_vertices
-    ; TM.error_messages = errors
-    ; TM.transitions = transitions } in
-  let map_union m1 m2 = TM.VMap.merge (fun _ a b -> match a, b with Some _, _ -> a | None, Some _ -> b | _ -> None) m1 m2 in
-  let collect_prop acc p =
-    let ap = convert_prop p in
-    { TM.vertices = TM.VSet.union acc.TM.vertices ap.TM.vertices
-    ; TM.start_vertices = TM.VSet.union acc.TM.start_vertices ap.TM.start_vertices
-    ; TM.error_messages = map_union acc.TM.error_messages ap.TM.error_messages
-    ; TM.transitions = map_union acc.TM.transitions ap.TM.transitions } in
-  let empty_automaton =  
-    { TM.vertices = TM.VSet.empty
-    ; TM.start_vertices = TM.VSet.empty
-    ; TM.error_messages = TM.VMap.empty
-    ; TM.transitions = TM.VMap.empty } in
-  List.fold_left collect_prop empty_automaton ts
 
 let compile js ts =
   let monitor = construct_monitor ts in

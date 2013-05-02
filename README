@@ -29,7 +29,7 @@ Optionally, run the tests to see that all is OK.
 
 Dependencies:
 
-* OCaml >=3.11
+* OCaml >=3.12
   http://caml.inria.fr/download.en.html
   Debian / Ubuntu: ocaml, ocaml-native-compilers
 

@@ -1,4 +1,6 @@
 val read_properties : string list -> (string, string) Topl.PropAst.t list
+val parse_values
+  : ('a, string) Topl.PropAst.t -> ('a, ToplMonitor.value) Topl.PropAst.t
 val compile
   : Jimple_global_types.jimple_file list
     -> (ToplMonitor.register, ToplMonitor.value) Topl.PropAst.t list
