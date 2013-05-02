@@ -40,7 +40,10 @@ let max_label_length_for_vertex ll =
   List.fold_right (fun l m -> max m (List.length l.TM.steps)) ll 0
 
 let max_label_length a =
-  TM.VMap.fold (fun _ tl n -> max n (max_label_length_for_vertex tl)) a.TM.transitions 0
+  let f _ ts acc = max (max_label_length_for_vertex ts) acc in
+  TM.VMap.fold f a.TM.transitions 1
+  (* NOTE: Artificially force the queue not to be really short, because the
+  code relies on its size not being 0. *)
 
 let max_arg a =
   let map_max f xs = xs |> List.map f |> List.fold_left max 0 in
