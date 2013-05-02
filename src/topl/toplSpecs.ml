@@ -2,6 +2,7 @@ open Corestar_std
 
 module PS = Psyntax
 module TM = ToplMonitor
+module TN = ToplNames
 
 (* TODO(rgrig): Use the more high-level functions in [Psyntax] if possible. *)
 
@@ -177,9 +178,12 @@ let rec guard_conditions gd e st =
     | TM.And gs -> gs >>= (fun g -> guard_conditions g e st)
 
 let obs_conditions e { TM.event_time; pattern } =
-  let ev_name proc_name = PS.mkString (Printf.sprintf "Call_$$_%s" proc_name) in
-  let proc_cond proc_name = PS.mkEQ (e.(0), ev_name proc_name) in
-  PS.mkBigOr (List.map proc_cond pattern)
+  let ev_name = match event_time with
+    | TM.Call_time -> [ TN.call_event ]
+    | TM.Return_time -> [ TN.return_event ]
+    | TM.Any_time -> [ TN.call_event; TN.return_event ] in
+  let p_cond p = List.map (fun name -> PS.mkEQ (e.(0), name p)) ev_name in
+  PS.mkBigOr (pattern >>= p_cond)
 
 (* Conditions for e being satisfied by (st,s) and leading to st' *)
 let step_conditions e st st' s =

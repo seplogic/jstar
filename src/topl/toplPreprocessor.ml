@@ -8,6 +8,7 @@ module A = Topl.PropAst
 module J = Jparsetree
 module JG = Jimple_global_types
 module TM = ToplMonitor
+module TN = ToplNames
 
 (* }}} *)
 (* used to communicate between conversion and instrumentation *) (* {{{ *)
@@ -48,71 +49,7 @@ let get_vertices p =
   "start" :: "error" :: List.fold_left f [] p.A.transitions
 
 (* }}} *)
-(* conversion to Java representation *) (* {{{ *)
-
-let index_for_var ifv v =
-  try
-    Hashtbl.find ifv v
-  with Not_found ->
-    let i = Hashtbl.length ifv in
-      Hashtbl.replace ifv v i; i
-
-let transform_tag_guard ptags tg =
-  Hashtbl.replace ptags tg []; tg
-
-let transform_value_guard ifv = function
-  | A.Variable (v, i) -> A.Variable (index_for_var ifv v, i)
-  | A.Constant (c, i) -> A.Constant (c, i)
-
-let transform_guard ifv ptags {A.tag_guard=tg; A.value_guards=vgs} =
-  { A.tag_guard = transform_tag_guard ptags tg
-  ; A.value_guards = List.map (transform_value_guard ifv) vgs }
-
-let transform_condition ifv (store_var, event_index) =
-  let store_index = index_for_var ifv store_var in
-    (store_index, event_index)
-
-let transform_action ifv a = List.map (transform_condition ifv) a
-
-let transform_label ifv ptags {A.guard=g; A.action=a} =
-  { A.guard = transform_guard ifv ptags g
-  ; A.action = transform_action ifv a }
-
-  (*
-let transform_properties ps =
-  let vs p = p |> get_vertices |> List.map (fun v -> (p, v)) in
-  let iov = to_ints (ps >>= vs) in
-  let mk_vd (p, v) =
-    { vertex_property = p
-    ; vertex_name = v
-    ; outgoing_transitions = [] } in
-  let full_p =
-    { vertices = inverse_index mk_vd iov
-    ; observables = Hashtbl.create 0
-    ; pattern_tags = Hashtbl.create 0
-    ; event_names = Hashtbl.create 0 } in
-  let add_obs_tags p =
-    let obs_tag =
-      { A.event_type = None
-      ; A.method_name = p.A.observable
-      ; A.method_arity = (0, None) } in
-    Hashtbl.replace full_p.pattern_tags obs_tag [];
-    Hashtbl.replace full_p.observables p obs_tag in
-  List.iter add_obs_tags ps;
-  let add_transition vi t =
-    let vs = full_p.vertices in
-    let ts = vs.(vi).outgoing_transitions in
-    vs.(vi) <- { vs.(vi) with outgoing_transitions = t :: ts } in
-  let ifv = Hashtbl.create 0 in (* variable, string -> integer *)
-  let pe p {A.source=s;A.target=t;A.labels=ls} =
-    let s = Hashtbl.find iov (p, s) in
-    let t = Hashtbl.find iov (p, t) in
-    let ls = List.map (transform_label ifv full_p.pattern_tags) ls in
-    add_transition s {steps=ls; target=t} in
-  List.iter (fun p -> List.iter (pe p) p.A.transitions) ps;
-  full_p
-*)
-
+(* conversion to ToplMonitor representation *) (* {{{ *)
 let convert_guard guard =
   let convert = function
     | A.Variable (vr, i) -> TM.EqReg (i, vr)
@@ -121,21 +58,21 @@ let convert_guard guard =
 
 let convert_action = List.fold_left (fun m (k, v) -> TM.VMap.add k v m) TM.VMap.empty
 
-let convert_event_time pattern = function
-  | Some A.Call -> TM.Call_time 
+let convert_event_time = function
+  | Some A.Call -> TM.Call_time
   | Some A.Return -> TM.Return_time
-  | None -> failwith "What TODO?"
+  | None -> TM.Any_time
 
-(* Should return a (A.pattern list * int) ToplMonitor.transition *)
-let convert_transition p t =
-  let observable = p.A.observable in
+let convert_transition p t : (A.pattern list * int) TM.transition =
   let convert_label l =
-    let observables =
-      { TM.event_time = convert_event_time observable l.A.guard.A.tag_guard.A.event_type
-      ; TM.pattern = [observable], fst l.A.guard.A.tag_guard.A.method_arity } in
-    { TM.guard = convert_guard l.A.guard
-    ; TM.action = convert_action l.A.action
-    ; TM.observables = observables } in
+    let guard = convert_guard l.A.guard in
+    let action = convert_action l.A.action in
+    let p_arity = fst l.A.guard.A.tag_guard.A.method_arity in
+    let p_mname = [l.A.guard.A.tag_guard.A.method_name; p.A.observable] in
+    let pattern = (p_mname, p_arity) in
+    let event_time = convert_event_time l.A.guard.A.tag_guard.A.event_type in
+    let observables = { TM.event_time; pattern } in
+    { TM.guard; action; observables } in
   { TM.steps = List.map convert_label t.A.labels
   ; TM.target = t.A.target }
 
@@ -147,7 +84,7 @@ let construct_monitor ts =
       if v = "start" then new_vs, TM.VSet.add pv starts, errors
       else if v = "error" then new_vs, starts, TM.VMap.add pv p.A.message errors
       else starts, new_vs, errors in
-    let collect_transition (vs, ts, starts, errors) t = 
+    let collect_transition (vs, ts, starts, errors) t =
       let new_vs, new_starts, new_errors = (vs,starts,errors) |> add_v t.A.source |> add_v t.A.target in
       let transition = convert_transition p t in
       let outgoing = try TM.VMap.find t.A.source ts with Not_found -> [] in
@@ -313,10 +250,10 @@ let get_call_args p =
   iter_wrap wrap_call_arg n
 
 let make_call_to_proc p =
-  Psyntax.Arg_var(Vars.concretep_str ("call_"^p.C.proc_name))::get_call_args p
+  TN.call_event p.C.proc_name :: get_call_args p
 
 let make_ret_from_proc p =
-  [Psyntax.Arg_var(Vars.concretep_str ("ret_"^p.C.proc_name))]
+  [ TN.return_event p.C.proc_name ]
 
 let make_instrumented_proc_pair p =
   let proc' = {C.proc_name=p.C.proc_name^"_I"; proc_spec=p.C.proc_spec; proc_body=p.C.proc_body; proc_rules=p.C.proc_rules} in
