@@ -66,11 +66,12 @@ let kwd_or_else =
     "class", CLASS;
     "cls", CLS;
     "constructor", CONSTRUCTOR;
+    "default", DEFAULT;
     "define", DEFINE;
     "double", DOUBLE;
     "Emp", EMP;
     "emprule", EMPRULE;
-    "end", END;
+(*    "end", END; *)
     "ensures", ENSURES;
     "enum", ENUM;
     "equiv", EQUIV;
@@ -92,11 +93,12 @@ let kwd_or_else =
     "int", INT;
     "interface", INTERFACE;
     "interfaceinvoke", INTERFACEINVOKE;
-    "label", LABEL;
+(*    "label", LABEL; *)
     "lengthof", LENGTHOF;
     "long", LONG;
     "lookupswitch", LOOKUPSWITCH;
     "native", NATIVE;
+    "neg", NEG;
     "new", NEW;
     "newarray", NEWARRAY;
     "newmultiarray", NEWMULTIARRAY;
@@ -107,7 +109,7 @@ let kwd_or_else =
     "null", NULL;
     "null_type", NULL_TYPE;
     "old", OLD;
-    "or", ORTEXT;
+(*     "or", ORTEXT; *)
     "private", PRIVATE;
     "protected", PROTECTED;
     "public", PUBLIC;
