@@ -20,6 +20,7 @@ open Jparsetree
 open Jimple_global_types
 
 module J = Jparsetree
+module PS = Psyntax
 
 (* TODO(rgrig): The functions here should be pretty printers. *)
 
@@ -70,21 +71,7 @@ let name2str = string_of J.pp_name
 
 let class_name2str = string_of J.pp_class_name
 
-let sign2str = function
-  | Positive -> "+"
-  | Negative -> "-"
-
-let constant2str = function
-   | Int_const (s,i) -> (sign2str s) ^ (string_of_int i)
-   | Int_const_long (s,i) -> (sign2str s) ^(string_of_int i)^"L"
-   | Float_const (s,f) ->  (sign2str s) ^ (string_of_float f)
-   | String_const s -> s
-   | Clzz_const s -> s
-   | Null_const -> "NULL"
-
-let immediate2str = function
-  | Immediate_local_name n -> name2str n
-  | Immediate_constant c ->  constant2str c
+let immediate2str = string_of PS.string_args
 
 let fixed_array_descriptor2str s = "["^immediate2str s^"]"
 
@@ -155,7 +142,7 @@ let throws_clause2str = function
 
 let case_label2str = function
   | Case_label_default -> "default"
-  | Case_label (s,i) ->"case "^sign2str s ^ string_of_int i
+  | Case_label s ->"case "^s
 
 let mkStrOfFieldSignature c t n=
   "<"^class_name2str c ^": "^ j_type2str t ^" "^name2str n^">"

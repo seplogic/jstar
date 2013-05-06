@@ -15,6 +15,9 @@
 %{ (* header *)
 exception Give_up
 
+open Corestar_std
+open Format
+
 open Jparsetree
 
 (* TODO(rgrig): Don't open these. *)
@@ -28,12 +31,45 @@ open Psyntax
 open Spec_def
 open Vars
 
+(* TODO(rgrig): Keep these instead of the above. *)
+module J = Jparsetree
+module PS = Psyntax
+module SS = Support_syntax
 
 let newVar x =
   if x = "_" then freshe()
-  else if String.get x 0 = '_'then concretee_str (String.sub x 1 ((String.length x) -1))
+  else if String.get x 0 = '_' then concretee_str (String.sub x 1 ((String.length x) -1))
   else concretep_str x
 
+let mkBinOp left op right =
+  PS.Arg_op (SS.bop_to_prover_arg op, [left; right])
+
+let mkNegNumericConst n =
+  mkBinOp (PS.mkNumericConst "0") J.Minus (PS.mkNumericConst n)
+
+let check_npv =
+  let rec check_term_npv = function
+    | Arg_var v ->
+        if Vars.is_avar v then begin
+          eprintf "@[@{<b>ERROR@}: You can't use pattern %a in this context@."
+            Vars.pp_var v;
+          raise Parsing.Parse_error
+        end
+    | Arg_string _ -> ()
+    | Arg_op (_, xs) -> List.iter check_term_npv xs
+    | _ -> failwith "INTERNAL: Using deprecated stuff." in
+  let check_term_list_npv = List.iter check_term_npv in
+  let rec check_pform_at_npv = function
+    | P_EQ (t1, t2)
+    | P_NEQ (t1, t2) -> check_term_list_npv [t1; t2]
+    | P_PPred (_, ts)
+    | P_SPred (_, ts) -> check_term_list_npv ts
+    | P_Wand (f1, f2)
+    | P_Or (f1, f2)
+    | P_Septract (f1, f2) -> check_pform_npv (f1 @ f2)
+    | P_False -> ()
+  and check_pform_npv f = List.iter check_pform_at_npv f in
+  check_pform_npv
 
 let msig_simp (mods,typ,name,args_list) =
   let args_list = List.map fst args_list in
@@ -96,9 +132,8 @@ let field_signature2str fs =
 
 /* ============================================================= */
 /* tokens */
-%token <float> FLOAT_CONSTANT
-%token <int> INTEGER_CONSTANT
-%token <int> INTEGER_CONSTANT_LONG
+%token <string> FLOAT_CONSTANT
+%token <string> INTEGER_CONSTANT
 %token <string> AT_IDENTIFIER
 %token <string> CORE_LABEL
 %token <string> FULL_IDENTIFIER
@@ -148,7 +183,6 @@ let field_signature2str fs =
 %token DOUBLE
 %token EMP
 %token EMPRULE
-%token END
 %token ENSURES
 %token ENTERMONITOR
 %token ENUM
@@ -179,14 +213,12 @@ let field_signature2str fs =
 %token INSTANCEOF
 %token INT
 %token INTEGER_CONSTANT
-%token INTEGER_CONSTANT_LONG
 %token INTERFACE
 %token INTERFACEINVOKE
 %token INVARIANT
 %token L_BRACE
 %token L_BRACKET
 %token L_PAREN
-%token LABEL
 %token LEADSTO
 %token LENGTHOF
 %token LONG
@@ -260,9 +292,6 @@ let field_signature2str fs =
 %token WITHOUT
 %token XOR
 
-%type <float> FLOAT_CONSTANT
-%type <int> INTEGER_CONSTANT
-%type <int> INTEGER_CONSTANT_LONG
 %type <string> AT_IDENTIFIER
 %type <string> FULL_IDENTIFIER
 %type <string> IDENTIFIER
@@ -495,12 +524,6 @@ base_type:
    | base_type_no_name {$1}
    | class_name {Class_name $1}
 ;
-integer_constant:
-   | INTEGER_CONSTANT { $1 }
-;
-integer_constant_long:
-   | INTEGER_CONSTANT_LONG { $1 }
-;
 float_constant:
    | FLOAT_CONSTANT { $1 }
 ;
@@ -511,26 +534,11 @@ quoted_name:
    | QUOTED_NAME { $1 }
 ;
 identifier:
-   | AS { "as" }
-   | IDENTIFIER { $1 }
-/*   | DEFINE     { "define" }
-   | EXPORT     { "export" }
-   | ANDALSO    { "andalso" }*/
+  | AS { "as" }
+  | IDENTIFIER { $1 }
   | FALSE   { "False" }
   | TRUE   { "True" }
   | EMP    { "Emp"}
-/*  | IMPLICATION   { "Implication" }
-  | FRAME   { "Frame" }
-  | INCONSISTENCY   { "Inconsistency" }*/
-/*  | RULE   { "rule" }
-  | EMPRULE   { "emprule" }
-  | PURERULE   { "purerule" }
-  | WITHOUT   { "without" }
-  | NOTIN   { "notin" }
-  | NOTINCONTEXT   { "notincontext" }
-  | WHERE   { "where" }*/
-/*  | ORTEXT   { "or" }*/
-/*  | ABSRULE   { "abstraction" }*/
 ;
 at_identifier:
    | AT_IDENTIFIER { $1 }
@@ -557,8 +565,16 @@ method_body:
    | L_BRACE declaration_or_statement_list_star catch_clause_list_star R_BRACE  {Some($2,$3)}
 ;
 source_pos_tag:
-   | SOURCE_POS_TAG COLON identifier COLON integer_constant identifier COLON integer_constant identifier COLON integer_constant identifier COLON integer_constant identifier COLON full_identifier SOURCE_POS_TAG_CLOSE
-   { {begin_line=$5; begin_column=$11; end_line=$8; end_column=$14} }
+  | SOURCE_POS_TAG
+      COLON identifier
+      COLON INTEGER_CONSTANT identifier
+      COLON INTEGER_CONSTANT identifier
+      COLON INTEGER_CONSTANT identifier
+      COLON INTEGER_CONSTANT identifier
+      COLON full_identifier
+    SOURCE_POS_TAG_CLOSE
+      { let i = int_of_string in
+        { begin_line=i $5; begin_column=i $11; end_line=i $8; end_column=i $14} }
 ;
 source_pos_tag_option:
    | /* empty */ { None }
@@ -624,13 +640,9 @@ label_name:
 case_stmt:
    |case_label COLON goto_stmt {Case_stmt($1,$3)}
 ;
-minus_question_mark:
-   | MINUS { Negative }
-   | /* emtpy */  { Positive }
-;
 case_label:
-   | CASE minus_question_mark integer_constant  {Case_label($2,$3)}
-   | DEFAULT     {Case_label_default}
+   | CASE INTEGER_CONSTANT {Case_label $2 }
+   | DEFAULT  {Case_label_default}
 ;
 goto_stmt:
    | GOTO label_name SEMICOLON {$2}
@@ -724,19 +736,20 @@ fixed_array_descriptor:
 ;
 arg_list:
    | immediate { [$1] }
-   | immediate COMMA arg_list { $1::$3 }
+   | immediate COMMA arg_list { $1 :: $3 }
 ;
 immediate:
-   |local_name     { Immediate_local_name($1) }
-   |constant    { Immediate_constant($1) }
+  | local_name { PS.mkPVar (string_of J.pp_name $1) }
+  | constant { $1 }
 ;
 constant:
-   | minus_question_mark integer_constant {Int_const($1,$2)}
-   | minus_question_mark integer_constant_long {Int_const_long($1,$2)}
-   | minus_question_mark  float_constant  {Float_const($1,$2)}
-   | string_constant     {String_const($1)}
-   | CLASS string_constant {Clzz_const($2)}
-   | NULL {Null_const}
+  | INTEGER_CONSTANT { PS.mkNumericConst $1 }
+  | MINUS INTEGER_CONSTANT { mkNegNumericConst $2 }
+  | FLOAT_CONSTANT  { PS.mkNumericConst $1 }
+  | MINUS FLOAT_CONSTANT  { mkNegNumericConst $2 }
+  | string_constant { failwith "XXX" }
+  | CLASS string_constant { failwith "XXX" }
+  | NULL { PS.Arg_op ("nil", []) }
 ;
 binop_no_mult:
    | AND {And}
@@ -816,21 +829,10 @@ lvariable_list:
    | lvariable_list_ne { $1 }
 ;
 
-lvariable_npv:
-   | at_identifier { concretep_str $1 }
-   | identifier { newVar($1) }
-;
-
 fldlist:
    | identifier EQUALS jargument { [($1,$3)] }
    | /*empty*/ { [] }
    | identifier EQUALS jargument SEMICOLON fldlist  { ($1,$3) :: $5 }
-;
-
-fldlist_npv:
-   | identifier EQUALS jargument_npv { [($1,$3)] }
-   | /*empty*/ { [] }
-   | identifier EQUALS jargument_npv SEMICOLON fldlist_npv  { ($1,$3) :: $5 }
 ;
 
 paramlist_question_mark:
@@ -845,42 +847,16 @@ paramlist:
 ;
 
 
-/* Code for matching where not allowing question mark variables:
-   no pattern vars*/
-jargument_npv:
-   | RETURN { Arg_var (concretep_str CoreOps.name_ret_v1) }
-   | lvariable_npv {Arg_var ($1)}
-   | identifier L_PAREN jargument_npv_list R_PAREN {Arg_op($1,$3) }
-   | INTEGER_CONSTANT {Arg_string(string_of_int $1)}
-   | MINUS INTEGER_CONSTANT {Arg_string("-" ^(string_of_int $2))}
-   | STRING_CONSTANT {Arg_string($1)}
-   | field_signature {Arg_string(field_signature2str $1)}
-   | L_BRACE fldlist_npv R_BRACE {mkArgRecord $2}
-   | L_PAREN jargument_npv binop_val_no_multor jargument_npv R_PAREN { Arg_op(Support_syntax.bop_to_prover_arg $3, [$2;$4]) }
-;
-
-jargument_npv_list_ne:
-   | jargument_npv {$1::[]}
-   | jargument_npv COMMA jargument_npv_list_ne { $1::$3 }
-jargument_npv_list:
-   | /*empty*/  {[]}
-   | jargument_npv_list_ne {$1}
-;
-
-
-
 jargument:
-   | RETURN { Arg_var (concretep_str CoreOps.name_ret_v1) }
-   | lvariable {Arg_var ($1)}
-   | identifier L_PAREN jargument_list R_PAREN {Arg_op($1,$3) }
-   | INTEGER_CONSTANT {Arg_string(string_of_int $1)}
-   | MINUS INTEGER_CONSTANT {Arg_string("-" ^(string_of_int $2))}
-   | STRING_CONSTANT {Arg_string($1)}
-   | field_signature {Arg_string(field_signature2str $1)}
-   | L_BRACE fldlist R_BRACE {mkArgRecord $2}
-   | L_PAREN jargument binop_val_no_multor jargument R_PAREN { Arg_op(Support_syntax.bop_to_prover_arg $3, [$2;$4]) }
+  | RETURN { Arg_var (concretep_str CoreOps.name_ret_v1) }
+  | lvariable {Arg_var ($1)}
+  | identifier L_PAREN jargument_list R_PAREN {Arg_op($1,$3) }
+  | constant { $1 }
+  | field_signature {Arg_string(field_signature2str $1)}
+  | L_BRACE fldlist R_BRACE {mkArgRecord $2}
+  | L_PAREN jargument binop_val_no_multor jargument R_PAREN { Arg_op(Support_syntax.bop_to_prover_arg $3, [$2;$4]) }
+  /* TODO(rgrig): Last branch is weird. */
 ;
-
 jargument_list_ne:
    | jargument {$1::[]}
    | jargument COMMA jargument_list_ne { $1::$3 }
@@ -888,9 +864,6 @@ jargument_list:
    | /*empty*/  {[]}
    | jargument_list_ne {$1}
 ;
-
-
-
 formula:
      /*empty*/  { [] }
    | EMP  { [] }
@@ -908,34 +881,23 @@ formula:
    | jargument EQUALS jargument { Support_syntax.bop_to_prover_pred (Cmpeq) $1 $3 }
    | L_PAREN formula R_PAREN { $2 }
 
-formula_npv:
-     /*empty*/ { [] }
-   | EMP  { []}
-   | FALSE { mkFalse}
-   | lvariable_npv DOT jargument_npv MAPSTO  jargument_npv { [P_SPred("field", [Arg_var $1; $3; $5] )] }
-   | BANG identifier L_PAREN jargument_npv_list R_PAREN { [P_PPred($2, $4)] }
-   | identifier L_PAREN jargument_npv_list R_PAREN
-       {if List.length $3 =1 then [P_SPred($1,$3 @ [mkArgRecord []])] else [P_SPred($1,$3)] }
-   | full_identifier L_PAREN jargument_npv_list R_PAREN {if List.length $3 =1 then [P_SPred($1,$3 @ [mkArgRecord []])] else [P_SPred($1,$3)] }
-   | formula_npv MULT formula_npv { pconjunction $1 $3 }
-   | formula_npv OR formula_npv { if Config.parse_debug() then parse_warning "deprecated use of |"  ; pconjunction (purify $1) $3 }
-   | formula_npv OROR formula_npv { mkOr ($1,$3) }
-   | lvariable_npv COLON identifier { [P_PPred("type", [Arg_var $1;Arg_string($3)])] }
-   | jargument_npv binop_cmp jargument_npv { Support_syntax.bop_to_prover_pred $2 $1 $3 }
-   | jargument_npv EQUALS jargument_npv { Support_syntax.bop_to_prover_pred (Cmpeq) $1 $3 }
-   | L_PAREN formula_npv R_PAREN { $2 }
-
 boolean:
    | TRUE { true }
    | FALSE { false }
 ;
 
+/* TODO(rgrig): This goes away, unless somebody wants to maintain unnecessary bits.*/
 question:
-   | IMPLICATION COLON formula_npv VDASH formula_npv {Implication($3,$5)}
-   | INCONSISTENCY COLON formula_npv {Inconsistency($3)}
-   | FRAME COLON formula_npv VDASH formula_npv {Frame($3,$5)}
-   | ABS COLON formula_npv {Abs($3)}
-   | ABDUCTION COLON formula_npv VDASH formula_npv {Abduction($3,$5)}
+   | IMPLICATION COLON formula VDASH formula
+      { check_npv $3; check_npv $5; Implication ($3,$5) }
+   | INCONSISTENCY COLON formula
+      { check_npv $3; Inconsistency $3 }
+   | FRAME COLON formula VDASH formula
+      { check_npv $3; check_npv $5; Frame ($3,$5) }
+   | ABS COLON formula
+      { check_npv $3; Abs $3 }
+   | ABDUCTION COLON formula VDASH formula
+      { check_npv $3; check_npv $5; Abduction ($3,$5) }
 ;
 
 question_file:

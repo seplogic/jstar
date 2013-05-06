@@ -26,6 +26,7 @@ open Support_symex
 open Javaspecs
 
 module C = Core
+module J = Jparsetree
 module PS = Psyntax
 
 (* global variables *)
@@ -92,9 +93,11 @@ let get_spec  (iexp: Jparsetree.invoke_expr) =
   | Invoke_nostatic_exp (Virtual_invoke,n,_,il)
   | Invoke_nostatic_exp (Interface_invoke,n,_,il)
   | Invoke_nostatic_exp (Special_invoke,n,_,il) ->
+      (* TODO(rgrig): Huh? [this] is the first argument in most implementations. *)
       (* Make "this" be the final parameter, i.e. subst @this: for @parametern: *)
       let subst = Psyntax.add (mk_this) (Arg_var (mk_parameter (List.length il))) Psyntax.empty in
-      sub_triple subst spec,(il@[Immediate_local_name(n)])
+      let n = string_of J.pp_name n in
+      sub_triple subst spec,(il @ [PS.mkPVar n])
   | Invoke_static_exp (si,il) ->
       spec,il
 
@@ -128,17 +131,21 @@ let retvar_term = Arg_var CoreOps.ret_v1
 let mk_array a i j v =
   [P_SPred ( "array", [a; i; j; v] )]
 
-let mk_zero x = Immediate_constant (match x with
+let mk_zero = function
   | Base (Boolean, _)
   | Base (Byte, _)
   | Base (Char, _)
   | Base (Short, _)
-  | Base (Int, _) -> Int_const (Positive, 0)
-  | Base (Long, _) -> Int_const_long (Positive, 0)
+  | Base (Int, _)
+  | Base (Long, _)
   | Base (Float, _)
-  | Base (Double, _) -> Float_const (Positive, 0.0)
-  | Base _ | Quoted _ | Ident_NVT _ |  Full_ident_NVT _ ->
-      Null_const)
+  | Base (Double, _)
+      -> PS.mkNumericConst "0"
+  | Base _
+  | Quoted _
+  | Ident_NVT _
+  | Full_ident_NVT _
+      -> PS.Arg_op ("nil", [])
 
 let mk_succ n =
   Arg_op ("builtin_plus", [n; Arg_op ("numeric_const", [Arg_string "1"])])
@@ -150,9 +157,8 @@ let mk_array_set av i v =
 
 (* }}} *)
 
-let mk_asgn rets pre post args =
+let mk_asgn rets pre post asgn_args =
   let asgn_rets = List.map (fun v -> variable2var (Var_name v)) rets in
-  let asgn_args = List.map immediate2args args in
   let asgn_spec = HashSet.singleton { Core.pre; post } in
   C.Assignment_core { C.asgn_rets; asgn_args; asgn_spec }
 
@@ -162,39 +168,37 @@ let mk_asgn rets pre post args =
   x:={}{$ret1=$arg1}(e) rather than x:={}{$ret1=e}(); low priority, though. *)
 let rec translate_assign_stmt  (v:Jparsetree.variable) (e:Jparsetree.expression) =
   match v, e with
-  | Var_ref (Field_local_ref (n,si)), Immediate_exp e'  ->
+  | Var_ref (Field_local_ref (n,si)), Immediate_exp p1  ->
       let e_var = freshe() in
       let pointed_to_var = Arg_var (e_var) in
       (* execute  n.si=e' --> _:={param0.si|->-}{param0.si|->param1 * return=x'}(n,e') *)
-      let p0 = immediate2args (Immediate_local_name(n)) in (* ddino: should it be a fresh program variable? *)
-      let p1 = immediate2args e' in
+      let p0 = PS.mkPVar (string_of J.pp_name n) in
+          (* ddino: should it be a fresh program variable? *)
       let pre=mk_pointsto p0 (signature2args si) pointed_to_var in
       let post=mk_pointsto p0 (signature2args si) p1 in
       mk_asgn [] pre post []
   | Var_ref (Array_ref (a,i)), Immediate_exp e' ->
       let e_var = Arg_var (freshe ()) in
       let a = Arg_var (Vars.concretep_str a) in
-      let i = immediate2args i in
       let pre = mk_array a i (mk_succ i) e_var in
-      let new_value = mk_array_set e_var i (immediate2args e') in
+      let new_value = mk_array_set e_var i e' in
       let post = mk_array a i (mk_succ i) new_value in
       mk_asgn [] pre post []
   | Var_name v, Immediate_exp e' ->
       (* execute  v=e' --> v:={emp}{return=param0}(e') *)
-      let post= mkEQ(retvar_term,immediate2args e') in
+      let post= mkEQ(retvar_term,e') in
       mk_asgn [v] [] post []
   | Var_name v, Reference_exp (Field_local_ref (n,si))  ->
       (* execute v=n.si --> v:={param0.si|->z}{param0.si|->z * return=z}(n)*)
       let e_var = freshe() in
       let pointed_to_var = Arg_var (e_var) in
-      let x = (immediate2args (Immediate_local_name(n))) in
+      let x = PS.mkPVar (string_of J.pp_name n) in
       let pre=mk_pointsto x (signature2args si) pointed_to_var in
       let post=pconjunction (mkEQ(retvar_term,pointed_to_var)) (mk_pointsto x (signature2args si) pointed_to_var) in
       mk_asgn [v] pre post []
   | Var_name v, Reference_exp (Array_ref (a, i)) ->
       let e_var = Arg_var (freshe ()) in
       let a = Arg_var (Vars.concretep_str a) in
-      let i = immediate2args i in
       let pre = mk_array a i (mk_succ i) e_var in
       let post = pconjunction pre (mk_array_get e_var i retvar_term) in
       mk_asgn [v] pre post []
@@ -205,20 +209,18 @@ let rec translate_assign_stmt  (v:Jparsetree.variable) (e:Jparsetree.expression)
       let post = mk_type_all retvar_term ty in
       mk_asgn [v] [] post []
   | Var_name v, Binop_exp(name,x,y)->
-      let args = Arg_op(Support_syntax.bop_to_prover_arg name, [immediate2args x;immediate2args y]) in
+      let args = Arg_op(Support_syntax.bop_to_prover_arg name, [x;y]) in
       let post= mkEQ(retvar_term,args) in
       mk_asgn [v] [] post []
   | Var_name v, Cast_exp (_,e') -> (* TODO : needs something for the cast *)
       translate_assign_stmt (Var_name v) (Immediate_exp(e'))
   | Var_name v , Invoke_exp ie ->
-      let call_name, param = get_name ie in
+      let call_name, call_args = get_name ie in
       let call_rets = [variable2var (Var_name v)] in
-      let call_args = List.map immediate2args param in
       C.Call_core { C.call_name; call_rets; call_args }
   | Var_name v, New_array_exp (t, sz) ->
-      let int_zero = immediate2args (mk_zero (Base (Int, []))) in
-      let t_zero = immediate2args (mk_zero t) in
-      let sz = immediate2args sz in
+      let int_zero = mk_zero (Base (Int, [])) in
+      let t_zero = mk_zero t in
       let post = mk_array retvar_term int_zero sz t_zero in
       mk_asgn [v] [] post []
   | _ -> failwith "TODO"
@@ -226,7 +228,7 @@ let rec translate_assign_stmt  (v:Jparsetree.variable) (e:Jparsetree.expression)
 let assert_core b =
   match b with
   | Binop_exp (op,i1,i2) ->
-      let b_pred = Support_syntax.bop_to_prover_pred op (immediate2args i1) (immediate2args i2) in
+      let b_pred = Support_syntax.bop_to_prover_pred op i1 i2 in
       mk_asgn [] [] b_pred []
   | _ -> assert false
 
@@ -245,8 +247,8 @@ let jimple_statement2core_statement s : Core.ast_core list =
   | Lookupswitch_stmt(i,cl) -> assert false
   | Identity_stmt(nn,id,ty) ->
       (* nn := id: LinkedLisr   ---> nn:={emp}{return=param0}(id)*)
-      let id'=Immediate_local_name(Identifier_name(id)) in
-      let post= mkEQ(retvar_term,immediate2args id') in
+      let id'= PS.mkPVar id in
+      let post= mkEQ(retvar_term,id') in
       [mk_asgn [nn] [] post []]
   | Identity_no_type_stmt(n,i) -> assert false
   | Assign_stmt(v,e) ->
@@ -275,8 +277,7 @@ let jimple_statement2core_statement s : Core.ast_core list =
       )
   | Throw_stmt(i) -> failwith "TODO(rgrig): must use exception handlers table"
   | Invoke_stmt (e) ->
-      let call_name, param = get_name e in
-      let call_args = List.map immediate2args param in
+      let call_name, call_args = get_name e in
       [C.Call_core { C.call_name; call_rets = []; call_args }]
   | Spec_stmt (asgn_rets, asgn_spec) ->
       let asgn_spec = HashSet.singleton asgn_spec in
@@ -339,7 +340,7 @@ let get_spec_for m fields cname=
 let resvar_term = Arg_var(Support_syntax.res_var)
 
 let conjoin_with_res_true (assertion : Psyntax.pform) : Psyntax.pform =
-	 pconjunction assertion (mkEQ(resvar_term,Support_symex.constant2args (Int_const (Positive, 1))))
+	 pconjunction assertion (mkEQ(resvar_term, PS.mkNumericConst "1"))
 
 let get_requires_clause_spec_for m fields cname =
         let msi = Methdec.get_msig m cname in

@@ -48,17 +48,7 @@ type class_name =
     Quoted_clname of string
   | Identifier_clname of string
   | Full_identifier_clname of string
-type sign = Positive | Negative
-type constant =
-    Int_const of sign * int
-  | Int_const_long of sign * int
-  | Float_const of sign * float
-  | String_const of string
-  | Clzz_const of string
-  | Null_const
-type immediate =
-    Immediate_local_name of name
-  | Immediate_constant of constant
+type immediate = Psyntax.args
 type fixed_array_descriptor = immediate
 type array_descriptor = immediate option
 type j_file_type = ClassFile | InterfaceFile
@@ -96,7 +86,7 @@ type parameter = nonvoid_type
 type parameter_named_option = nonvoid_type * identifier option
 type j_type = Void | Non_void of nonvoid_type
 type throws_clause = class_name list option
-type case_label = Case_label_default | Case_label of sign * int
+type case_label = Case_label_default | Case_label of string
 type declaration = Declaration of j_type option * name list
 type case_statement = Case_stmt of case_label * label_name
 type method_signature_short = modifier list * j_type * name * parameter list

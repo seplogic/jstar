@@ -15,8 +15,8 @@
 
 { (* ddino implementation of a lexer for jimple *)
 (* header *)
-open Lexing  
-open Jparser 
+open Lexing
+open Jparser
 
 type error =
   | Illegal_character of char
@@ -28,25 +28,27 @@ let nest_depth = ref 0
 let nest_start_pos = ref dummy_pos
 let nest x =
   nest_depth := !nest_depth + 1; nest_start_pos := (x.lex_curr_p)
-let unnest x = 
-  nest_depth := !nest_depth - 1; (!nest_depth)!=0 
+let unnest x =
+  nest_depth := !nest_depth - 1; (!nest_depth)!=0
 
+let convert_base src tgt n =
+  failwith "XXX"
 
-let error_message e lb = 
-  match e with 
-    Illegal_character c -> 
-      Printf.sprintf "Illegal character %c found at line %d character %d.\n" 
-	c 
-	lb.lex_curr_p.pos_lnum 
+let error_message e lb =
+  match e with
+    Illegal_character c ->
+      Printf.sprintf "Illegal character %c found at line %d character %d.\n"
+	c
+	lb.lex_curr_p.pos_lnum
 	(lb.lex_curr_p.pos_cnum - lb.lex_curr_p.pos_bol)
   | Unterminated_comment -> Printf.sprintf "Unterminated comment started at line %d character %d in %s.\n"
-	!nest_start_pos.pos_lnum 
+	!nest_start_pos.pos_lnum
 	(!nest_start_pos.pos_cnum  - !nest_start_pos.pos_bol)
 	lb.lex_curr_p.pos_fname
 
 (* [kwd_or_else d s] is the token corresponding to [s] if there is one,
   or the default [d] otherwise. *)
-let kwd_or_else = 
+let kwd_or_else =
   let keyword_table = Hashtbl.create 53 in
   List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok) [
     "Abduction", ABDUCTION;
@@ -71,7 +73,6 @@ let kwd_or_else =
     "double", DOUBLE;
     "Emp", EMP;
     "emprule", EMPRULE;
-(*    "end", END; *)
     "ensures", ENSURES;
     "enum", ENUM;
     "equiv", EQUIV;
@@ -93,7 +94,6 @@ let kwd_or_else =
     "int", INT;
     "interface", INTERFACE;
     "interfaceinvoke", INTERFACEINVOKE;
-(*    "label", LABEL; *)
     "lengthof", LENGTHOF;
     "long", LONG;
     "lookupswitch", LOOKUPSWITCH;
@@ -109,7 +109,6 @@ let kwd_or_else =
     "null", NULL;
     "null_type", NULL_TYPE;
     "old", OLD;
-(*     "or", ORTEXT; *)
     "private", PRIVATE;
     "protected", PROTECTED;
     "public", PUBLIC;
@@ -121,7 +120,7 @@ let kwd_or_else =
     "short", SHORT;
     "specialinvoke", SPECIALINVOKE;
     "Specification", SPECIFICATION;
-    "SpecTest", SPECTEST; 
+    "SpecTest", SPECTEST;
     "static", STATIC;
     "staticinvoke", STATICINVOKE;
     "strictfp", STRICTFP;
@@ -174,31 +173,31 @@ let  hex_constant = '0' ('x' | 'X') hex_digit+
 
 let  oct_digit = ['0' - '7']
 let  oct_constant = '0' oct_digit+
-	
+
 let  quote = '\''
 
 let  escapable_char = '\\' | ' ' | quote | '.' | '#' | '\"' | 'n' | 't' | 'r' | 'b' | 'f'
 let  escape_code = 'u' hex_digit hex_digit hex_digit hex_digit
-let  escape_char = '\\' (escapable_char | escape_code)  
+let  escape_char = '\\' (escapable_char | escape_code)
 
 let  not_cr_lf = [ ^ '\010' '\013']
 let  not_star = [ ^ '*']
 let  not_star_slash = [^ '*' '/']
 
 let  alpha_char = ['a' - 'z'] | ['A' - 'Z']
-  
+
 let  simple_id_char = alpha_char | dec_digit | '_' | '$'
 
 let  first_id_char = alpha_char | '_' | '$'
-  
+
 let  quotable_char = [^ '\010' '\013' '\'']
 
-let  string_char = escape_char | ['\000' - '\033'] | ['\035' - '\091'] | ['\093' - '\127']   
+let  string_char = escape_char | ['\000' - '\033'] | ['\035' - '\091'] | ['\093' - '\127']
 
 let  line_comment = "//" not_cr_lf*
 (*let  long_comment = "/*" not_star* '*'+ (not_star_slash not_star* '*'+)* '/'*)
 
-let  blank = (' ' | '\009')+  
+let  blank = (' ' | '\009')+
 let  ignored_helper = (blank | line_comment)+
 
 let  newline = ('\013' | '\010' | "\010\013")
@@ -206,7 +205,7 @@ let  newline = ('\013' | '\010' | "\010\013")
 let full_identifier =
        ((first_id_char | escape_char) (simple_id_char | escape_char)* '.')+  '$'? (first_id_char | escape_char) (simple_id_char | escape_char)*
 
-let identifier = 
+let identifier =
       (first_id_char | escape_char) (simple_id_char | escape_char)* | "<clinit>" | "<init>"
 
 (*let identifier =
@@ -214,16 +213,16 @@ let identifier =
 
 let quoted_name = quote quotable_char+ quote
 
-let at_identifier = 
+let at_identifier =
   '@' (
-    ("parameter" dec_digit+ ':') 
-    | "this" ':' 
-    | "caughtexception" 
-    | "caller") 
-	
-let integer_constant = (dec_constant | hex_constant | oct_constant) 'L'? 
+    ("parameter" dec_digit+ ':')
+    | "this" ':'
+    | "caughtexception"
+    | "caller")
 
-let float_constant = ((dec_constant '.' dec_constant) (('e'|'E') ('+'|'-')? dec_constant)? ('f'|'F')?)  | ('#' (('-'? "Infinity") | "NaN") ('f' | 'F')? ) 
+let integer_constant = (dec_constant | hex_constant | oct_constant) 'L'?
+
+let float_constant = ((dec_constant '.' dec_constant) (('e'|'E') ('+'|'-')? dec_constant)? ('f'|'F')?)  | ('#' (('-'? "Infinity") | "NaN") ('f' | 'F')? )
 
 (* Translation of section Tokens of jimple.scc *)
 
@@ -231,7 +230,7 @@ rule token = parse
   | newline { Lexing.new_line lexbuf; token lexbuf }
   | "/*Source Line Pos Tag" { SOURCE_POS_TAG }
   | "*/" { SOURCE_POS_TAG_CLOSE }
-  | "/*" { nest lexbuf; comment lexbuf; token lexbuf } 
+  | "/*" { nest lexbuf; comment lexbuf; token lexbuf }
   | ignored_helper  { token lexbuf }
   | "," { COMMA }
   | "{" { L_BRACE }
@@ -282,20 +281,21 @@ rule token = parse
   | full_identifier as s { kwd_or_else (FULL_IDENTIFIER s) s }
   | quoted_name as s { kwd_or_else (QUOTED_NAME s) s }
   | identifier as s { kwd_or_else (IDENTIFIER s) s }
-
-  | integer_constant {
-      let s=Lexing.lexeme lexbuf in
-      if (String.get s (String.length s -1)) = 'L' then
-	 INTEGER_CONSTANT_LONG(int_of_string(String.sub s 0 (String.length s - 1)))
-      else 
-	 INTEGER_CONSTANT(int_of_string(s))}
-
-  | float_constant   { FLOAT_CONSTANT(float_of_string(Lexing.lexeme lexbuf))}
+    (* NOTE: order is important: octals, then hex, then decimals *)
+    (* NOTE(rgrig): In Java, '_' should be ignored.  I *guess* soot won't ever
+    generate underscores in integer literals. *)
+  | '0' (oct_digit+ as n) ('l' | 'L')?
+      { INTEGER_CONSTANT (convert_base 8 10 n) }
+  | '0' ('x' | 'X') (hex_digit+ as n) ('l' | 'L')?
+      { INTEGER_CONSTANT (convert_base 16 10 n) }
+  | (dec_digit+ as n) ('l' | 'L')
+      { INTEGER_CONSTANT n }
+  | float_constant as n  { FLOAT_CONSTANT n }
 
   (* FIXME: What is the right lexing of string constants? *)
   | '"' (string_char* as s) '"' { STRING_CONSTANT s }
   | _ { failwith (error_message (Illegal_character ((Lexing.lexeme lexbuf).[0])) lexbuf)}
-and comment = parse 
+and comment = parse
   | "/*"  { nest lexbuf; comment lexbuf }
   | "*/"  { if unnest lexbuf then comment lexbuf }
   | newline  { Lexing.new_line lexbuf; comment lexbuf }

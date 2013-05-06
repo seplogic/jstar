@@ -12,11 +12,9 @@
  ********************************************************)
 
 
-val constant2args : Jparsetree.constant -> Psyntax.args
 val default_for : Jparsetree.j_type -> Jparsetree.name -> Psyntax.args
 val signature2args : Jparsetree.signature -> Psyntax.args
 val name2args : Jparsetree.name -> Psyntax.args
-val immediate2args : Jparsetree.immediate -> Psyntax.args
 val variable2var : Jparsetree.variable -> Vars.var
 val var2args : Vars.var -> Psyntax.args
 val negate : Jparsetree.expression -> Jparsetree.expression
