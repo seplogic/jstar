@@ -278,7 +278,6 @@ let field_signature2str fs =
 %token THROWS
 %token TO
 %token TRANSIENT
-%token TRUE
 %token UNDERSCORE
 %token UNKNOWN
 %token USHR
@@ -524,20 +523,12 @@ base_type:
    | base_type_no_name {$1}
    | class_name {Class_name $1}
 ;
-float_constant:
-   | FLOAT_CONSTANT { $1 }
-;
-string_constant:
-   | STRING_CONSTANT { $1 }
-;
 quoted_name:
    | QUOTED_NAME { $1 }
 ;
 identifier:
   | AS { "as" }
   | IDENTIFIER { $1 }
-  | FALSE   { "False" }
-  | TRUE   { "True" }
   | EMP    { "Emp"}
 ;
 at_identifier:
@@ -747,8 +738,8 @@ constant:
   | MINUS INTEGER_CONSTANT { mkNegNumericConst $2 }
   | FLOAT_CONSTANT  { PS.mkNumericConst $1 }
   | MINUS FLOAT_CONSTANT  { mkNegNumericConst $2 }
-  | string_constant { failwith "XXX" }
-  | CLASS string_constant { failwith "XXX" }
+  | STRING_CONSTANT { PS.mkStringConst $1 }
+  | CLASS STRING_CONSTANT { PS.Arg_op ("class_const", [PS.mkString $2]) }
   | NULL { PS.Arg_op ("nil", []) }
 ;
 binop_no_mult:
@@ -880,11 +871,6 @@ formula:
    | jargument binop_cmp jargument { Support_syntax.bop_to_prover_pred $2 $1 $3 }
    | jargument EQUALS jargument { Support_syntax.bop_to_prover_pred (Cmpeq) $1 $3 }
    | L_PAREN formula R_PAREN { $2 }
-
-boolean:
-   | TRUE { true }
-   | FALSE { false }
-;
 
 /* TODO(rgrig): This goes away, unless somebody wants to maintain unnecessary bits.*/
 question:

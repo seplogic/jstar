@@ -23,6 +23,8 @@ open Jparsetree
 open Jimple_global_types
 open Psyntax
 
+module J = Jparsetree
+module JG = Jimple_global_types
 module PA = ParserAst
 module PS = Psyntax
 
@@ -67,32 +69,42 @@ let parse_program program_file_name =
       open_in program_file_name
     with Sys_error s -> failwith s in
   let program = Jparser.file Jlexer.token (Lexing.from_channel ch) in
+  close_in_noerr ch;
   if log log_phase then fprintf logf "@[<4>Parsed@ %s.@." program_file_name;
-  (* Replace specialinvokes of <init> after news with virtual invokes of <init>*)
-  let program = program in
-  let rec spec_to_virt x maps = match x with
-    DOS_stm(Assign_stmt(x,New_simple_exp(y)),source_pos)::xs ->
-      DOS_stm(Assign_stmt(x,New_simple_exp(y)),source_pos)::(spec_to_virt xs ((x,y)::maps))
-  | DOS_stm(Invoke_stmt(Invoke_nostatic_exp(Special_invoke,b,(Method_signature (c1,c2,Identifier_name "<init>",c4)),d)),source_pos)
-    ::xs
-    when List.mem (Var_name b,Class_name c1) maps
-    ->
-      DOS_stm(Invoke_stmt(Invoke_nostatic_exp(Virtual_invoke,b,(Method_signature (c1,c2,Identifier_name "<init>",c4)),d)),source_pos)
-      ::(spec_to_virt xs (List.filter (fun x -> fst x <> Var_name b) maps))
-    | x::xs -> x::(spec_to_virt xs maps)
-    | [] -> [] in
-  let spec_to_virt_helper x =
-          match x with
-          Some (f,g) -> Some(spec_to_virt f [],g)
-               |x -> x in
-  match program with
-    JFile(a,b,c,d,e,f) ->
-      JFile(a,b,c,d,e,List.map
-	      (function
-		  Method (a,b,c,d,e,f,g,h,i)
-		  -> Method(a,b,c,d,e,spec_to_virt_helper f,List.map spec_to_virt_helper g,spec_to_virt_helper h,spec_to_virt_helper i)
-		| x -> x) f )
+  program
 
+(* After ‘new’, replace ‘specialinvoke’ (of ‘<init>’) by ‘virtualinvoke’. *)
+(* PRE: Assumes that ‘specialinvoke’s come immediately after ‘new’. *)
+let preprocess_jimple (JFile (a, b, c, d, e, f)) =
+  let statements = function
+    | JG.DOS_stm (JG.Assign_stmt (x, J.New_simple_exp y), _) as new_
+      :: JG.DOS_stm
+        ( JG.Invoke_stmt
+          ( J.Invoke_nostatic_exp
+            ( J.Special_invoke
+            , b
+            , ((J.Method_signature (c1, c2, J.Identifier_name "<init>", c4))
+              as c)
+            , d))
+        , p2)
+      :: _
+      ->
+        assert (x = J.Var_name b && y = J.Class_name c1);
+        [ new_
+        ; JG.DOS_stm
+          ( JG.Invoke_stmt (J.Invoke_nostatic_exp (J.Virtual_invoke, b, c, d))
+          , p2) ]
+    | JG.DOS_stm
+      ( JG.Invoke_stmt (J.Invoke_nostatic_exp (J.Special_invoke, _, _, _))
+      , _) :: _ -> []
+    | x :: _ -> [x]
+    | [] -> [] in
+  let body = option_map (fun (xs, b) -> (tails xs >>= statements, b)) in
+  let member = function
+    | JG.Method (a, b, c, d, e, f, g, h, i)
+        -> JG.Method (a, b, c, d, e, body f, List.map body g, body h, body i)
+    | x -> x in
+  JG.JFile (a, b, c, d, e, List.map member f)
 
 let make_logic_for_one_program spec_list logic program =
        let Jimple_global_types.JFile(_,_,class_name,_,_,_) = program in
@@ -141,6 +153,7 @@ let main () =
     printf "@[Files to analyze: %a@." (pp_list_sep " " pp_string) !jimple_files;
 
   let programs = List.map parse_program !jimple_files in
+  let programs = List.map preprocess_jimple programs in
   if !specs_template_mode then begin
     if log log_phase then
       fprintf logf "@[<4>Creating empty specs template for class@.@.";

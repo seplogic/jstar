@@ -79,7 +79,6 @@ let kwd_or_else =
     "export", EXPORT;
     "exports", EXPORTS;
     "extends", EXTENDS;
-    "False", FALSE;
     "final", FINAL;
     "float", FLOAT;
     "Frame", FRAME;
@@ -130,7 +129,6 @@ let kwd_or_else =
     "throws", THROWS;
     "to", TO;
     "transient", TRANSIENT;
-    "True", TRUE;
     "unknown", UNKNOWN;
     "virtualinvoke", VIRTUALINVOKE;
     "void", VOID;
@@ -288,13 +286,13 @@ rule token = parse
       { INTEGER_CONSTANT (convert_base 8 10 n) }
   | '0' ('x' | 'X') (hex_digit+ as n) ('l' | 'L')?
       { INTEGER_CONSTANT (convert_base 16 10 n) }
-  | (dec_digit+ as n) ('l' | 'L')
+  | (dec_digit+ as n) ('l' | 'L')?
       { INTEGER_CONSTANT n }
   | float_constant as n  { FLOAT_CONSTANT n }
 
   (* FIXME: What is the right lexing of string constants? *)
   | '"' (string_char* as s) '"' { STRING_CONSTANT s }
-  | _ { failwith (error_message (Illegal_character ((Lexing.lexeme lexbuf).[0])) lexbuf)}
+  | _ as s { failwith (error_message (Illegal_character s) lexbuf) }
 and comment = parse
   | "/*"  { nest lexbuf; comment lexbuf }
   | "*/"  { if unnest lexbuf then comment lexbuf }
