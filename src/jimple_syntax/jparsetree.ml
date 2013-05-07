@@ -156,14 +156,11 @@ type expression =
 
 type bool_expr = True | False
 
-
-
-
-
-
-type  catch_clause = Catch_clause of class_name * label_name * label_name * label_name
-
-(*type  method_body = (declaration list * statement list * catch_clause list) option  *)
+type catch_clause =
+  { catch_exception : class_name
+  ; catch_from : label_name
+  ; catch_to : label_name
+  ; catch_with : label_name }
 
 type extends_clause = class_name list (* stephan mult inh *)
 

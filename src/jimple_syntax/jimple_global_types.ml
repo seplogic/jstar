@@ -28,7 +28,9 @@ type statement_inner =
    | Identity_no_type_stmt of name * at_identifier (* ddino: in theory it's local_name,at_identifier *)
    | Assign_stmt of variable * expression
    | If_stmt of expression * label_name
-   | Goto_stmt of label_name
+   | Goto_stmt of label_name list
+      (* NOTE: Nondeterminism is *not* in jimple input.  It is used, however,
+      to encode throw statements, in the intermediate Methdec representation. *)
    | Nop_stmt
    | Ret_stmt of immediate option
    | Return_stmt of immediate option

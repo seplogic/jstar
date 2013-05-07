@@ -223,7 +223,7 @@ let rec translate_assign_stmt  (v:Jparsetree.variable) (e:Jparsetree.expression)
       let t_zero = mk_zero t in
       let post = mk_array retvar_term int_zero sz t_zero in
       mk_asgn [v] [] post []
-  | _ -> failwith "TODO"
+  | _ -> failwith "TODO: Translatejimple.translate_assign_stmt"
 
 let assert_core b =
   match b with
@@ -235,8 +235,8 @@ let assert_core b =
 
 let jimple_statement2core_statement s : Core.ast_core list =
   if !Config.verbosity >= 4 then begin
-    let s = Pprinter.statement2str s in
-    printf "@[<2>Translating jimple statement@\n%s@\n@]" s
+    printf "@[<2>Translating jimple statement@\n%s@\n@]"
+      (Pprinter.statement2str s)
   end;
   match s with
   | Label_stmt l -> [C.Label_stmt_core l]
@@ -262,8 +262,8 @@ let jimple_statement2core_statement s : Core.ast_core list =
       ; C.Goto_stmt_core [l]
       ; C.Label_stmt_core l2
       ; assert_core (negate b) ]
-  | Goto_stmt(l) ->
-      [C.Goto_stmt_core([l])]
+  | Goto_stmt ls ->
+      [C.Goto_stmt_core ls]
   | Nop_stmt ->
       [C.Nop_stmt_core]
   | Ret_stmt(i)  (* return i ---->  ret_var:=i  or as nop operation if it does not return anything*)
@@ -455,74 +455,6 @@ let add_dummy_procs xs =
   List.iter (called_procs_from_proc h) xs;
   List.iter (remove_proc h) xs;
   xs@(HashSet.fold (fun x y -> cons (dummy_proc x) y) h [])
-
-(* Following code moved to toplPreprocessor.ml
-
-let par_proc : (string,(int*int)) Hashtbl.t = Hashtbl.create 100
-
-let rec get_call_stm stml =
-  match stml with
-  | [] -> []
-  | C.Call_core p ::stml' -> C.Call_core p::get_call_stm stml'
-  | _::stml' -> get_call_stm stml'
-
-let do_call_stm c_stm =
-  match c_stm with
-  | C.Call_core c ->
-      let num_rets =List.length c.C.call_rets in
-      let num_args =List.length c.C.call_args in
-      (try
-        let (r,a)=Hashtbl.find par_proc c.C.call_name in
-        Hashtbl.replace par_proc c.C.call_name (max num_rets r, max num_args a)
-      with _ -> Hashtbl.add par_proc c.C.call_name (num_rets,num_args))
-  | _ -> assert false
-
-let compute_args procs =
-  let call_statements = List.flatten (List.map (fun p -> match p.C.proc_body with
-                                  |None -> []
-                                  |Some b -> get_call_stm b ) procs) in
-  List.iter do_call_stm call_statements
-
-
-let wrap_ret_args a = CoreOps.return_var a
-
-let wrap_call_args a =  Psyntax.Arg_var( CoreOps.parameter_var a)
-
-let rec iter_wrap w n =
-  if n>=0 then
-    w n:: iter_wrap w (n-1)
-  else []
-
-let get_call_rets p =
-  let n= fst (Hashtbl.find par_proc p.C.proc_name) in
-  iter_wrap wrap_ret_args n
-
-let get_call_args p =
-  let n= snd (Hashtbl.find par_proc p.C.proc_name) in
-  iter_wrap wrap_call_args n
-
-
-let make_instrumented_proc p =
-  let emit_call= {C.call_name = "emit";
-                  C.call_rets =[];
-                  C.call_args=Psyntax.Arg_var(Vars.concretep_str ("call_"^p.C.proc_name))::get_call_args p} in
-  let call_p= {C.call_name = p.C.proc_name; call_rets =get_call_rets p; call_args=get_call_args p} in
-  let emit_ret ={C.call_name = "emit";
-                 call_rets =[];
-                 call_args=[Psyntax.Arg_var(Vars.concretep_str ("ret_"^p.C.proc_name))]} in
-  let proc_body'=Some ([C.Call_core emit_call; C.Call_core call_p ; C.Call_core emit_ret])  in
-  {C.proc_name = p.C.proc_name^"_I"; proc_spec = p.C.proc_spec ; proc_body=proc_body'; proc_rules=p.C.proc_rules}
-
-(* this procedure expects the event to be emitted, and the condition for the assert statement *)
-let emit_proc event assert_cond =
-  let call_enqueue = {C.call_name = "enqueue"; C.call_rets=[]; C.call_args=[event]} in
-  let call_step = {C.call_name = "step"; C.call_rets=[]; C.call_args=[]} in
-  let call_assert = {C.call_name = "assert"; C.call_rets=[]; C.call_args=[assert_cond]} in
-  let emit_body =Some ([C.Call_core call_enqueue; C.Call_core call_step; C.Call_core call_assert]) in
-  { C.proc_name = "emit"; C.proc_spec = (HashSet.create 1); C.proc_body = emit_body; C.proc_rules = PS.empty_logic }
-
-End of moved code *) 
-
 
 let compile_method cname fields m =
   let proc_name = methdec2signature_str m in

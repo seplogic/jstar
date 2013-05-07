@@ -14,6 +14,7 @@
 (* Pretty printer module *)
 
 open Corestar_std
+open Format
 
 (* TODO(rgrig): Don't open these modules. *)
 open Jparsetree
@@ -204,7 +205,7 @@ let statement2str = function
    | Identity_no_type_stmt(n,i) -> name2str n ^" := "^ at_identifier2str i ^";"
    | Assign_stmt (v,e)-> variable2str v ^" = "^ expression2str e ^";"
    | If_stmt (e,l) -> "if "^ expression2str e ^" goto "^ label_name2str l
-   | Goto_stmt l ->"goto "^label_name2str l^";"
+   | Goto_stmt l ->"goto "^list2str label_name2str l ", "^";"
    | Nop_stmt -> "nop;"
    | Ret_stmt(Some i) -> "ret "^immediate2str i^";"
    | Ret_stmt(None) -> "ret;"
@@ -220,15 +221,18 @@ let declaration_or_statement2str =function
   |  DOS_dec d -> declaration2str d
   |  DOS_stm (s,_) -> statement2str s
 
-
-let catch_clause2str = function
-  | Catch_clause (c,l1,l2,l3) ->
-      "catch "^class_name2str c ^" "^ label_name2str l1 ^" "^ label_name2str l2 ^" "^ label_name2str l3^";"
+let pp_catch_clause f { J.catch_exception; catch_from; catch_to; catch_with } =
+  fprintf f "catch %s from %s to %s with %s;"
+    (class_name2str catch_exception)
+    (label_name2str catch_from)
+    (label_name2str catch_to)
+    (label_name2str catch_with)
 
 let method_body2str = function
   |None -> ";"
   |Some (dl,cl) ->
-     "\n{"^(list2str declaration_or_statement2str dl "\n")^" "^(list2str catch_clause2str cl ", ")^"\n}"
+      let cs = string_of (pp_list_sep ", " pp_catch_clause) cl in
+     "\n{"^(list2str declaration_or_statement2str dl "\n")^" "^cs^"\n}"
 
 let old_clauses2str ocs = List.fold_left (fun acc oc -> acc^"old "^ method_body2str oc^"\n") "" ocs
 

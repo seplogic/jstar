@@ -32,7 +32,7 @@ let base_type2args ty =
 
 (* create var : cl   (precise type not static type) *) 
 let objtype_name = "type"
-let mk_type1 a1 a2 = [P_PPred(objtype_name, a1::a2::[])]
+let mk_type1 a1 a2 = [P_PPred (objtype_name, [a1; a2])]
 let mk_type var cl = mk_type1 var (class2args cl)
 
 let mk_type_all var cl = [P_PPred(objtype_name, var::(base_type2args cl)::[])]

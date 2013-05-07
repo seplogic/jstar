@@ -25,7 +25,7 @@ type statement_inner =
   | Identity_no_type_stmt of Jparsetree.name * Jparsetree.at_identifier
   | Assign_stmt of Jparsetree.variable * Jparsetree.expression
   | If_stmt of Jparsetree.expression * Jparsetree.label_name
-  | Goto_stmt of Jparsetree.label_name
+  | Goto_stmt of Jparsetree.label_name list
   | Nop_stmt
   | Ret_stmt of Jparsetree.immediate option
   | Return_stmt of Jparsetree.immediate option

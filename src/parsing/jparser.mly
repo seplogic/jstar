@@ -372,14 +372,10 @@ apf_defines:
    | apf_define apf_defines { $1 :: $2 }
    | /*empty*/ { [] }
 
-eq_as:
-   | EQUALS { (* Deprecated *)} /* TODO(rgrig): Warn? */
-   | AS {}
-
 apf_define:
-   | EXPORT identifier L_PAREN lvariable paramlist_question_mark R_PAREN eq_as formula SEMICOLON
+   | EXPORT identifier L_PAREN lvariable paramlist_question_mark R_PAREN AS formula SEMICOLON
        { let a=match $5 with | Some b -> b | None -> [] in ($2,$4,a,$8,true) }
-   | DEFINE identifier L_PAREN lvariable paramlist_question_mark R_PAREN eq_as formula SEMICOLON
+   | DEFINE identifier L_PAREN lvariable paramlist_question_mark R_PAREN AS formula SEMICOLON
        { let a=match $5 with | Some b -> b | None -> [] in ($2,$4,a,$8,false) }
 
 exports_clause:
@@ -403,7 +399,7 @@ exportLocal_predicate_def_star:
    | /*empty*/ { [] }
 
 exportLocal_predicate_def:
-   | identifier L_PAREN lvariable_list_ne R_PAREN eq_as formula SEMICOLON { ($1,$3,$6) }
+   | identifier L_PAREN lvariable_list_ne R_PAREN AS formula SEMICOLON { ($1,$3,$6) }
 
 methods_specs:
    | method_spec methods_specs { $1 :: $2 }
@@ -429,7 +425,7 @@ modifier:
    | PUBLIC        {Public}
    | PROTECTED     {Protected}
    | PRIVATE       {Private}
-   | STATIC        {Jparsetree.Static}
+   | STATIC        {J.Static}
    | SYNCHRONIZED  {Synchronized}
    | TRANSIENT     {Transient}
    | VOLATILE      {Volatile}
@@ -528,8 +524,9 @@ quoted_name:
 ;
 identifier:
   | AS { "as" }
-  | IDENTIFIER { $1 }
   | EMP    { "Emp"}
+  | IDENTIFIER { $1 }
+  | REQUIRES { "requires" }
 ;
 at_identifier:
    | AT_IDENTIFIER { $1 }
@@ -613,7 +610,7 @@ statement:
    | local_name COLON_EQUALS at_identifier jtype SEMICOLON  {Identity_stmt($1,$3,$4)}
    | variable EQUALS expression SEMICOLON  {Assign_stmt($1,$3)}
    | IF bool_expr goto_stmt     {If_stmt($2,$3)}
-   | goto_stmt {Goto_stmt($1)}
+   | goto_stmt {Goto_stmt [$1]}
    | NOP SEMICOLON     {Nop_stmt}
    | RET immediate_question_mark SEMICOLON     {Ret_stmt($2)}
    | RETURN immediate_question_mark SEMICOLON  {Return_stmt($2)}
@@ -632,6 +629,7 @@ case_stmt:
    |case_label COLON goto_stmt {Case_stmt($1,$3)}
 ;
 case_label:
+   | CASE MINUS INTEGER_CONSTANT {Case_label ("-"^$3) }
    | CASE INTEGER_CONSTANT {Case_label $2 }
    | DEFAULT  {Case_label_default}
 ;
@@ -639,7 +637,11 @@ goto_stmt:
    | GOTO label_name SEMICOLON {$2}
 ;
 catch_clause:
-   | CATCH class_name FROM label_name TO label_name WITH label_name SEMICOLON {Catch_clause($2,$4,$6,$8)}
+  | CATCH class_name FROM label_name TO label_name WITH label_name SEMICOLON
+      { { J.catch_exception = $2
+        ; catch_from = $4
+        ; catch_to = $6
+        ; catch_with = $8 } }
 ;
 expression:
    | new_expr   {$1}
