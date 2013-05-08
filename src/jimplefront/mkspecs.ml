@@ -20,7 +20,7 @@ module PP = Pprinter
 let pp_spec cname f = function
   | J.Method (modl, jty,n, pars, tc, rc, ocs, ec, body) ->
       let pp_of x2str f x = pp_string f (x2str x) in (* HACK *)
-      fprintf f "@\n@[<2>%a %s(@[%a@])@ static : {} {};@]"
+      fprintf f "@\n@[<2>spec %a %s(@[%a@])@ static : {} {};@]"
         (pp_of PP.j_type2str) jty
         (PP.name2str n)
         (pp_list_sep ", " (pp_of PP.parameter2str)) pars

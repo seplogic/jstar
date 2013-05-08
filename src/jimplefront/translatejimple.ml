@@ -275,7 +275,8 @@ let jimple_statement2core_statement s : Core.ast_core list =
 	 let post= mkEQ(retvar_term,p0) in
          [mk_asgn [] [] post [e']; C.End]
       )
-  | Throw_stmt(i) -> failwith "TODO(rgrig): must use exception handlers table"
+  | Throw_stmt _ ->
+      failwith "INTERNAL: At this point catch clauses aren't available anymore."
   | Invoke_stmt (e) ->
       let call_name, call_args = get_name e in
       [C.Call_core { C.call_name; call_rets = []; call_args }]

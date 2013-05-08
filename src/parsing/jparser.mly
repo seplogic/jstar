@@ -132,24 +132,13 @@ let field_signature2str fs =
 
 /* ============================================================= */
 /* tokens */
-%token <string> FLOAT_CONSTANT
-%token <string> INTEGER_CONSTANT
-%token <string> AT_IDENTIFIER
-%token <string> CORE_LABEL
-%token <string> FULL_IDENTIFIER
-%token <string> IDENTIFIER
-%token <string> QUOTED_NAME
-%token <string> STRING_CONSTANT
-
 %token ABDUCTION
 %token ABS
-%token ABSRULE
 %token ABSTRACT
 %token AND
 %token ANDALSO
 %token ANNOTATION
 %token AS
-%token ASSIGN
 %token AT_IDENTIFIER
 %token AXIOMS
 %token BANG
@@ -161,7 +150,6 @@ let field_signature2str fs =
 %token CATCH
 %token CHAR
 %token CLASS
-%token CLS
 %token CMP
 %token CMPEQ
 %token CMPG
@@ -174,21 +162,17 @@ let field_signature2str fs =
 %token COLON
 %token COLON_EQUALS
 %token COMMA
-%token CONSTRUCTOR
-%token DASHV
 %token DEFAULT
 %token DEFINE
 %token DIV
 %token DOT
 %token DOUBLE
 %token EMP
-%token EMPRULE
 %token ENSURES
 %token ENTERMONITOR
 %token ENUM
 %token EOF
 %token EQUALS
-%token EQUIV
 %token EXITMONITOR
 %token EXPORT
 %token EXPORTS
@@ -200,10 +184,8 @@ let field_signature2str fs =
 %token FRAME
 %token FROM
 %token FULL_IDENTIFIER
-%token GARBAGE
 %token GOTO
 %token IDENTIFIER
-%token IF
 %token IF
 %token IMP
 %token IMPLEMENTS
@@ -215,14 +197,12 @@ let field_signature2str fs =
 %token INTEGER_CONSTANT
 %token INTERFACE
 %token INTERFACEINVOKE
-%token INVARIANT
 %token L_BRACE
 %token L_BRACKET
-%token L_PAREN
-%token LEADSTO
 %token LENGTHOF
 %token LONG
 %token LOOKUPSWITCH
+%token L_PAREN
 %token MAPSTO
 %token MINUS
 %token MOD
@@ -233,41 +213,31 @@ let field_signature2str fs =
 %token NEWARRAY
 %token NEWMULTIARRAY
 %token NOP
-%token NOTIN
-%token NOTINCONTEXT
 %token NULL
 %token NULL_TYPE
 %token OLD
 %token OR
 %token OROR
-%token ORTEXT
 %token PLUS
-%token PRED
 %token PRIVATE
 %token PROTECTED
 %token PUBLIC
-%token PUREGUARD
-%token PURERULE
 %token QUESTIONMARK
-%token QUOTE
 %token QUOTED_NAME
 %token R_BRACE
 %token R_BRACKET
-%token R_PAREN
 %token REQUIRES
 %token RET
 %token RETURN
-%token REWRITERULE
-%token RULE
+%token R_PAREN
 %token SEMICOLON
 %token SHL
 %token SHORT
 %token SHR
 %token SOURCE_POS_TAG
 %token SOURCE_POS_TAG_CLOSE
+%token SPEC
 %token SPECIALINVOKE
-%token SPECIFICATION
-%token SPECTEST
 %token STATIC
 %token STATICINVOKE
 %token STRICTFP
@@ -278,18 +248,23 @@ let field_signature2str fs =
 %token THROWS
 %token TO
 %token TRANSIENT
-%token UNDERSCORE
 %token UNKNOWN
 %token USHR
 %token VDASH
 %token VIRTUALINVOKE
 %token VOID
 %token VOLATILE
-%token WAND
 %token WHERE
 %token WITH
-%token WITHOUT
 %token XOR
+
+%type <string> FLOAT_CONSTANT
+%type <string> INTEGER_CONSTANT
+%type <string> AT_IDENTIFIER
+%type <string> FULL_IDENTIFIER
+%type <string> IDENTIFIER
+%type <string> QUOTED_NAME
+%type <string> STRING_CONSTANT
 
 %type <string> AT_IDENTIFIER
 %type <string> FULL_IDENTIFIER
@@ -328,10 +303,6 @@ let field_signature2str fs =
 %left DIV
 
 
-%left DEFINE
-%left EXPORT
-
-
 /* entry points */
 //%start listing_file
 //%type <Jparsetree.list_class_file> listing_file
@@ -365,7 +336,20 @@ spec_file:
    | classspec spec_file { (NormalEntry $1) :: $2 }
 
 classspec:
-   | file_type class_name extends_clause implements_clause L_BRACE apf_defines exports_clause axioms_clause methods_specs R_BRACE  { {class_or_interface=$1;classname=$2;extends=$3;implements=$4;apf=$6;exports=$7;axioms=$8;methodspecs=$9} }
+  | file_type class_name extends_clause implements_clause L_BRACE
+      apf_defines
+      exports_clause
+      axioms_clause
+      methods_specs
+    R_BRACE
+      { { class_or_interface = $1
+        ; classname = $2
+        ; extends = $3
+        ; implements = $4
+        ; apf = $6
+        ; exports = $7
+        ; axioms = $8
+        ; methodspecs = $9} }
 
 
 apf_defines:
@@ -379,16 +363,16 @@ apf_define:
        { let a=match $5 with | Some b -> b | None -> [] in ($2,$4,a,$8,false) }
 
 exports_clause:
-   | EXPORTS L_BRACE named_implication_star R_BRACE WHERE L_BRACE exportLocal_predicate_def_star R_BRACE { Some ($3,$7) }
-	 | /*empty*/ {None}
+  | EXPORTS L_BRACE named_implication_star R_BRACE WHERE L_BRACE exportLocal_predicate_def_star R_BRACE { Some ($3,$7) }
+  | /*empty*/ {None}
 
 axioms_clause:
-	 | AXIOMS L_BRACE named_implication_star R_BRACE { Some $3 }
-	 | /*empty*/ {None}
+  | AXIOMS L_BRACE named_implication_star R_BRACE { Some $3 }
+  | /*empty*/ {None}
 
 named_implication_star:
-   | named_implication named_implication_star { $1 @ $2 }
-   | /*empty*/ { [] }
+  | named_implication named_implication_star { $1 @ $2 }
+  | /*empty*/ { [] }
 
 named_implication:
    | identifier COLON formula IMP formula SEMICOLON { [($1,$3,$5)] }
@@ -402,11 +386,11 @@ exportLocal_predicate_def:
    | identifier L_PAREN lvariable_list_ne R_PAREN AS formula SEMICOLON { ($1,$3,$6) }
 
 methods_specs:
-   | method_spec methods_specs { $1 :: $2 }
+   | SPEC method_spec methods_specs { $2 :: $3 }
    | /*empty*/ { [] }
 
 spec:
-   | L_BRACE formula R_BRACE L_BRACE formula R_BRACE 
+   | L_BRACE formula R_BRACE L_BRACE formula R_BRACE
       { {pre=$2;post=$5} }
 specs:
    | spec ANDALSO specs  { $1 :: $3 }
@@ -524,7 +508,9 @@ quoted_name:
 ;
 identifier:
   | AS { "as" }
-  | EMP    { "Emp"}
+  | EMP    { "Emp" }
+  | EXPORT { "export" }
+  | EXPORTS { "exports" }
   | IDENTIFIER { $1 }
   | REQUIRES { "requires" }
 ;

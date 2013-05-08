@@ -53,11 +53,9 @@ let kwd_or_else =
   List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok) [
     "Abduction", ABDUCTION;
     "abstract", ABSTRACT;
-    "abstraction", ABSRULE;
     "andalso", ANDALSO;
     "annotation", ANNOTATION;
     "as", AS;
-    "assign", ASSIGN;
     "axioms", AXIOMS;
     "boolean", BOOLEAN;
     "breakpoint", BREAKPOINT;
@@ -66,16 +64,12 @@ let kwd_or_else =
     "catch", CATCH;
     "char", CHAR;
     "class", CLASS;
-    "cls", CLS;
-    "constructor", CONSTRUCTOR;
     "default", DEFAULT;
     "define", DEFINE;
     "double", DOUBLE;
     "Emp", EMP;
-    "emprule", EMPRULE;
     "ensures", ENSURES;
     "enum", ENUM;
-    "equiv", EQUIV;
     "export", EXPORT;
     "exports", EXPORTS;
     "extends", EXTENDS;
@@ -102,24 +96,17 @@ let kwd_or_else =
     "newarray", NEWARRAY;
     "newmultiarray", NEWMULTIARRAY;
     "nop", NOP;
-    "notin", NOTIN;
-    "notincontext", NOTINCONTEXT;
-    "pureguard", PUREGUARD;
     "null", NULL;
     "null_type", NULL_TYPE;
     "old", OLD;
     "private", PRIVATE;
     "protected", PROTECTED;
     "public", PUBLIC;
-    "purerule", PURERULE;
     "requires", REQUIRES;
     "return", RETURN;
-    "rewrite", REWRITERULE;
-    "rule", RULE;
     "short", SHORT;
     "specialinvoke", SPECIALINVOKE;
-    "Specification", SPECIFICATION;
-    "SpecTest", SPECTEST;
+    "spec", SPEC;
     "static", STATIC;
     "staticinvoke", STATICINVOKE;
     "strictfp", STRICTFP;
@@ -135,7 +122,6 @@ let kwd_or_else =
     "volatile", VOLATILE;
     "where", WHERE;
     "with", WITH;
-    "without", WITHOUT;
   ];
   fun d s ->
   try Hashtbl.find keyword_table s with Not_found -> d
@@ -240,7 +226,6 @@ rule token = parse
   | ")" { R_PAREN }
   | ":" { COLON}
   | "." { DOT }
-  | "'" { QUOTE }
   | ":=" { COLON_EQUALS }
   | "=" { EQUALS }
   | "&" { AND }
@@ -266,13 +251,10 @@ rule token = parse
   | "+" { PLUS }
   | "-" { MINUS }
   | "*" { MULT }
-  | "-*" { WAND }
   | "/" { DIV }
   | "?" { QUESTIONMARK }
   | "!" { BANG }
   | "|-" { VDASH }
-  | "-|" { DASHV }
-  | "~~>" {LEADSTO}
   | eof { EOF }
 
   | at_identifier as s { kwd_or_else (AT_IDENTIFIER s) s }
