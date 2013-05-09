@@ -44,7 +44,7 @@ type declaration_or_statement =
   |  DOS_dec of declaration
   |  DOS_stm of statement
 
-type  method_body = (declaration_or_statement list * catch_clause list) option
+type method_body = (declaration_or_statement list * catch_clause list) option
 
 type requires_clause = method_body
 

@@ -46,11 +46,6 @@ val add_axiom_implications_to_logic :
   Spec_def.class_spec list -> Psyntax.logic -> Psyntax.logic
 val is_interface : Jparsetree.class_name -> Spec_def.class_spec list -> bool
 module MethodMap : Map.S with type key = Jparsetree.method_signature
-module MethodMapH :
-  sig
-    val filter :
-      (MethodMap.key -> 'a -> bool) -> 'a MethodMap.t -> 'a MethodMap.t
-  end
 module MethodSet : Set.S with type elt = Jparsetree.method_signature
 type methodSpecs = (Core.ast_triple * Printing.source_location option) MethodMap.t
 val emptyMSpecs : methodSpecs

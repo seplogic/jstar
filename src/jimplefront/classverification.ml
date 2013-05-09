@@ -103,7 +103,7 @@ let verify_methods_dynamic_dispatch_behavioral_subtyping_inheritance
 
   let Jimple_global_types.JFile(_,_,class_name,_,_,_) = jimple_file in
   let parents = parent_classes_and_interfaces jimple_file in
-  let keep_cn = MethodMapH.filter (fun (cn,_,_,_) _ -> cn = class_name) in
+  let keep_cn = MethodMap.filter (fun (cn,_,_,_) _ -> cn = class_name) in
   let static_specs = keep_cn static_method_specs in
 
   (* Dynamic dispatch *)
@@ -126,7 +126,7 @@ let verify_methods_dynamic_dispatch_behavioral_subtyping_inheritance
 
   (* Behavioural subtyping of non-constructor methods *)
   let dynamic_specs =
-    MethodMapH.filter
+    MethodMap.filter
         (fun (_,_,mn,_) _ -> not (Jparsetree.constructor mn))
         (keep_cn dynamic_method_specs) in
   let pds (cn,a,mn,c) (ds,_) = (* process dynamic spec *)
@@ -162,7 +162,7 @@ let verify_methods_dynamic_dispatch_behavioral_subtyping_inheritance
         MethodSet.empty
         ms in
   let sss =
-    MethodMapH.filter (fun s _ -> not (MethodSet.mem s sigs)) static_specs in
+    MethodMap.filter (fun s _ -> not (MethodSet.mem s sigs)) static_specs in
 	MethodMap.iter (fun (_,a,mname,c) (static_spec, static_pos) ->
       (* stephan mult inh *) (* In the single inheritance case, a lookup can be made for the static spec in the single parent class, resulting in parent_static_specs being [spec] if spec was found, and [] otherwise *)
       let parent_static_specs = List.fold_left (fun list parent ->

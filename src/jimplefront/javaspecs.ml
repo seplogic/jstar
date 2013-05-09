@@ -419,7 +419,6 @@ module MethodMap =
     type t = method_signature
     let compare = compare
   end)
-module MethodMapH = Corestar_std.MapHelper (MethodMap)
 
 module MethodSet =
   Set.Make(struct
@@ -695,7 +694,9 @@ let add_subtype_and_objsubtype_rules spec_list logic =
         let objsubtype_rule = mk_seq_rule (
           PS.mk_psequent mkEmpty mkEmpty [Jlogic.mk_objsubtyp1 o c],
           [[ PS.mk_psequent mkEmpty mkEmpty ((Jlogic.mk_type1 o d) @ (Jlogic.mk_subtype1 d c))];
-           [ PS.mk_psequent mkEmpty mkEmpty ((not_null1 o) @ (Jlogic.mk_statictyp1 o e :: Jlogic.mk_subtype1 e c))]],
+           [ PS.mk_psequent mkEmpty mkEmpty ((not_null1 o)
+           @ Jlogic.mk_statictyp1 o e
+           @ Jlogic.mk_subtype1 e c)]],
                 "objsubtype_right"
         ) in
         append_rules logic [objsubtype_rule;subtype_rule]

@@ -246,7 +246,7 @@ let jimple_statement2core_statement s : Core.ast_core list =
   | Tableswitch_stmt (i,cl) -> assert false
   | Lookupswitch_stmt(i,cl) -> assert false
   | Identity_stmt(nn,id,ty) ->
-      (* nn := id: LinkedLisr   ---> nn:={emp}{return=param0}(id)*)
+      (* nn := id: LinkedList   ---> nn:={emp}{return=param0}(id) *)
       let id'= PS.mkPVar id in
       let post= mkEQ(retvar_term,id') in
       [mk_asgn [nn] [] post []]
@@ -420,7 +420,7 @@ let jimple_locals2stattype_rules (locals : local_var list) : sequent_rule list =
 	                                            mkEmpty mkEmpty
 	                                            (mkEQ(x,var)) ]) vars in
 		mk_seq_rule (
-		  PS.mk_psequent mkEmpty mkEmpty [mk_statictyp1 x (Arg_string typ)],
+		  PS.mk_psequent mkEmpty mkEmpty (mk_statictyp1 x (Arg_string typ)),
 			premise,
 			"static_type_"^typ
 		) :: rules
