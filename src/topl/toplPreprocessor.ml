@@ -205,30 +205,22 @@ let specialize_monitor js m =
 (* }}} *)
 (* Instrument procedures code *) (* {{{ *)
 
-let par_proc : (string,(int*int)) Hashtbl.t = Hashtbl.create 100
-
-let rec get_call_stm stml =
-  match stml with
-  | [] -> []
-  | C.Call_core p ::stml' -> C.Call_core p::get_call_stm stml'
-  | _::stml' -> get_call_stm stml'
-
-let do_call_stm c_stm =
-  match c_stm with
-  | C.Call_core c ->
-      let num_rets =List.length c.C.call_rets in
-      let num_args =List.length c.C.call_args in
-      (try
-        let (r,a)=Hashtbl.find par_proc c.C.call_name in
-        Hashtbl.replace par_proc c.C.call_name (max num_rets r, max num_args a)
-      with _ -> Hashtbl.add par_proc c.C.call_name (num_rets,num_args))
-  | _ -> assert false
-
-let compute_args procs =
-  let call_statements = List.flatten (List.map (fun p -> match p.C.proc_body with
-                                  |None -> []
-                                  |Some b -> get_call_stm b ) procs) in
-  List.iter do_call_stm call_statements
+let compute_arg_counts ps =
+  let h = Hashtbl.create 0 in
+  let get name = (try Hashtbl.find h name with Not_found -> (0, 0)) in
+  let set name args rets =
+    let old_args, old_rets = get name in
+    Hashtbl.replace h name (max args old_args, max rets old_rets) in
+  let statement = function
+    | C.Call_core c ->
+        let args = List.length c.C.call_args in
+        let rets = List.length c.C.call_rets in
+        set c.C.call_name args rets
+    | _ -> () in
+  let body = option () (List.iter statement) in
+  let proc p = body p.C.proc_body in
+  List.iter proc ps;
+  (fst @@ get, snd @@ get)
 
 
 let iter_wrap w n =
@@ -238,38 +230,28 @@ let iter_wrap w n =
   in f [] (n-1)
 
 let wrap_ret_arg a = CoreOps.return_var a
+let wrap_call_arg a = Psyntax.mkVar (CoreOps.parameter_var a)
 
-let get_call_rets p =
-  let n= fst (Hashtbl.find par_proc p.C.proc_name) in
-  iter_wrap wrap_ret_arg n
-
-let wrap_call_arg a = Psyntax.mkVar( CoreOps.parameter_var a)
-
-let get_call_args p =
-  let n= snd (Hashtbl.find par_proc p.C.proc_name) in
-  iter_wrap wrap_call_arg n
-
-let make_call_to_proc p =
-  TN.call_event p.C.proc_name :: get_call_args p
-
-let make_ret_from_proc p =
-  [ TN.return_event p.C.proc_name ]
-
-let make_instrumented_proc_pair p =
+let make_instrumented_proc_pair (get_arg_cnt, get_ret_cnt) p =
   let proc' = {C.proc_name=p.C.proc_name^"_I"; proc_spec=p.C.proc_spec; proc_body=p.C.proc_body; proc_rules=p.C.proc_rules} in
-  let emit_call = {C.call_name = "emit_$$";
-                  C.call_rets =[];
-                  C.call_args = make_call_to_proc p } in
-  let call_p' = {C.call_name = p.C.proc_name^"_I"; call_rets = get_call_rets p; call_args = get_call_args p} in
-  let emit_ret = {C.call_name = "emit_$$";
-                 call_rets =[];
-                 call_args = make_ret_from_proc p } in
+  let call_args = iter_wrap wrap_call_arg (get_arg_cnt p.C.proc_name) in
+  let call_rets = iter_wrap wrap_ret_arg (get_ret_cnt p.C.proc_name) in
+  let emit_call =
+    { C.call_name = "emit_$$"
+    ; call_rets =[]
+    ; call_args = TN.call_event p.C.proc_name :: call_args } in
+  let call_p' = { C.call_name = p.C.proc_name^"_I"; call_rets; call_args } in
+  let emit_ret =
+    { C.call_name = "emit_$$"
+    ; call_rets = []
+    ; call_args = [ TN.return_event p.C.proc_name ] } in (* TODO(rgrig): return values *)
   let proc_body = Some ([C.Call_core emit_call; C.Call_core call_p' ; C.Call_core emit_ret])  in
   let proc = {C.proc_name=p.C.proc_name; proc_spec=HashSet.create 0; proc_body; proc_rules=Psyntax.empty_logic} in
   [proc; proc']
 
 let instrument_procedures ps =
-  ps >>= make_instrumented_proc_pair
+  let arg_counts = compute_arg_counts ps in
+  ps >>= make_instrumented_proc_pair arg_counts
 
 (* End instrument procedures code *) (* }}} *)
 (* Add emit and friends *) (* {{{ *)

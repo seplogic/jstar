@@ -188,10 +188,6 @@ let expression2str = function
   | Immediate_exp e -> immediate2str e
   | Reference_exp e -> reference2str e
 
-let bool_expr2str = function
-  | True -> "true"
-  | False -> "false"
-
 let statement2str = function
    | Label_stmt l ->  label_name2str l ^":"
    | Breakpoint_stmt -> "breakpoint"

@@ -127,9 +127,9 @@ let get_name  (iexp: Jparsetree.invoke_expr) =
 
 let retvar_term = Arg_var CoreOps.ret_v1
 
-(* make terms related to array representation *) (* {{{ *)
+(* make terms/predicates related to the array representation *) (* {{{ *)
 let mk_array a i j v =
-  [P_SPred ( "array", [a; i; j; v] )]
+  PS.mkSPred ("array", [a; i; j; v])
 
 let mk_zero = function
   | Base (Boolean, _)
@@ -148,12 +148,12 @@ let mk_zero = function
       -> PS.Arg_op ("nil", [])
 
 let mk_succ n =
-  Arg_op ("builtin_plus", [n; Arg_op ("numeric_const", [Arg_string "1"])])
+  PS.mkFun "builtin_plus" [n; PS.mkNumericConst "1"]
 
 let mk_array_get av i v =
-  [P_PPred ("array_get", [av; i; v])]
+  PS.mkPPred ("array_get", [av; i; v])
 let mk_array_set av i v =
-  Arg_op ("array_set", [av; i; v])
+  PS.mkFun "array_set" [av; i; v]
 
 (* }}} *)
 
@@ -223,7 +223,10 @@ let rec translate_assign_stmt  (v:Jparsetree.variable) (e:Jparsetree.expression)
       let t_zero = mk_zero t in
       let post = mk_array retvar_term int_zero sz t_zero in
       mk_asgn [v] [] post []
-  | _ -> failwith "TODO: Translatejimple.translate_assign_stmt"
+  | _ ->
+      eprintf "@[<2>@{<b>TODO@}: Translatejimple.translate_assign_stmt.@ \
+        Ignoring for now.@.";
+      mk_asgn [] [] [] []
 
 let assert_core b =
   match b with
@@ -238,19 +241,22 @@ let jimple_statement2core_statement s : Core.ast_core list =
     printf "@[<2>Translating jimple statement@\n%s@\n@]"
       (Pprinter.statement2str s)
   end;
+  let oops m =
+    eprintf "@[@{<b>TODO@}: translate jimple statement %s.@ \
+      Trating as skip for now.@." m; [] in
   match s with
   | Label_stmt l -> [C.Label_stmt_core l]
-  | Breakpoint_stmt -> assert false
-  | Entermonitor_stmt i -> assert false
-  | Exitmonitor_stmt i -> assert false
-  | Tableswitch_stmt (i,cl) -> assert false
-  | Lookupswitch_stmt(i,cl) -> assert false
-  | Identity_stmt(nn,id,ty) ->
+  | Breakpoint_stmt -> oops "breakpoint"
+  | Entermonitor_stmt i -> oops "entermonitor"
+  | Exitmonitor_stmt i -> oops "exitmonitor"
+  | Tableswitch_stmt (i,cl) -> oops "tableswitch"
+  | Lookupswitch_stmt(i,cl) -> oops "lookupswitch"
+  | Identity_stmt(nn,id,_)  (* TODO(rgrig): use type, don't ignore. *)
+  | Identity_no_type_stmt(nn,id) ->
       (* nn := id: LinkedList   ---> nn:={emp}{return=param0}(id) *)
       let id'= PS.mkPVar id in
       let post= mkEQ(retvar_term,id') in
       [mk_asgn [nn] [] post []]
-  | Identity_no_type_stmt(n,i) -> assert false
   | Assign_stmt(v,e) ->
       [translate_assign_stmt v e]
   | If_stmt(b,l) ->

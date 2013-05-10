@@ -433,13 +433,13 @@ let addMSpecs msig spec mmap : methodSpecs = MethodMap.add msig spec mmap
 
 let rec spec_list_to_spec specs =
    match specs with
-   | [] -> assert false  (* Should get here *)
+   | [] -> failwith "INTERNAL: specs shouldn't be empty at this point"
    | [spec] -> spec
    | spec :: specs ->
        Specification.join_triples spec (spec_list_to_spec specs)
 
 let class_spec_to_ms cs (smmap,dmmap) =
-  let cn = (*Pprinter.class_name2str*) cs.classname in
+  let cn = cs.classname in
   List.fold_left
     (fun (smmap,dmmap) pre_spec
       ->
@@ -570,7 +570,8 @@ let spec_file_to_method_specs
     match sf with
       [] -> pairmmap
     | cs::sf -> sf_2_ms_inner sf (class_spec_to_ms cs pairmmap)
-  in fix_gaps (sf_2_ms_inner sf (emptyMSpecs,emptyMSpecs)) sf
+  in
+  fix_gaps (sf_2_ms_inner sf (emptyMSpecs,emptyMSpecs)) sf
 
 
 (* ========================== Common/useful rules ================================ *)

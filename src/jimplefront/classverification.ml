@@ -192,7 +192,9 @@ let verify_methods_dynamic_dispatch_behavioral_subtyping_inheritance
       sss
 
 let compile_jimple js specs logic abs =
+  prof_phase "split specs";
   let sspecs, dspecs = Javaspecs.spec_file_to_method_specs specs in
+(*  prof_phase "check subtyping";
   let check_subtyping j =
     verify_methods_dynamic_dispatch_behavioral_subtyping_inheritance
       j
@@ -200,5 +202,6 @@ let compile_jimple js specs logic abs =
       dspecs
       logic
       abs in
-  List.iter check_subtyping js;
+  List.iter check_subtyping js; *)
+  prof_phase "actual compile jimple -> core";
   Translatejimple.compile js sspecs dspecs

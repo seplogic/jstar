@@ -62,15 +62,12 @@ let () = Config.check_arg_specs arg_list
 
 
 let parse_program program_file_name =
-  if log log_phase then
-    fprintf logf "@[<4>Parsing program@ %s.@." program_file_name;
   let ch =
     try
       open_in program_file_name
     with Sys_error s -> failwith s in
   let program = Jparser.file Jlexer.token (Lexing.from_channel ch) in
   close_in_noerr ch;
-  if log log_phase then fprintf logf "@[<4>Parsed@ %s.@." program_file_name;
   program
 
 (* After ‘new’, replace ‘specialinvoke’ (of ‘<init>’) by ‘virtualinvoke’. *)
@@ -152,7 +149,9 @@ let main () =
   if !Config.verbosity >= 2 then
     printf "@[Files to analyze: %a@." (pp_list_sep " " pp_string) !jimple_files;
 
+  prof_phase "parse_program jimple";
   let programs = List.map parse_program !jimple_files in
+  prof_phase "preprocess_jimple";
   let programs = List.map preprocess_jimple programs in
   if !specs_template_mode then begin
     if log log_phase then
@@ -167,6 +166,7 @@ let main () =
     let add_rule logic = function
       | PA.Rule r -> PS.add_rule logic r
       | _ -> failwith "INTERNAL" in
+    prof_phase "parse rules";
     let logic =
       List.fold_left add_rule PS.empty_logic
         (Load.load ~path:Cli_utils.logic_dirs (parse "logic") !logic_file_name)
@@ -177,11 +177,15 @@ let main () =
     in
     let parse fn =
       System.parse_file Jparser.spec_file Jlexer.token fn "specs" in
+    prof_phase "parse specs";
     let specs =
       Load.load ~path:Cli_utils.specs_dirs parse !spec_file_name in
+    prof_phase "synthesize rules from program";
     let logic =
       List.fold_left (make_logic_for_one_program specs) logic programs in
+    prof_phase "init compile jimple -> core";
     let cores = Classverification.compile_jimple programs specs logic abs_rules in
+    prof_phase "topl preprocessing";
     let cores = ToplPreprocessor.instrument_procedures cores in
     let topls = ToplPreprocessor.read_properties !topl_files in
     let topls = List.map ToplPreprocessor.parse_values topls in
@@ -191,9 +195,11 @@ let main () =
       ; q_rules = logic
       ; q_infer = true
       ; q_name = "jstar_question_for_corestar" } in
+    prof_phase "symbolic execution";
     if Symexec.verify question
     then printf "@[@{<g> OK@}@."
-    else printf "@[@{<b>NOK@}@.")
+    else printf "@[@{<b>NOK@}@.";
+    prof_phase "shutting down")
 
 let () =
   System.set_signal_handlers ();

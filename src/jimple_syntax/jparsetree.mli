@@ -115,7 +115,6 @@ type expression =
   | Invoke_exp of invoke_expr
   | Immediate_exp of immediate
   | Reference_exp of reference
-type bool_expr = True | False
 type catch_clause =
   { catch_exception : class_name
   ; catch_from : label_name

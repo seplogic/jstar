@@ -3,4 +3,5 @@ true: package(str)
 true: package(unix)
 true: package(topl)
 true: debug
+true: profile
 <lib/**>: precious
