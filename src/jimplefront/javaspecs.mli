@@ -56,9 +56,17 @@ val add_common_apf_predicate_rules :
   Spec_def.class_spec list -> Psyntax.logic -> Psyntax.logic
 val add_subtype_and_objsubtype_rules :
   Spec_def.class_spec list -> Psyntax.logic -> Psyntax.logic
+(*
 val refinement_this :
   Psyntax.logic
   -> Core.ast_triple
   -> Core.ast_triple
+  -> Jparsetree.class_name
+  -> bool
+*)
+val refinement_this_inner :
+  Psyntax.logic
+  -> Core.inner_triple
+  -> Core.inner_triple
   -> Jparsetree.class_name
   -> bool

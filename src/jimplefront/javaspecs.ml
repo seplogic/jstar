@@ -706,7 +706,7 @@ let add_subtype_and_objsubtype_rules spec_list logic =
 
 (* ====================== Refinement type stuff ================================= *)
 
-
+(*
 let refinement_this logic spec1 spec2 cname =
 (*DBG  Format.fprintf Format.err_formatter "@[<2>===first===@\n";
   spec2str Format.err_formatter spec1;
@@ -714,5 +714,8 @@ let refinement_this logic spec1 spec2 cname =
   spec2str Format.err_formatter spec2;
   Format.fprintf Format.err_formatter "@]@."; *)
   refinement_extra logic spec1 spec2 (objtype this_var (Pprinter.class_name2str cname))
+*)
 
-
+let refinement_this_inner logic spec1 spec2 cname =
+  let this_typed = Sepprover.convert (objtype this_var (Pprinter.class_name2str cname)) in
+  refinement_inner_extra logic spec1 spec2 this_typed
