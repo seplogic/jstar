@@ -11,9 +11,11 @@
       LICENSE.txt
  ********************************************************)
 
-
+open Corestar_std
 open Debug
 open Format
+
+(* TODO(rgrig): Don't open these. *)
 open Javaspecs
 open Jimple_global_types
 open Printing
@@ -22,6 +24,9 @@ open Spec_def
 open Specification
 open Support_symex
 open System
+
+module J = Jparsetree
+module JG = Jimple_global_types
 
 let is_class_abstract jimple_file =
 	let Jimple_global_types.JFile(modifiers,_,_,_,_,_) = jimple_file in
@@ -36,12 +41,16 @@ let parent_classes_and_interfaces (jfile : Jimple_global_types.jimple_file) =
 	let Jimple_global_types.JFile(_,_,_,parent_classes,parent_interfaces,_) = jfile in
 	parent_classes @ parent_interfaces  (* stephan mult inh *)
 
+let implies_opt logic f1o f2 =
+  option true (fun f1 -> Sepprover.implies logic f1 f2) f1o
+
 let verify_exports_implications implications logic_with_where_pred_defs =
   List.iter
     (fun implication ->
       let name,antecedent,consequent = implication in
       let antecedent = Sepprover.convert antecedent in
-      if Sepprover.implies_opt logic_with_where_pred_defs antecedent consequent then
+      let consequent = Sepprover.convert consequent in
+      if Sepprover.implies logic_with_where_pred_defs antecedent consequent then
         (if log log_exec then printf "@{<g> OK@}: exported implication %s@." name)
       else
         printf "@{<b>NOK@}: exported implication %s@." name)
@@ -55,12 +64,14 @@ let verify_axioms_implications class_name jimple_file implications axiom_map (lo
   let conjunct = Jlogic.mk_type (Arg_var Support_syntax.this_var) class_name in
   List.iter (fun implication ->
       let name,antecedent,consequent = implication in
+      let antecedent = Sepprover.convert antecedent in
+      let consequent = Sepprover.convert consequent in
       (* We first tackle the Implication proof obligation if the class is not abstract or an interface. *)
       if not abstract_class_or_interface then (
         let antecedent =
-          Sepprover.convert (Psyntax.pconjunction conjunct antecedent) in
+          Sepprover.conjoin_inner (Sepprover.convert conjunct) antecedent in
         let m = sprintf "implication verification of axiom %s" name in
-        if Sepprover.implies_opt logic antecedent consequent then
+        if Sepprover.implies logic antecedent consequent then
           (if log log_logic then printf "@{<g> OK@}: %s@." m)
         else
           printf "@{<b>NOK@}: %s@." m);
@@ -79,10 +90,10 @@ let verify_axioms_implications class_name jimple_file implications axiom_map (lo
             let m =
               sprintf "axiom %s consistent with parent %s" name parent_name in
             let p_antecedent = Sepprover.convert p_antecedent in
-            let consequent = Sepprover.convert consequent in
-            if Sepprover.implies_opt logic p_antecedent p_consequent ||
-                (Sepprover.implies_opt logic p_antecedent antecedent &&
-                Sepprover.implies_opt logic consequent p_consequent) then
+            let p_consequent = Sepprover.convert p_consequent in
+            if Sepprover.implies logic p_antecedent p_consequent ||
+                (Sepprover.implies logic p_antecedent antecedent &&
+                Sepprover.implies logic consequent p_consequent) then
               (if log log_logic then printf "@{<g>OK@}: %s@." m)
             else
               (* Note that P\/Q may be valid even if P and Q are not! *)
@@ -95,113 +106,86 @@ let verify_axioms_implications class_name jimple_file implications axiom_map (lo
 
 
 let verify_methods_dynamic_dispatch_behavioral_subtyping_inheritance
-    (jimple_file : Jimple_global_types.jimple_file)
-    (static_method_specs : Javaspecs.methodSpecs)
-    (dynamic_method_specs : Javaspecs.methodSpecs)
-    (logic : logic)
-    (abslogic : logic) : unit =
+  j_of_cname
+  sspecs dspecs
+  (logic : logic)
+  (abslogic : logic) : unit =
 
-  let Jimple_global_types.JFile(_,_,class_name,_,_,_) = jimple_file in
-  let parents = parent_classes_and_interfaces jimple_file in
-  let keep_cn = MethodMap.filter (fun (cn,_,_,_) _ -> cn = class_name) in
-  let static_specs = keep_cn static_method_specs in
+  (* TODO: Each method has sspec. *)
+  (* TODO: Each method has body iff has dspec. *)
 
-  (* Dynamic dispatch *)
-  if not (is_class_abstract jimple_file || is_interface jimple_file) then
-    let pss msig (ss,_) = (* process static spec *)
-      let _,_,mname,_ = msig in
-      let ds, dsp = MethodMap.find msig dynamic_method_specs in
-      if refinement_this logic ss ds class_name then (
+  (* Check: If a method has dspec, then it refines sspec. *)
+  prof_phase "dynamic vs static spec check";
+  let d_refines_s msig (ds, dsp) =
+    let cname, _, mname, _ = msig in
+    let ss, _ =
+      (try MethodMap.find msig sspecs with Not_found -> assert false) in
+    if refinement_this logic ss ds cname then (
+      if log log_exec then
+        fprintf logf "Dynamic and static specs of %a are consistent.@."
+            Jparsetree.pp_name mname)
+    else
+      (let et =
+        sprintf "Dynamic and static specs of %s disagree."
+          (Pprinter.name2str mname) in
+      printf "@{<b>WARNING@}: %s@." et; pp_json_location_opt dsp et "") in
+  MethodMap.iter d_refines_s dspecs;
+
+  (* If a method has sspec, then it must refine each sspec of methods that
+  it overrides. *)
+  prof_phase "static spec inheritance check";
+  let s_refines_ancestors msig (ss, ss_pos) =
+    let seen = HashSet.create 0 in
+    let check (cnc, (sc, _)) (cnp, (sp, sp_pos)) =
+      let _, _, mn, _ = msig in
+      if refinement logic sc sp then (
         if log log_exec then
-          fprintf logf "Dynamic and static specs of %a are consistent.@."
-              Jparsetree.pp_name mname)
+          fprintf logf "OK: %a#%a <: %a#%a@."
+              Jparsetree.pp_class_name cnc
+              Jparsetree.pp_name mn
+              Jparsetree.pp_class_name cnp
+              Jparsetree.pp_name mn)
       else
-        (let et =
-          sprintf "Dynamic and static specs of %s disagree."
-            (Pprinter.name2str mname) in
-        printf "@{<b>WARNING@}: %s@." et; pp_json_location_opt dsp et "") in
-    (try MethodMap.iter pss static_specs
-    with Not_found ->
-       failwith "Internal error: Couldn't get dynamic specs for some method.");
+        let et = sprintf "%s#%s not <: %s#%s"
+          (Pprinter.class_name2str cnc) (Pprinter.name2str mn)
+          (Pprinter.class_name2str cnp) (Pprinter.name2str mn) in
+        (printf "@{<b>WARNING@}: %s@." et; pp_json_location_opt sp_pos et "") in
+    let rec dfs cn =
+      let parents = try
+          let j = Hashtbl.find j_of_cname cn in
+          parent_classes_and_interfaces j
+        with Not_found -> (eprintf "@[<2>@{<b>WARNING@}: Class %a is missing,@ \
+          so I don't know what it extends/implements.@ I'm assuming nothing.@."
+          J.pp_class_name cn; []) in
+      let s_refines parent =
+        if not (HashSet.mem seen parent) then begin
+          HashSet.add seen parent;
+          let msig_p = (let _, b, c, d = msig in (parent, b, c, d)) in
+          try check (cn, (ss, ss_pos)) (parent, MethodMap.find msig_p sspecs)
+          with Not_found -> dfs parent
+        end in
+      List.iter s_refines parents in
+    let cn, _, _, _ = msig in
+    dfs cn in
+  MethodMap.iter s_refines_ancestors sspecs
 
-  (* Behavioural subtyping of non-constructor methods *)
-  let dynamic_specs =
-    MethodMap.filter
-        (fun (_,_,mn,_) _ -> not (Jparsetree.constructor mn))
-        (keep_cn dynamic_method_specs) in
-  let pds (cn,a,mn,c) (ds,_) = (* process dynamic spec *)
-    let pp p = (* process parent *)
-      try
-        let ds',dsp' = MethodMap.find (p,a,mn,c) dynamic_method_specs in
-        if refinement logic ds ds' then (
-          if log log_exec then
-            fprintf logf "OK: %a#%a <: %a#%a@."
-                Jparsetree.pp_class_name class_name
-                Jparsetree.pp_name mn
-                Jparsetree.pp_class_name p
-                Jparsetree.pp_name mn)
-        else
-          let et = sprintf "%s#%s not <: %s#%s"
-            (Pprinter.class_name2str class_name) (Pprinter.name2str mn)
-            (Pprinter.class_name2str p) (Pprinter.name2str mn) in
-          (printf "@{<b>WARNING@}: %s@." et; pp_json_location_opt dsp' et "")
-      with Not_found -> () (* TODO(rgrig): Really ignore this? *) in
-    List.iter pp parents in
-  MethodMap.iter pds dynamic_specs;
-
-	(* Inheritance *)
-  let ms = (* methods *)
-    Methdec.make_methdecs_of_list
-        class_name
-        (Methdec.get_list_methods jimple_file) in
-  let ms = List.filter Methdec.has_body ms in
-  let sigs = (* ... for methods with bodies *)
-    List.fold_left
-        (fun a m ->
-            MethodSet.add (class_name, m.ret_type, m.name_m, m.params) a)
-        MethodSet.empty
-        ms in
-  let sss =
-    MethodMap.filter (fun s _ -> not (MethodSet.mem s sigs)) static_specs in
-	MethodMap.iter (fun (_,a,mname,c) (static_spec, static_pos) ->
-      (* stephan mult inh *) (* In the single inheritance case, a lookup can be made for the static spec in the single parent class, resulting in parent_static_specs being [spec] if spec was found, and [] otherwise *)
-      let parent_static_specs = List.fold_left (fun list parent ->
-        try
-          match (MethodMap.find (parent,a,mname,c) static_method_specs) with
-          | (ss,_) -> ss :: list
-        with Not_found -> list
-      ) [] parents in
-      match parent_static_specs with
-        | [] ->
-            printf
-                "@[<4>@{<b>WARNING@}: Should method %a be declared abstract \
-                    in the spec file?@ It has a static spec,@ no body,@ and \
-                    no parent lists a static spec for it.@\n\
-                    @{<b>(end of warning)@}@."
-                Jparsetree.pp_name mname
-        | pss ->
-          let ancestor_static_spec = spec_list_to_spec pss in
-          if !Config.verbosity >= 4 then (
-            let et =
-              sprintf "Inheritance check for %s." (Pprinter.name2str mname) in
-            if refinement logic ancestor_static_spec static_spec then
-              printf "@{<g> OK@}"
-            else
-              (printf "@{<b>NOK@}"; pp_json_location_opt static_pos et "");
-            printf "%s@." et))
-      sss
 
 let compile_jimple js specs logic abs =
   prof_phase "split specs";
   let sspecs, dspecs = Javaspecs.spec_file_to_method_specs specs in
-(*  prof_phase "check subtyping";
-  let check_subtyping j =
-    verify_methods_dynamic_dispatch_behavioral_subtyping_inheritance
-      j
-      sspecs
-      dspecs
-      logic
-      abs in
-  List.iter check_subtyping js; *)
+  prof_phase "init spec checks";
+  let j_by_name =
+    Misc.hash_of_list
+      (fun x->x)
+      (fun _ _ -> failwith "Duplicated class.") (* TODO(rgrig): nicer error/exc *)
+      (function (JG.JFile (_,_,cn,_,_,_)) -> Some cn)
+      (fun x-> Some x)
+      js in
+  verify_methods_dynamic_dispatch_behavioral_subtyping_inheritance
+    j_by_name
+    sspecs
+    dspecs
+    logic
+    abs;
   prof_phase "actual compile jimple -> core";
   Translatejimple.compile js sspecs dspecs

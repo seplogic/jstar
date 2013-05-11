@@ -126,16 +126,6 @@ let parse_values topl =
 let mk_hl_name cn mn =
   Printf.sprintf "%s.%s" cn mn
 
-let hash_of_list one plus key value xs =
-  let h = Hashtbl.create (List.length xs) in
-  let one x = match key x, value x with
-    | None, _ | _, None -> ()
-    | Some k, Some v ->
-        (try Hashtbl.add h k (plus v (Hashtbl.find h k))
-        with Not_found -> Hashtbl.add h k (one v)) in
-  List.iter one xs;
-  h
-
 (* RET: cname -> (((hl_mname * arity) -> ll_mname list) * extends list) *)
 let hash_by_names =
   let key_of_class (JG.JFile (_, _, cn, _, _, _)) =
@@ -151,8 +141,8 @@ let hash_by_names =
           Some (Translatejimple.msig2str cn rt mn ps) in
     let one x = [x] in
     let zs = List.map (string_of J.pp_class_name) (xs @ ys) in
-    Some (hash_of_list one cons key_of_method val_of_method ms, zs) in
-  hash_of_list (fun x -> x) undefined key_of_class val_of_class
+    Some (Misc.hash_of_list one cons key_of_method val_of_method ms, zs) in
+  Misc.hash_of_list (fun x -> x) undefined key_of_class val_of_class
 
 let get_overrides index cn mn arity =
   let seen = HashSet.create 0 in
