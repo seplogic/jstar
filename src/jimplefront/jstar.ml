@@ -115,7 +115,7 @@ let make_logic_for_one_program spec_list logic program =
        if safe then
 	 Classverification.verify_exports_implications
 	     implications
-	     logic_with_where_pred_defs;
+	     (Sepprover.convert_logic logic_with_where_pred_defs);
 	 (* Since where predicates are local to the exports clause, we discard them after exports clause verification *)
 
        let logic = Javaspecs.add_exported_implications_to_logic spec_list logic in
@@ -135,7 +135,7 @@ let make_logic_for_one_program spec_list logic program =
 	    program
 	    implications
 	    axiom_map
-	    logic;
+	    (Sepprover.convert_logic logic);
        let logic = Javaspecs.add_axiom_implications_to_logic spec_list logic in
        logic
        (*let _ = Prover.pprint_sequent_rules logic in*)
@@ -184,17 +184,19 @@ let main () =
     let logic =
       List.fold_left (make_logic_for_one_program specs) logic programs in
     prof_phase "init compile jimple -> core";
-    let cores = Classverification.compile_jimple programs specs logic abs_rules in
+    let logic_inner = Sepprover.convert_logic logic in
+    let abs_rules_inner = Sepprover.convert_logic abs_rules in
+    let cores = Classverification.compile_jimple programs specs logic_inner abs_rules_inner in
     prof_phase "topl preprocessing";
     let cores = ToplPreprocessor.instrument_procedures cores in
     let topls = ToplPreprocessor.read_properties !topl_files in
     let topls = List.map ToplPreprocessor.parse_values topls in
     let topl_monitor = ToplPreprocessor.compile programs topls in
     let question =
-      { Core.q_procs = topl_monitor @ cores
-      ; q_rules = logic
-      ; q_infer = true
-      ; q_name = "jstar_question_for_corestar" } in
+      { Core.q_procs_inner = topl_monitor @ cores
+      ; q_rules_inner = logic_inner
+      ; q_infer_inner = true
+      ; q_name_inner = "jstar_question_for_corestar" } in
     prof_phase "symbolic execution";
     if Symexec.verify question
     then printf "@[@{<g> OK@}@."

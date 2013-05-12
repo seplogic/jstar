@@ -65,7 +65,7 @@ val refinement_this :
   -> bool
 *)
 val refinement_this_inner :
-  Psyntax.logic
+  Sepprover.inner_logic
   -> Core.inner_triple
   -> Core.inner_triple
   -> Jparsetree.class_name

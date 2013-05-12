@@ -57,7 +57,7 @@ let verify_exports_implications implications logic_with_where_pred_defs =
     implications
 
 (* Check both proof obligations (Implication and Parent consistency) for each axiom in 'implications'. *)
-let verify_axioms_implications class_name jimple_file implications axiom_map (logic : logic) =
+let verify_axioms_implications class_name jimple_file implications axiom_map logic =
   let abstract_class_or_interface =
     is_class_abstract jimple_file || is_interface jimple_file in
   let parents = parent_classes_and_interfaces jimple_file in
@@ -108,8 +108,8 @@ let verify_axioms_implications class_name jimple_file implications axiom_map (lo
 let verify_methods_dynamic_dispatch_behavioral_subtyping_inheritance
   j_of_cname
   sspecs dspecs
-  (logic : logic)
-  (abslogic : logic) : unit =
+  logic
+  abslogic : unit =
 
   (* TODO: Each method has sspec. *)
   (* TODO: Each method has body iff has dspec. *)
