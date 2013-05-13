@@ -243,7 +243,7 @@ let jimple_statement2core_statement s : Core.ast_core list =
   end;
   let oops m =
     eprintf "@[@{<b>TODO@}: translate jimple statement %s.@ \
-      Trating as skip for now.@." m; [] in
+      Treating as skip for now.@." m; [] in
   match s with
   | Label_stmt l -> [C.Label_stmt_core l]
   | Breakpoint_stmt -> oops "breakpoint"
