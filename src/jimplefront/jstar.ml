@@ -193,10 +193,10 @@ let main () =
     let topls = List.map ToplPreprocessor.parse_values topls in
     let topl_monitor = ToplPreprocessor.compile programs topls in
     let question =
-      { Core.q_procs_inner = topl_monitor @ cores
-      ; q_rules_inner = logic_inner
-      ; q_infer_inner = true
-      ; q_name_inner = "jstar_question_for_corestar" } in
+      { Core.q_procs = topl_monitor @ cores
+      ; q_rules = logic
+      ; q_infer = true
+      ; q_name = "jstar_question_for_corestar" } in
     prof_phase "symbolic execution";
     if Symexec.verify question
     then printf "@[@{<g> OK@}@."
