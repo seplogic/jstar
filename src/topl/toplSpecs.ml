@@ -121,7 +121,8 @@ let make_logical_copy_of_queue e =
 let logical_dequeue e el n =
   let ef = ref [] in
   for i = 0 to (Array.length e)-n-1 do
-    for j = 0 to (Array.length e.(0)) do ef =:: PS.P_EQ(e.(i).(j),el.(i+n).(j))
+    for j = 0 to Array.length e.(0) - 1 do
+      ef =:: PS.P_EQ(e.(i).(j),el.(i+n).(j))
     done;
   done;
   !ef

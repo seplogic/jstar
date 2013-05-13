@@ -2,8 +2,11 @@
 *.swp
 .depend
 .install.mk
+/*.subdirs
 /.vimrc
 /TODO
+/bin
+/corestar_*
 /tmp
 TAGS
 _build

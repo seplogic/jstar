@@ -1,0 +1,10 @@
+property HasNext
+  message "Advancing iterator without knowing it's not exhausted."
+  observe <java.util.Collection.iterator>
+  observe <java.util.Iterator.{hasNext,next}>
+  prefix <java.util.{Collection,Iterator}>
+  start -> start: *
+  start -> invalid: I := *.iterator()
+  invalid -> valid: <true> := i.hasNext()
+  valid -> invalid: i.next()
+  invalid -> error: i.next()
