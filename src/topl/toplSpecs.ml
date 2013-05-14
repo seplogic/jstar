@@ -60,7 +60,7 @@ let max_arg a =
   TM.VMap.fold max_arg_vertex a.TM.transitions 0
 
 let make_event_queue m n =
-  let mk_name i j = Printf.sprintf "queue_event_%d_position_%d" i j in
+  let mk_name i j = TN.global (Printf.sprintf "queue_event_%d_position_%d" i j) in
   Array.init m
     (fun i -> Array.init n (fun j ->
       PS.Arg_var (Vars.concretep_str (mk_name i j))))
@@ -79,7 +79,7 @@ let get_regs_from_action =
   TM.RMap.fold (fun r _ s -> StringSet.add r s)
 
 let make_registers a =
-  mk_terms "register_"
+  mk_terms (TN.global "register_")
   (TM.VMap.fold (fun _ tl m ->
     List.fold_left (fun m1 tr ->
       List.fold_left (fun m2 st ->
@@ -101,9 +101,9 @@ let store_eq st l_st =
   TM.RMap.fold (fun r v f -> PS.P_EQ (v, TM.VMap.find r l_st) :: f) st []
 
 let init_TOPL_program_vars a =
-  let st = PS.mkVar(Vars.concretep_str "current_automaton_state") in
+  let st = PS.mkVar(Vars.concretep_str (TN.global ("current_automaton_state"))) in
   let sr = make_registers a in
-  let sz = PS.mkVar(Vars.concretep_str "current_queue_list_size") in
+  let sz = PS.mkVar(Vars.concretep_str (TN.global ("current_queue_list_size"))) in
   let e = make_event_queue (max_label_length a) (2 + max_arg a) in
   { state=st; store=sr; size=sz; queue=e }
 
