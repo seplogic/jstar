@@ -16,6 +16,9 @@ type toplPVars =
 let list_mapi f l =
   let i = ref(-1) in List.map (fun a -> f (incr i; !i) a) l
 
+let list_iteri f l =
+  let dummy = list_mapi f l in ()
+
 let rec range i j = (* [i; i+1; ...; j-1] *)
   if i >= j then [] else i :: range (i + 1) j
 
@@ -37,10 +40,14 @@ let get_specs_for_enqueue pv =
   specs
 
 let max_label_length_for_vertex ll =
-  List.fold_right (fun l m -> max m (List.length l.TM.steps)) ll 0
+  List.fold_right (fun l acc -> 
+    let debug = Format.printf "Internal call of max_label_length_for_vertex: acc = %d, cur = %d\n" acc (List.length l.TM.steps) in
+    max acc (List.length l.TM.steps)) ll 0
 
 let max_label_length a =
-  let f _ ts acc = max (max_label_length_for_vertex ts) acc in
+  let f v ts acc = 
+    let debug = Format.printf "Check max length for vertex %s with %d transitions\n" v (List.length ts) in
+    max (max_label_length_for_vertex ts) acc in
   TM.VMap.fold f a.TM.transitions 1
   (* NOTE: Artificially force the queue not to be really short, because the
   code relies on its size not being 0. *)
@@ -100,7 +107,20 @@ let make_logical_copy_of_store st i j =
 let store_eq st l_st =
   TM.RMap.fold (fun r v f -> PS.P_EQ (v, TM.VMap.find r l_st) :: f) st []
 
+let get_type = function
+  | TM.Call_time -> "CALL"
+  | TM.Return_time -> "RETN"
+  | TM.Any_time -> "ANY"
+
+let print_automaton a =
+  let print_s s = Format.printf "-- %s step with %d patterns\n" (get_type s.TM.observables.TM.event_time) (List.length s.TM.observables.TM.pattern) in
+  let print_t t = Format.printf "- transition to %s in %d steps\n" t.TM.target (List.length t.TM.steps); List.iter print_s t.TM.steps in
+  let print_v v ts = Format.printf "Vertex: %s with %d transitions\n" v (List.length ts);
+    List.iter print_t ts in
+  TM.VMap.iter print_v a.TM.transitions
+
 let init_TOPL_program_vars a =
+  let debug = print_automaton a in
   let st = PS.mkVar(Vars.concretep_str (TN.global ("current_automaton_state"))) in
   let sr = make_registers a in
   let sz = PS.mkVar(Vars.concretep_str (TN.global ("current_queue_list_size"))) in
@@ -138,7 +158,8 @@ let index_subsets n =
 (* TODO(rgrig): Move to [Psyntax]? *)
 let rec simplify_pform xs =
   let xs = xs >>= simplify_pform_at in
-  if List.mem PS.P_False xs then [PS.P_False] else xs
+  let retn = if List.mem PS.P_False xs then [PS.P_False] else xs in
+  retn
 and simplify_pform_at = function
   | PS.P_Or (x, y) ->
       (match (simplify_pform x, simplify_pform y) with
@@ -147,7 +168,8 @@ and simplify_pform_at = function
         | x, y -> [PS.P_Or (x, y)])
   | PS.P_EQ _ as x -> [x]
   | PS.P_NEQ _ as x -> [x]
-  | _ -> failwith "Internal: simplification of and/or with true/false"
+  | PS.P_False as x -> [x] (* NT: Added this part as it was called with P_False *)
+  | _ -> failwith "Internal: simplification of and/or with true"
 
 let rec negate_specs_it (f:PS.pform) : PS.pform_at =
     match f with
@@ -165,11 +187,15 @@ let rec negate_specs_it (f:PS.pform) : PS.pform_at =
 
 (* Performs a rather unsophisticated negation of pforms built out of PS.P_EQ,PS.P_NEQ,PS.P_False and PS.P_Or *)
 let negate_pforms (f:PS.pform) : PS.pform =
-  let f' = simplify_pform f in
+  (*  let debug = Format.printf "Call to negate_pforms: %a\n" PS.string_form f in *)
+  let f' = simplify_pform f in 
   let f'' = match f' with
       | [PS.P_False] -> []
       | _ -> [negate_specs_it f']
-  in simplify_pform f''
+  in 
+  let retn = simplify_pform f'' in
+(*  let debug = Format.printf "-> and return: %a\n" PS.string_form retn in*)
+  retn 
 
 (* Returns a pform given guard gd, assuming that value i of each event is stored in
    e.(i+1) in event queue *)
@@ -187,18 +213,39 @@ let obs_conditions e { TM.event_time; pattern } =
     | TM.Return_time -> [ TN.return_event ]
     | TM.Any_time -> [ TN.call_event; TN.return_event ] in
   let p_cond p = List.map (fun name -> PS.mkEQ (e.(0), name p)) ev_name in
+  let debug = Format.printf "\nNow, the pattern has length: %d\n" (List.length pattern) in
+  let debug = List.iter (fun s -> Format.printf "- here is a pattern elt: %s\n" s) pattern in 
   PS.mkBigOr (pattern >>= p_cond)
+
+let rec string_guard = function
+    | TM.True -> "True"
+    | TM.EqCt(i,v) -> Format.sprintf "Eq(%d , val)" i
+    | TM.EqReg(i,r) -> Format.sprintf "Eq(%d , %s)" i r
+    | TM.Not(g') -> Format.sprintf "Not(%s)" (string_guard g')
+    | TM.And(gl) -> "And("^(List.fold_left (fun acc g' -> acc^(string_guard g')^",") "" gl)^")"
 
 (* Conditions for e being satisfied by (st,s) and leading to st' *)
 let step_conditions e st st' s =
+  let debug = Format.printf "Calling step_conditions for a %s step of length %d\n"
+    (get_type s.TM.observables.TM.event_time) (List.length s.TM.observables.TM.pattern) in
   let gd = s.TM.guard in
   let ac = s.TM.action in
   let ev_cond = obs_conditions e s.TM.observables in
   let gd_cond = guard_conditions gd e st in
+  let debug = Format.printf "Now, and here is the gd_cond: %a\n" PS.string_form gd_cond in
   let ac_cond = TM.VMap.fold (fun r v f ->
-    if (TM.RMap.mem r ac) then (PS.P_EQ(v, e.(TM.RMap.find r ac))::f)
+    if (TM.RMap.mem r ac) then (PS.P_EQ(v, e.(1 + TM.RMap.find r ac))::f)
+    (* Added 2+ because at position 0 is the call/ret m, and at 1 is "this" *)
     else (PS.P_EQ(v, TM.VMap.find r st)::f)) st' [] in
-  simplify_pform (ev_cond @ gd_cond @ ac_cond)
+  let debug = (Format.printf "Now, and here is the ev_cond of size %d: %a\n" (List.length ev_cond) PS.string_form ev_cond;
+  Format.printf "Now, and ac_cond: %a\n" PS.string_form ac_cond) in   
+  let big_cond = (ev_cond @ gd_cond @ ac_cond) in
+  let debug = Format.printf "Now, here is the big cond of size %d: %a\n" (List.length
+                                                                            big_cond)
+    PS.string_form big_cond in
+  let retn = simplify_pform big_cond in
+  let debug = Format.printf " and simplified, of size %d: %a\n" (List.length retn                                                                           ) PS.string_form retn in
+  retn 
 
 let pDeQu n pv el =
   let m = Array.length pv.queue in
@@ -208,19 +255,22 @@ let trans_pre_and_post pv el l_sr0 j t =
   let st = t.TM.steps in
   let tg = t.TM.target in
   let len = List.length st in
+  let debug = Format.printf "Inside TPAP with transition length %d and target %s\n" len tg in
   let sr = pv.store in
   let l_sr =  Array.init (len+1) ( fun i ->
     if i=0 then l_sr0 else make_logical_copy_of_store sr i j ) in
   let pre = List.flatten (list_mapi (fun i s ->
       step_conditions pv.queue.(i) l_sr.(i) l_sr.(i+1) s) st) in
   let post = [PS.P_EQ(pv.state, PS.Arg_string(tg))]
-    @ (store_eq sr l_sr.(len)) @ (pDeQu len pv el) in (pre,post)
+    @ (store_eq sr l_sr.(len)) @ (pDeQu len pv el) in 
+  let debug = Format.printf "\n==> Pre:\n %a\n ===> Post:\n %a\n" PS.string_form pre PS.string_form post in
+  (pre,post)
 
 
 (* Given a set of indices k, negate all formulas in l whose index appears in k,
    and leave all other formulas intact *)
-let sign_pres k l =
-  list_mapi (fun i x -> if (IntSet.mem i k) then x else negate_pforms x) l
+  (* let sign_pres k l =
+     list_mapi (fun i x -> if (IntSet.mem i k) then x else negate_pforms x) l *)
 
 (* Given a set of indices k, P-Or all formulas in l whose index appears in k *)
 let sign_POr_posts k xs =
@@ -228,25 +278,33 @@ let sign_POr_posts k xs =
   PS.mkBigOr xs
 
 let get_specs_for_vertex t pv v s =
-  let tl = (try TM.VMap.find v t with Not_found -> []) in
+  let tl = (try TM.VMap.find v t with Not_found -> [] ) in
+  let debug = Format.printf "Here is the vertex: %s\n" v in
+  (*  let debug = TM.VMap.iter (fun s _ -> Format.printf "Here is a key: %s\n" s) t in *)
+  let debug = Format.printf "Here is the length of tl: %d\n" (List.length tl) in 
   let pAt = [PS.P_EQ(pv.state, PS.Arg_string v)] in
-  (* let m = max_label_length_for_vertex tl in *)
-  (* Qud below is defined differently than in the notes: in order to avoid the burden of
-     trying to express e.(size-1).(0) = #, we just pad with #'s at the end of the main method. *)
   let (el,ef) = make_logical_copy_of_queue pv.queue in
   let mM = Array.length pv.queue in
+  let debug = Format.printf "Here is M: %d\n" mM in
   let pQud = PS.P_EQ(pv.size, PS.mkArgint mM) :: ef in
   let l_sr0 = make_logical_copy_of_store pv.store 0 (-1) in
   let pInit = store_eq pv.store l_sr0 in
+  let debug = Format.printf "Now, here is the pInit for %s: %a\n" v Psyntax.string_form pInit in
   let (pAllSats,pAllPosts) = List.split (list_mapi (trans_pre_and_post pv el l_sr0) tl) in
+  let debug = list_iteri (fun i x -> Format.printf "\n\nNow, here is element %d of pAllSat:\n%a\n" i PS.string_form x) pAllSats in
+  let pAllSats_neg = List.map negate_pforms pAllSats in
+  let debug = list_iteri (fun i x -> Format.printf "\n\nNow, here is negated element %d of pAllSat:\n%a\n" i PS.string_form x) pAllSats_neg in
+  let debug = list_iteri (fun i a -> Format.printf "\nNow, here is element %d of pAllPost:\n%a\n" i
+    PS.string_form a) pAllPosts in
   let s_skip =
-    let pre = pAt @ pInit @ pQud @ List.flatten (sign_pres IntSet.empty pAllSats) in
+    let pre = pAt @ pInit @ pQud @ List.flatten pAllSats_neg in
     let post = pAt @ pInit @ (pDeQu 1 pv el) in
     [{ Core.pre; post }] in
   let subs = index_subsets (List.length tl) in
   let s_regular = List.map
     ( fun k ->
-      let pre = pAt @ pInit @ pQud @ List.flatten (sign_pres k pAllSats) in
+      let pSats = list_mapi (fun i (x,y) -> if IntSet.mem i k then x else y) (List.combine pAllSats pAllSats_neg) in
+      let pre = pAt @ pInit @ pQud @ List.flatten pSats in
       let post = sign_POr_posts k pAllPosts in
       { Core.pre; post }) subs in
   s_regular @ s_skip @ s

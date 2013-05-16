@@ -63,23 +63,42 @@ let convert_event_time = function
   | Some A.Return -> TM.Return_time
   | None -> TM.Any_time
 
-let convert_transition p t : (A.pattern list * int) TM.transition =
+let print_pro_transition t s =
+  let print_l l = 
+    let tg = l.A.guard.A.tag_guard in
+    let event_type = match tg.A.event_type with
+      | Some A.Call -> "call "
+      | Some A.Return -> "return "
+      | None -> "" in
+    Format.printf "- %smethod: %s\n" event_type tg.A.method_name.A.p_string in
+  Format.printf "Pro_transition (%s) from %s to %s with %d labels:\n" s t.A.source t.A.target
+    (List.length t.A.labels);
+  List.iter print_l t.A.labels
+
+let prefix_vertex p v = p.A.name ^ v
+
+let convert_transition p t : (A.pattern list * int option) TM.transition =
+  let debug = Format.printf "\n Calling convert_transition\n" in
+  let debug = print_pro_transition t "CV" in 
   let convert_label l =
     let guard = convert_guard l.A.guard in
     let action = convert_action l.A.action in
-    let p_arity = fst l.A.guard.A.tag_guard.A.method_arity in
+    let p_arity = snd l.A.guard.A.tag_guard.A.method_arity in
     let p_mname = [l.A.guard.A.tag_guard.A.method_name; p.A.observable] in
     let pattern = (p_mname, p_arity) in
     let event_time = convert_event_time l.A.guard.A.tag_guard.A.event_type in
     let observables = { TM.event_time; pattern } in
     { TM.guard; action; observables } in
-  { TM.steps = List.map convert_label t.A.labels
-  ; TM.target = t.A.target }
+  let retn = { TM.steps = List.map convert_label t.A.labels
+             ; TM.target = prefix_vertex p t.A.target } in
+  let debug = Format.printf "-> After conversion: %d steps\n" (List.length retn.TM.steps) in 
+  retn 
 
 let construct_monitor ts =
   let convert_prop p =
+    let debug = List.iter (fun t -> print_pro_transition t "p") p.A.transitions in
     let add_v v (vs, starts, errors) =
-      let pv = p.A.name ^ v in
+      let pv = prefix_vertex p v  in
       let new_vs = TM.VSet.add pv vs in
       if v = "start" then new_vs, TM.VSet.add pv starts, errors
       else if v = "error" then new_vs, starts, TM.VMap.add pv p.A.message errors
@@ -87,8 +106,9 @@ let construct_monitor ts =
     let collect_transition (vs, ts, starts, errors) t =
       let new_vs, new_starts, new_errors = (vs,starts,errors) |> add_v t.A.source |> add_v t.A.target in
       let transition = convert_transition p t in
-      let outgoing = try TM.VMap.find t.A.source ts with Not_found -> [] in
-      let new_ts = TM.VMap.add t.A.source (transition::outgoing) ts in
+      let new_source = prefix_vertex p t.A.source in 
+      let outgoing = try TM.VMap.find new_source ts with Not_found -> [] in
+      let new_ts = TM.VMap.add new_source (transition::outgoing) ts in
       new_vs, new_ts, new_starts, new_errors in
     let vertices, transitions, start_vertices, errors =
       List.fold_left
@@ -133,8 +153,8 @@ let hash_by_names =
   let val_of_class (JG.JFile (_, _, cn, xs, ys, ms)) =
     let key_of_method = function
       | JG.Field _ -> None
-      | JG.Method (_, _, mn, ps, _, _, _, _, _) ->
-          Some (string_of J.pp_name mn, List.length ps) in
+      | JG.Method (first, _, mn, ps, _, _, _, _, _) ->
+        Some (string_of J.pp_name mn,  (if (List.mem J.Static first) then 0 else 1) + (List.length ps)) in
     let val_of_method = function
       | JG.Field _ -> None
       | JG.Method (_, rt, mn, ps, _, _, _, _, _) ->
@@ -167,7 +187,14 @@ let collect_patterns m =
   TM.VMap.iter cp_vertex m.TM.transitions;
   h
 
+let print_automaton a s =
+  let print_t t = Format.printf "- transition to %s in %d steps\n" t.TM.target (List.length t.TM.steps) in
+  let print_v v ts = Format.printf "\n PreProc %s Vertex: %s with %d transitions\n" s v (List.length ts); List.iter
+    print_t ts in
+  TM.VMap.iter print_v a.TM.transitions
+
 let map_patterns h m =
+  let debug = print_automaton m "map_patterns" in 
   let mp_ev e = { e with TM.pattern = Hashtbl.find h e.TM.pattern } in
   let mp_step s = { s with TM.observables = mp_ev s.TM.observables } in
   let mp_transition t = { t with TM.steps = List.map mp_step t.TM.steps } in
@@ -175,17 +202,26 @@ let map_patterns h m =
   { m with TM.transitions = TM.VMap.map mp_vertex m.TM.transitions }
 
 let specialize_monitor js m =
+  let debug = print_automaton m "specialize_monitor" in 
   let index = hash_by_names js in
   let patterns = collect_patterns m in
   let process_class cname (ms_index, _) =
+    let debug = Hashtbl.iter (fun (x,i) ys -> 
+      Format.printf "Print in class %s: (%s,%d)\n" cname x i;
+      List. iter (Format.printf "=> %s\n") ys) ms_index in 
     let process_method (hl_name, arity) ll_mns =
       let overrides = get_overrides index cname hl_name arity in
       let process_pattern p old_ll_mns acc =
         let p_rs, p_arity = p in
-        let name_matches mn = List.for_all (flip A.pattern_matches mn) p_rs in
-        if p_arity = arity && List.exists name_matches overrides
+        let log_pattern_match a b = let r = A.pattern_matches a b in printf "@[%s =?= %s is %b@\n@]" a.A.p_string b r; r in
+        let name_matches mn = List.for_all (flip log_pattern_match mn) p_rs in
+        let debug = Format.printf "-> Doing an arity check: %d and %d for hl_name: %s\n" (option (-1) (fun x->x) p_arity) arity hl_name in
+        let resolve_none = match p_arity with
+          | Some x -> (arity = x) 
+          | None -> true in
+        if resolve_none && List.exists name_matches overrides 
         then (p, ll_mns @ old_ll_mns) :: acc
-        else acc in
+        else acc in 
       let updates = Hashtbl.fold process_pattern patterns [] in
       List.iter (fun (p, vs) -> Hashtbl.replace patterns p vs) updates in
     Hashtbl.iter process_method ms_index in
@@ -275,10 +311,17 @@ let build_core_monitor m =
 (* main *) (* {{{ *)
 
 let read_properties fs =
-  fs |> List.map Topl.Helper.parse >>= List.map (fun x -> x.A.ast)
+  let debug = List.iter (Format.printf "= Initial input: %s\n") fs in
+  let retn = fs |> List.map Topl.Helper.parse >>= List.map (fun x -> x.A.ast) in
+  let debug = List.iter (fun x -> 
+    List.iter (fun t -> print_pro_transition t "RP") x.A.transitions) retn in
+  retn 
 
 let compile js ts =
+  let debug = List.iter (fun x -> 
+    List.iter (fun t -> print_pro_transition t "Compile") x.A.transitions) ts in
   let monitor = construct_monitor ts in
+  let debug = print_automaton monitor "after_construct" in
   let monitor = specialize_monitor js monitor in
   build_core_monitor monitor
 
