@@ -53,18 +53,18 @@ let max_label_length a =
   code relies on its size not being 0. *)
 
 let max_arg a =
-  let map_max f xs = xs |> List.map f |> List.fold_left max 0 in
+  let map_max f xs = xs |> List.map f |> List.fold_left max (-1) in
   let rec max_arg_guard = function
     | TM.EqCt (i, _) | TM.EqReg (i, _) -> i
     | TM.Not g -> max_arg_guard g
     | TM.And gs -> map_max max_arg_guard gs
-    | TM.True -> 0 in
-  let max_arg_action a = TM.RMap.fold (fun _ -> max) a 0 in
+    | TM.True -> (-1) in
+  let max_arg_action a = TM.RMap.fold (fun _ -> max) a (-1) in
   let max_arg_step s =
     max (max_arg_guard s.TM.guard) (max_arg_action s.TM.action) in
   let max_arg_trans t = map_max max_arg_step t.TM.steps in
   let max_arg_vertex _ ts y = max y (map_max max_arg_trans ts) in
-  TM.VMap.fold max_arg_vertex a.TM.transitions 0
+  TM.VMap.fold max_arg_vertex a.TM.transitions (-1)
 
 let make_event_queue m n =
   let mk_name i j = TN.global (Printf.sprintf "queue_event_%d_position_%d" i j) in
@@ -153,7 +153,7 @@ let index_subsets n =
   for i = 0 to n-1 do
     xs := (List.map (function x -> IntSet.add i x) !xs) @ !xs
   done;
-  List.tl !xs
+  List.tl (List.rev !xs)
 
 (* TODO(rgrig): Move to [Psyntax]? *)
 let rec simplify_pform xs =
@@ -235,7 +235,7 @@ let step_conditions e st st' s =
   let debug = Format.printf "Now, and here is the gd_cond: %a\n" PS.string_form gd_cond in
   let ac_cond = TM.VMap.fold (fun r v f ->
     if (TM.RMap.mem r ac) then (PS.P_EQ(v, e.(1 + TM.RMap.find r ac))::f)
-    (* Added 2+ because at position 0 is the call/ret m, and at 1 is "this" *)
+    (* Added 1+ because at position 0 is the call/ret m *)
     else (PS.P_EQ(v, TM.VMap.find r st)::f)) st' [] in
   let debug = (Format.printf "Now, and here is the ev_cond of size %d: %a\n" (List.length ev_cond) PS.string_form ev_cond;
   Format.printf "Now, and ac_cond: %a\n" PS.string_form ac_cond) in   
