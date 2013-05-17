@@ -156,6 +156,11 @@ let index_subsets n =
   List.tl (List.rev !xs)
 
 (* TODO(rgrig): Move to [Psyntax]? *)
+  (* (NT) Here a nasty hack is used: Wand (f,g) means:
+     - if we set some local variables using f
+     - then g holds
+     Thus, Wand(f,g) simplifies to Wand(f,simplify(g))
+  *)
 let rec simplify_pform xs =
   let xs = xs >>= simplify_pform_at in
   let retn = if List.mem PS.P_False xs then [PS.P_False] else xs in
@@ -166,11 +171,17 @@ and simplify_pform_at = function
         | [], _ | _, [] -> []
         | [PS.P_False], z | z, [PS.P_False] -> z
         | x, y -> [PS.P_Or (x, y)])
+  | PS.P_Wand (x, y) -> [PS.P_Wand (x, simplify_pform y)]
   | PS.P_EQ _ as x -> [x]
   | PS.P_NEQ _ as x -> [x]
   | PS.P_False as x -> [x] (* NT: Added this part as it was called with P_False *)
-  | _ -> failwith "Internal: simplification of and/or with true"
+  | _ -> failwith "Internal: simplification with unexpected case!"
 
+ (* (NT) Here a nasty hack is used: Wand (f,g) means:
+    - if we set some local variables using f
+    - then g holds
+    Thus, Wand(f,g) negates to f * negate(g)
+ *)
 let rec negate_specs_it (f:PS.pform) : PS.pform_at =
     match f with
       | [] -> PS.P_False
@@ -180,12 +191,13 @@ let rec negate_specs_it (f:PS.pform) : PS.pform_at =
           | PS.P_NEQ(x,y) -> PS.P_Or([PS.P_EQ(x,y)], [negate_specs_it fs])
           | PS.P_PPred(_,_) -> failwith "Negation called for PPred!"
           | PS.P_SPred(_,_) -> failwith "Negation called for SPred!"
-          | PS.P_Wand(_,_) -> failwith "Negation called for Wand!"
+          | PS.P_Wand(x,y) -> PS.P_Or((negate_specs_it y)::x, [negate_specs_it fs])
           | PS.P_Or(x,y) -> PS.P_Or([(negate_specs_it x); (negate_specs_it y)], [negate_specs_it fs])
           | PS.P_Septract(_,_) -> failwith "Negation called for Septract!"
           | PS.P_False -> failwith "Internal negation loop reached False!")
 
-(* Performs a rather unsophisticated negation of pforms built out of PS.P_EQ,PS.P_NEQ,PS.P_False and PS.P_Or *)
+(* Performs a rather unsophisticated negation of pforms built out of
+   PS.P_EQ,PS.P_NEQ,PS.P_False and PS.P_Or, and a hacky PS.P_Wand *)
 let negate_pforms (f:PS.pform) : PS.pform =
   (*  let debug = Format.printf "Call to negate_pforms: %a\n" PS.string_form f in *)
   let f' = simplify_pform f in 
@@ -197,6 +209,15 @@ let negate_pforms (f:PS.pform) : PS.pform =
 (*  let debug = Format.printf "-> and return: %a\n" PS.string_form retn in*)
   retn 
 
+  (* Replace hacky Wand(x,y) by x@y *)
+let rec remove_dirty_wands (f:PS.pform) : PS.pform =
+  let f' = remove_dirty_wands_it f in   
+  simplify_pform f'
+and remove_dirty_wands_it f = List.map (function 
+    | PS.P_Wand (x,y) -> PS.P_Or (x @ (remove_dirty_wands_it y), [PS.P_False])
+    | PS.P_Or (x,y) -> PS.P_Or (remove_dirty_wands_it x, remove_dirty_wands_it y)
+    | x -> x ) f 
+                     
 (* Returns a pform given guard gd, assuming that value i of each event is stored in
    e.(i+1) in event queue *)
 let rec guard_conditions gd e st =
@@ -239,13 +260,13 @@ let step_conditions e st st' s =
     else (PS.P_EQ(v, TM.VMap.find r st)::f)) st' [] in
   let debug = (Format.printf "Now, and here is the ev_cond of size %d: %a\n" (List.length ev_cond) PS.string_form ev_cond;
   Format.printf "Now, and ac_cond: %a\n" PS.string_form ac_cond) in   
-  let big_cond = (ev_cond @ gd_cond @ ac_cond) in
+  let big_cond = (ev_cond @ gd_cond) in
   let debug = Format.printf "Now, here is the big cond of size %d: %a\n" (List.length
                                                                             big_cond)
     PS.string_form big_cond in
   let retn = simplify_pform big_cond in
   let debug = Format.printf " and simplified, of size %d: %a\n" (List.length retn                                                                           ) PS.string_form retn in
-  retn 
+  (retn, ac_cond) 
 
 let pDeQu n pv el =
   let m = Array.length pv.queue in
@@ -259,8 +280,9 @@ let trans_pre_and_post pv el l_sr0 j t =
   let sr = pv.store in
   let l_sr =  Array.init (len+1) ( fun i ->
     if i=0 then l_sr0 else make_logical_copy_of_store sr i j ) in
-  let pre = List.flatten (list_mapi (fun i s ->
-      step_conditions pv.queue.(i) l_sr.(i) l_sr.(i+1) s) st) in
+  let unwanded = list_mapi (fun i s ->
+    step_conditions pv.queue.(i) l_sr.(i) l_sr.(i+1) s) st in
+  let pre = List.fold_left (fun acc (x,y) -> (PS.P_Wand (y, acc)) :: x) [] (List.rev unwanded) in
   let post = [PS.P_EQ(pv.state, PS.Arg_string(tg))]
     @ (store_eq sr l_sr.(len)) @ (pDeQu len pv el) in 
   let debug = Format.printf "\n==> Pre:\n %a\n ===> Post:\n %a\n" PS.string_form pre PS.string_form post in
@@ -291,8 +313,9 @@ let get_specs_for_vertex t pv v s =
   let pInit = store_eq pv.store l_sr0 in
   let debug = Format.printf "Now, here is the pInit for %s: %a\n" v Psyntax.string_form pInit in
   let (pAllSats,pAllPosts) = List.split (list_mapi (trans_pre_and_post pv el l_sr0) tl) in
-  let debug = list_iteri (fun i x -> Format.printf "\n\nNow, here is element %d of pAllSat:\n%a\n" i PS.string_form x) pAllSats in
   let pAllSats_neg = List.map negate_pforms pAllSats in
+  let pAllSats = List.map remove_dirty_wands pAllSats in
+  let debug = list_iteri (fun i x -> Format.printf "\n\nNow, here is element %d of pAllSat for %s:\n%a\n" i v PS.string_form x) pAllSats in
   let debug = list_iteri (fun i x -> Format.printf "\n\nNow, here is negated element %d of pAllSat:\n%a\n" i PS.string_form x) pAllSats_neg in
   let debug = list_iteri (fun i a -> Format.printf "\nNow, here is element %d of pAllPost:\n%a\n" i
     PS.string_form a) pAllPosts in
