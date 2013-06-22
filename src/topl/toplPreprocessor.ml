@@ -78,8 +78,8 @@ let print_pro_transition t s =
 let prefix_vertex p v = p.A.name ^ v
 
 let convert_transition p t : (A.pattern list * int option) TM.transition =
-  let debug = Format.printf "\n Calling convert_transition\n" in
-  let debug = print_pro_transition t "CV" in 
+  (* debug *) Format.printf "\n Calling convert_transition\n";
+  (* debug *) print_pro_transition t "CV";
   let convert_label l =
     let guard = convert_guard l.A.guard in
     let action = convert_action l.A.action in
@@ -91,12 +91,12 @@ let convert_transition p t : (A.pattern list * int option) TM.transition =
     { TM.guard; action; observables } in
   let retn = { TM.steps = List.map convert_label t.A.labels
              ; TM.target = prefix_vertex p t.A.target } in
-  let debug = Format.printf "-> After conversion: %d steps\n" (List.length retn.TM.steps) in 
+  (* debug *) Format.printf "-> After conversion: %d steps\n" (List.length retn.TM.steps);
   retn 
 
 let construct_monitor ts =
   let convert_prop p =
-    let debug = List.iter (fun t -> print_pro_transition t "p") p.A.transitions in
+    (* debug *) List.iter (fun t -> print_pro_transition t "p") p.A.transitions;
     let add_v v (vs, starts, errors) =
       let pv = prefix_vertex p v  in
       let new_vs = TM.VSet.add pv vs in
@@ -194,7 +194,7 @@ let print_automaton a s =
   TM.VMap.iter print_v a.TM.transitions
 
 let map_patterns h m =
-  let debug = print_automaton m "map_patterns" in 
+  (* debug *) print_automaton m "map_patterns";
   let mp_ev e = { e with TM.pattern = Hashtbl.find h e.TM.pattern } in
   let mp_step s = { s with TM.observables = mp_ev s.TM.observables } in
   let mp_transition t = { t with TM.steps = List.map mp_step t.TM.steps } in
@@ -202,20 +202,20 @@ let map_patterns h m =
   { m with TM.transitions = TM.VMap.map mp_vertex m.TM.transitions }
 
 let specialize_monitor js m =
-  let debug = print_automaton m "specialize_monitor" in 
+  (* debug *) print_automaton m "specialize_monitor";
   let index = hash_by_names js in
   let patterns = collect_patterns m in
   let process_class cname (ms_index, _) =
-    let debug = Hashtbl.iter (fun (x,i) ys -> 
+    (* debug *) Hashtbl.iter (fun (x,i) ys -> 
       Format.printf "Print in class %s: (%s,%d)\n" cname x i;
-      List. iter (Format.printf "=> %s\n") ys) ms_index in 
+      List. iter (Format.printf "=> %s\n") ys) ms_index;
     let process_method (hl_name, arity) ll_mns =
       let overrides = get_overrides index cname hl_name arity in
       let process_pattern p old_ll_mns acc =
         let p_rs, p_arity = p in
         let log_pattern_match a b = let r = A.pattern_matches a b in printf "@[%s =?= %s is %b@\n@]" a.A.p_string b r; r in
         let name_matches mn = List.for_all (flip log_pattern_match mn) p_rs in
-        let debug = Format.printf "-> Doing an arity check: %d and %d for hl_name: %s\n" (option (-1) (fun x->x) p_arity) arity hl_name in
+        (* debug *) Format.printf "-> Doing an arity check: %d and %d for hl_name: %s\n" (option (-1) (fun x->x) p_arity) arity hl_name;
         let resolve_none = match p_arity with
           | Some x -> (arity = x) 
           | None -> true in
@@ -311,17 +311,17 @@ let build_core_monitor m =
 (* main *) (* {{{ *)
 
 let read_properties fs =
-  let debug = List.iter (Format.printf "= Initial input: %s\n") fs in
+  (* debug *) List.iter (Format.printf "= Initial input: %s\n") fs;
   let retn = fs |> List.map Topl.Helper.parse >>= List.map (fun x -> x.A.ast) in
-  let debug = List.iter (fun x -> 
-    List.iter (fun t -> print_pro_transition t "RP") x.A.transitions) retn in
+  (* debug *) List.iter (fun x -> 
+    List.iter (fun t -> print_pro_transition t "RP") x.A.transitions) retn;
   retn 
 
 let compile js ts =
-  let debug = List.iter (fun x -> 
-    List.iter (fun t -> print_pro_transition t "Compile") x.A.transitions) ts in
+  (* debug *) List.iter (fun x -> 
+    List.iter (fun t -> print_pro_transition t "Compile") x.A.transitions) ts;
   let monitor = construct_monitor ts in
-  let debug = print_automaton monitor "after_construct" in
+  (* debug *) print_automaton monitor "after_construct";
   let monitor = specialize_monitor js monitor in
   build_core_monitor monitor
 
