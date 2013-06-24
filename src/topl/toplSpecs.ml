@@ -41,12 +41,12 @@ let get_specs_for_enqueue pv =
 
 let max_label_length_for_vertex ll =
   List.fold_right (fun l acc -> 
-    (* debug *) Format.printf "Internal call of max_label_length_for_vertex: acc = %d, cur = %d\n" acc (List.length l.TM.steps);
+(*     (* debug *) Format.printf "Internal call of max_label_length_for_vertex: acc = %d, cur = %d\n" acc (List.length l.TM.steps); *)
     max acc (List.length l.TM.steps)) ll 0
 
 let max_label_length a =
   let f v ts acc = 
-    (* debug *) Format.printf "Check max length for vertex %s with %d transitions\n" v (List.length ts);
+(*     (* debug *) Format.printf "Check max length for vertex %s with %d transitions\n" v (List.length ts); *)
     max (max_label_length_for_vertex ts) acc in
   TM.VMap.fold f a.TM.transitions 1
   (* NOTE: Artificially force the queue not to be really short, because the
@@ -120,7 +120,7 @@ let print_automaton a =
   TM.VMap.iter print_v a.TM.transitions
 
 let init_TOPL_program_vars a =
-  (* debug *) print_automaton a;
+(*   (* debug *) print_automaton a; *)
   let st = PS.mkVar(Vars.concretep_str (TN.global ("current_automaton_state"))) in
   let sr = make_registers a in
   let sz = PS.mkVar(Vars.concretep_str (TN.global ("current_queue_list_size"))) in
@@ -211,13 +211,13 @@ let negate_pforms (f:PS.pform) : PS.pform =
 
   (* Replace hacky Wand(x,y) by x@y *)
 let rec remove_dirty_wands (f:PS.pform) : PS.pform =
-  let f' = remove_dirty_wands_it f in   
+  let f' = remove_dirty_wands_it f in
   simplify_pform f'
-and remove_dirty_wands_it f = List.map (function 
+and remove_dirty_wands_it f = List.map (function
     | PS.P_Wand (x,y) -> PS.P_Or (x @ (remove_dirty_wands_it y), [PS.P_False])
     | PS.P_Or (x,y) -> PS.P_Or (remove_dirty_wands_it x, remove_dirty_wands_it y)
-    | x -> x ) f 
-                     
+    | x -> x ) f
+
 (* Returns a pform given guard gd, assuming that value i of each event is stored in
    e.(i+1) in event queue *)
 let rec guard_conditions gd e st =
@@ -234,8 +234,8 @@ let obs_conditions e { TM.event_time; pattern } =
     | TM.Return_time -> [ TN.return_event ]
     | TM.Any_time -> [ TN.call_event; TN.return_event ] in
   let p_cond p = List.map (fun name -> PS.mkEQ (e.(0), name p)) ev_name in
-  (* debug *) Format.printf "\nNow, the pattern has length: %d\n" (List.length pattern);
-  (* debug *) List.iter (fun s -> Format.printf "- here is a pattern elt: %s\n" s) pattern;
+(*   (* debug *) Format.printf "\nNow, the pattern has length: %d\n" (List.length pattern); *)
+(*   (* debug *) List.iter (fun s -> Format.printf "- here is a pattern elt: %s\n" s) pattern; *)
   PS.mkBigOr (pattern >>= p_cond)
 
 let rec string_guard = function
@@ -247,25 +247,21 @@ let rec string_guard = function
 
 (* Conditions for e being satisfied by (st,s) and leading to st' *)
 let step_conditions e st st' s =
-  (* debug *) Format.printf "Calling step_conditions for a %s step of length %d\n"
-    (get_type s.TM.observables.TM.event_time) (List.length s.TM.observables.TM.pattern);
+(* (* debug *) Format.printf "Calling step_conditions for a %s step of length %d\n" (get_type s.TM.observables.TM.event_time) (List.length s.TM.observables.TM.pattern) in*)
   let gd = s.TM.guard in
   let ac = s.TM.action in
   let ev_cond = obs_conditions e s.TM.observables in
   let gd_cond = guard_conditions gd e st in
-  (* debug *) Format.printf "Now, and here is the gd_cond: %a\n" PS.string_form gd_cond;
+(*   (* debug *) Format.printf "Now, and here is the gd_cond: %a\n" PS.string_form gd_cond; *)
   let ac_cond = TM.VMap.fold (fun r v f ->
     if (TM.RMap.mem r ac) then (PS.P_EQ(v, e.(1 + TM.RMap.find r ac))::f)
     (* Added 1+ because at position 0 is the call/ret m *)
     else (PS.P_EQ(v, TM.VMap.find r st)::f)) st' [] in
-  (* debug *) (Format.printf "Now, and here is the ev_cond of size %d: %a\n" (List.length ev_cond) PS.string_form ev_cond;
-  Format.printf "Now, and ac_cond: %a\n" PS.string_form ac_cond);
+(* (* debug *) (Format.printf "Now, and here is the ev_cond of size %d: %a\n" (List.length ev_cond) PS.string_form ev_cond;  Format.printf "Now, and ac_cond: %a\n" PS.string_form ac_cond) in*)
   let big_cond = (ev_cond @ gd_cond) in
-  (* debug *) Format.printf "Now, here is the big cond of size %d: %a\n" (List.length
-                                                                            big_cond)
-    PS.string_form big_cond;
+(* (* debug *) Format.printf "Now, here is the big cond of size %d: %a\n" (List.length big_cond) PS.string_form big_cond in*)
   let retn = simplify_pform big_cond in
-  (* debug *) Format.printf " and simplified, of size %d: %a\n" (List.length retn                                                                           ) PS.string_form retn;
+(*   (* debug *) Format.printf " and simplified, of size %d: %a\n" (List.length retn                                                                           ) PS.string_form retn; *)
   (retn, ac_cond) 
 
 let pDeQu n pv el =
@@ -276,7 +272,7 @@ let trans_pre_and_post pv el l_sr0 j t =
   let st = t.TM.steps in
   let tg = t.TM.target in
   let len = List.length st in
-  (* debug *) Format.printf "Inside TPAP with transition length %d and target %s\n" len tg;
+(*   (* debug *) Format.printf "Inside TPAP with transition length %d and target %s\n" len tg; *)
   let sr = pv.store in
   let l_sr =  Array.init (len+1) ( fun i ->
     if i=0 then l_sr0 else make_logical_copy_of_store sr i j ) in
@@ -285,7 +281,7 @@ let trans_pre_and_post pv el l_sr0 j t =
   let pre = List.fold_left (fun acc (x,y) -> (PS.P_Wand (y, acc)) :: x) [] (List.rev unwanded) in
   let post = [PS.P_EQ(pv.state, PS.Arg_string(tg))]
     @ (store_eq sr l_sr.(len)) @ (pDeQu len pv el) in 
-  (* debug *) Format.printf "\n==> Pre:\n %a\n ===> Post:\n %a\n" PS.string_form pre PS.string_form post;
+(*   (* debug *) Format.printf "\n==> Pre:\n %a\n ===> Post:\n %a\n" PS.string_form pre PS.string_form post; *)
   (pre,post)
 
 
@@ -301,23 +297,23 @@ let sign_POr_posts k xs =
 
 let get_specs_for_vertex t pv v s =
   let tl = (try TM.VMap.find v t with Not_found -> [] ) in
-  (* debug *) Format.printf "Here is the vertex: %s\n" v;
+(*   (* debug *) Format.printf "Here is the vertex: %s\n" v; *)
   (* (* debug *) TM.VMap.iter (fun s _ -> Format.printf "Here is a key: %s\n" s) t; *)
-  (* debug *) Format.printf "Here is the length of tl: %d\n" (List.length tl);
+(*   (* debug *) Format.printf "Here is the length of tl: %d\n" (List.length tl); *)
   let pAt = [PS.P_EQ(pv.state, PS.Arg_string v)] in
   let (el,ef) = make_logical_copy_of_queue pv.queue in
   let mM = Array.length pv.queue in
-  (* debug *) Format.printf "Here is M: %d\n" mM;
+(*   (* debug *) Format.printf "Here is M: %d\n" mM; *)
   let pQud = PS.P_EQ(pv.size, PS.mkArgint mM) :: ef in
   let l_sr0 = make_logical_copy_of_store pv.store 0 (-1) in
   let pInit = store_eq pv.store l_sr0 in
-  (* debug *) Format.printf "Now, here is the pInit for %s: %a\n" v Psyntax.string_form pInit;
+(*   (* debug *) Format.printf "Now, here is the pInit for %s: %a\n" v Psyntax.string_form pInit; *)
   let (pAllSats,pAllPosts) = List.split (list_mapi (trans_pre_and_post pv el l_sr0) tl) in
   let pAllSats_neg = List.map negate_pforms pAllSats in
   let pAllSats = List.map remove_dirty_wands pAllSats in
-  (* debug *) list_iteri (fun i x -> Format.printf "\n\nNow, here is element %d of pAllSat for %s:\n%a\n" i v PS.string_form x) pAllSats;
-  (* debug *) list_iteri (fun i x -> Format.printf "\n\nNow, here is negated element %d of pAllSat:\n%a\n" i PS.string_form x) pAllSats_neg;
-  (* debug *) list_iteri (fun i a -> Format.printf "\nNow, here is element %d of pAllPost:\n%a\n" i PS.string_form a) pAllPosts;
+(* (* debug *) list_iteri (fun i x -> Format.printf "\n\nNow, here is element %d of pAllSat for %s:\n%a\n" i v PS.string_form x) pAllSats in*)
+(* (* debug *) list_iteri (fun i x -> Format.printf "\n\nNow, here is negated element %d of pAllSat:\n%a\n" i PS.string_form x) pAllSats_neg in*)
+(* (* debug *) list_iteri (fun i a -> Format.printf "\nNow, here is element %d of pAllPost:\n%a\n" i PS.string_form a) pAllPosts in*)
   let s_skip =
     let pre = pAt @ pInit @ pQud @ List.flatten pAllSats_neg in
     let post = pAt @ pInit @ (pDeQu 1 pv el) in

@@ -15,9 +15,6 @@ open Corestar_std
 open Debug
 open Format
 
-open ToplPreprocessor (* XXX *)
-open ToplSpecs
-
 (* TODO(rgrig): Don't open these. *)
 open Jparsetree
 open Jimple_global_types
@@ -195,7 +192,7 @@ let main () =
     let question =
       { Core.q_procs = topl_monitor @ cores
       ; q_rules = logic
-      ; q_infer = true
+      ; q_infer = !Config.use_abduction
       ; q_name = "jstar_question_for_corestar" } in
     prof_phase "symbolic execution";
     if Symexec.verify question
@@ -216,5 +213,5 @@ let () =
   set_formatter_tag_functions mf;
   pp_set_formatter_tag_functions err_formatter mf;
   set_tags true; pp_set_tags err_formatter true;
-  try main ()
-  with Failure s -> eprintf "@{<b>FAILED:@} %s@." s
+  (*try*) main ()
+  (*with Failure s -> eprintf "@{<b>FAILED:@} %s@." s*)
