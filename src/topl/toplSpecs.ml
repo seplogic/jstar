@@ -13,6 +13,7 @@ type toplPVars =
   ; queue : PS.args array array }
   (* INV: Each [PS.args] above should be [Arg_var _]. *)
 
+(* TODO: use the ones in Corestar_std *)
 let list_mapi f l =
   let i = ref(-1) in List.map (fun a -> f (incr i; !i) a) l
 
@@ -35,7 +36,7 @@ let get_specs_for_enqueue pv =
       let cp i = PS.P_EQ (e.(i), wrap_call_arg i) in
       PS.P_EQ (pv.size, PS.mkArgint (i+1))
       :: List.map cp (range 0 e_sz) in
-    HashSet.add specs { Core.pre; post }
+    HashSet.add specs { Core.pre; post; modifies = [] } (* XXX *)
   end done;
   specs
 
@@ -317,14 +318,14 @@ let get_specs_for_vertex t pv v s =
   let s_skip =
     let pre = pAt @ pInit @ pQud @ List.flatten pAllSats_neg in
     let post = pAt @ pInit @ (pDeQu 1 pv el) in
-    [{ Core.pre; post }] in
+    [{ Core.pre; post; modifies = [] }] in (* XXX *)
   let subs = index_subsets (List.length tl) in
   let s_regular = List.map
     ( fun k ->
       let pSats = list_mapi (fun i (x,y) -> if IntSet.mem i k then x else y) (List.combine pAllSats pAllSats_neg) in
       let pre = pAt @ pInit @ pQud @ List.flatten pSats in
       let post = sign_POr_posts k pAllPosts in
-      { Core.pre; post }) subs in
+      { Core.pre; post; modifies = [] }) subs in (* XXX *)
   s_regular @ s_skip @ s
 
 let get_specs_for_step a pv =

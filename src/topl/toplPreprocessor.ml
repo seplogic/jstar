@@ -288,7 +288,10 @@ let emit_proc a pv =
   let call_step = {C.call_name = "step_$$"; C.call_rets=[]; C.call_args=[]} in
   let errors = TM.VMap.fold (fun k _ acc -> k :: acc) a.TM.error_messages [] in
   let f = errors >>= (fun e -> Psyntax.mkNEQ(pv.ToplSpecs.state, Psyntax.mkString e)) in
-  let asgn_assert = { C.asgn_rets=[]; asgn_args=[]; asgn_spec = HashSet.singleton {C.pre=f; post=f} } in
+  let asgn_assert =
+    { C.asgn_rets = []
+    ; asgn_args = []
+    ; asgn_spec = HashSet.singleton {C.pre=f; post=f; modifies=[]} } in
   let emit_body =Some ([C.Call_core call_enqueue; C.Call_core call_step; C.Assignment_core asgn_assert]) in
   { C.proc_name = "emit_$$"; C.proc_spec = (HashSet.create 0); C.proc_body = emit_body;
     C.proc_rules = Psyntax.empty_logic }

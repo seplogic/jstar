@@ -159,7 +159,8 @@ let mk_array_set av i v =
 
 let mk_asgn rets pre post asgn_args =
   let asgn_rets = List.map (fun v -> variable2var (Var_name v)) rets in
-  let asgn_spec = HashSet.singleton { Core.pre; post } in
+  let asgn_spec = (* modifies = [] because jimple exprs have no side-effects *)
+    HashSet.singleton { Core.pre; post; modifies = [] } in
   C.Assignment_core { C.asgn_rets; asgn_args; asgn_spec }
 
 (* TODO: Pattern match separately on [v] and [e], not on [(v, e)], and
@@ -349,6 +350,7 @@ let resvar_term = Arg_var(Support_syntax.res_var)
 let conjoin_with_res_true (assertion : Psyntax.pform) : Psyntax.pform =
 	 pconjunction assertion (mkEQ(resvar_term, PS.mkNumericConst "1"))
 
+(* XXX remove
 let get_requires_clause_spec_for m fields cname =
         let msi = Methdec.get_msig m cname in
         (* First the the method's dynamic spec *)
@@ -364,7 +366,9 @@ let get_requires_clause_spec_for m fields cname =
         {
                 Core.pre=dynspec.Core.pre;
                 post=conjoin_with_res_true (dynspec.Core.pre);
+                modifies = []
         }
+*)
 
 let get_dyn_spec_for m fields cname =
         let msi = Methdec.get_msig m cname in

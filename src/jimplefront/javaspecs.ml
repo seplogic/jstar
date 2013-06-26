@@ -465,8 +465,8 @@ let remove_this_type_info prepure =
     | _ -> true
   in List.filter is_this_type prepure
 
-let static_to_dynamic { Core.pre; post } =
-  { Core.pre = remove_this_type_info pre; post }
+let static_to_dynamic { Core.pre; post; modifies } =
+  { Core.pre = remove_this_type_info pre; post; modifies }
 
 let rec filtertype_spat classname spat =
   match spat with
@@ -504,11 +504,11 @@ let rec filterdollar_at spat =
   | P_NEQ(_,_) -> spat
 and filterdollar x = List.map (filterdollar_at) x
 
-let dynamic_to_static cn { Core.pre; post } =
-  { Core.pre = filtertype cn pre; post = filtertype cn post }
+let dynamic_to_static cn { Core.pre; post; modifies } =
+  { Core.pre = filtertype cn pre; post = filtertype cn post; modifies }
 
-let filter_dollar_spec { Core.pre; post } =
-  { Core.pre = filterdollar pre; post = filterdollar post }
+let filter_dollar_spec { Core.pre; post; modifies } =
+  { Core.pre = filterdollar pre; post = filterdollar post; modifies }
 
 let fix_spec_inheritance_gaps classes mmap spec_file exclude_function spec_type =
   let mmapr = ref mmap in

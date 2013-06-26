@@ -75,9 +75,7 @@ let msig_simp (mods,typ,name,args_list) =
   let args_list = List.map fst args_list in
   (mods,typ,name,args_list)
 
-let bind_spec_vars
-    (mods,typ,name,args_list)
-    { pre; post } =
+let bind_spec_vars (mods,typ,name,args_list) triple =
   (* Make substitution to normalise names *)
   let subst = Psyntax.empty in
   let subst = Psyntax.add (concretep_str "this") (Arg_var(Support_syntax.this_var)) subst in
@@ -95,8 +93,7 @@ let bind_spec_vars
 	       subst
 	))
 	  (0,subst) args_list in
-  { pre = subst_pform subst pre
-  ; post = subst_pform subst post }
+  Specification.sub_triple subst triple
 
 let mkDynamic (msig, specs, source_pos) =
   let specs = List.map (bind_spec_vars msig) specs in
@@ -391,7 +388,7 @@ methods_specs:
 
 spec:
    | L_BRACE formula R_BRACE L_BRACE formula R_BRACE
-      { {pre=$2;post=$5} }
+      { {pre=$2;post=$5;modifies=[]} (* XXX *) }
 specs:
    | spec ANDALSO specs  { $1 :: $3 }
    | spec  {[$1]}
