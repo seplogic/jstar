@@ -47,26 +47,23 @@ val add_axiom_implications_to_logic :
 val is_interface : Jparsetree.class_name -> Spec_def.class_spec list -> bool
 module MethodMap : Map.S with type key = Jparsetree.method_signature
 module MethodSet : Set.S with type elt = Jparsetree.method_signature
-type methodSpecs = (Core.ast_triple * Printing.source_location option) MethodMap.t
+type methodSpecs
+  = (Core.ast_triple list * Printing.source_location option) MethodMap.t
 val emptyMSpecs : methodSpecs
-val spec_list_to_spec : Core.ast_triple list -> Core.ast_triple
 val spec_file_to_method_specs :
   Spec_def.class_spec list -> methodSpecs * methodSpecs
 val add_common_apf_predicate_rules :
   Spec_def.class_spec list -> Psyntax.logic -> Psyntax.logic
 val add_subtype_and_objsubtype_rules :
   Spec_def.class_spec list -> Psyntax.logic -> Psyntax.logic
-(*
-val refinement_this :
-  Psyntax.logic
-  -> Core.ast_triple
-  -> Core.ast_triple
-  -> Jparsetree.class_name
+val refines
+  : Sepprover.inner_logic
+  -> Core.inner_triple list
+  -> Core.inner_triple list
   -> bool
-*)
-val refinement_this_inner :
-  Sepprover.inner_logic
-  -> Core.inner_triple
-  -> Core.inner_triple
-  -> Jparsetree.class_name
+val refines_this
+  : Jparsetree.class_name
+  -> Sepprover.inner_logic
+  -> Core.inner_triple list
+  -> Core.inner_triple list
   -> bool

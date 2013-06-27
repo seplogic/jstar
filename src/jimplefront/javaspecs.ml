@@ -35,7 +35,6 @@ module PS = Psyntax
 
 exception Class_defines_external_spec
 
-
 (* ================ General stuff =================== *)
 
 let append_rules (logic : logic) (rules : sequent_rule list) : Psyntax.logic =
@@ -426,17 +425,11 @@ module MethodSet =
     let compare = compare
   end)
 
-type methodSpecs = (Core.ast_triple * Printing.source_location option) MethodMap.t
+type methodSpecs
+  = (Core.ast_triple list * Printing.source_location option) MethodMap.t
 
-let emptyMSpecs : methodSpecs = MethodMap.empty
-let addMSpecs msig spec mmap : methodSpecs = MethodMap.add msig spec mmap
-
-let rec spec_list_to_spec specs =
-   match specs with
-   | [] -> failwith "INTERNAL: specs shouldn't be empty at this point"
-   | [spec] -> spec
-   | spec :: specs ->
-       Specification.join_triples spec (spec_list_to_spec specs)
+let emptyMSpecs = MethodMap.empty
+let addMSpecs msig spec mmap = MethodMap.add msig spec mmap
 
 let class_spec_to_ms cs (smmap,dmmap) =
   let cn = cs.classname in
@@ -447,12 +440,12 @@ let class_spec_to_ms cs (smmap,dmmap) =
           Dynamic (ms,spec,pos) ->
             (match ms with
               (mods,a,b,c) ->
-                (smmap,addMSpecs (cn,a,b,c) ((spec_list_to_spec spec),pos) dmmap)
+                (smmap,addMSpecs (cn,a,b,c) (spec,pos) dmmap)
             )
    | Spec_def.Static (ms,spec,pos) ->
             (match ms with
               (mods,a,b,c) ->
-                (addMSpecs (cn,a,b,c) ((spec_list_to_spec spec),pos) smmap,dmmap)
+                (addMSpecs (cn,a,b,c) (spec,pos) smmap,dmmap)
             )
     )
     (smmap,dmmap) cs.methodspecs
@@ -542,30 +535,38 @@ let fix_spec_inheritance_gaps classes mmap spec_file exclude_function spec_type 
   fix_inner classes;
   !mmapr
 
-let fix_gaps (smmap,dmmap) spec_file =
-        (* Firstly, we derive dynamic from static specs and vice versa. *)
+let fix_gaps (smmap, dmmap) spec_file =
+  (* Firstly, we derive dynamic from static specs and vice versa. *)
   let dmmapr = ref dmmap in
   let smmapr = ref smmap in
-  let _ = MethodMap.iter
-      (fun key (spec,pos) ->
-        if MethodMap.mem key (!dmmapr) then () else dmmapr := MethodMap.add key ((static_to_dynamic spec),pos) (!dmmapr)
-      ) smmap in
-  let _ = MethodMap.iter
-      (fun (cn,a,b,c) (spec,pos) ->
-        if MethodMap.mem (cn,a,b,c) (!smmapr) || is_interface cn spec_file || is_method_abstract (cn,a,b,c) spec_file then ()
-        else
-                smmapr := MethodMap.add (cn,a,b,c) ((dynamic_to_static (Pprinter.class_name2str cn) spec),pos) (!smmapr);
-                dmmapr := MethodMap.add (cn,a,b,c) ((filter_dollar_spec spec),pos) !dmmapr
-  ) dmmap in
-        (* Secondly, we fix the gaps created by inheritance *)
-        let classes = topological_sort (parent_relation spec_file) in
-        let _ = dmmapr := fix_spec_inheritance_gaps classes (!dmmapr) spec_file (fun _ -> false) "dynamic" in
-        let _ = smmapr := fix_spec_inheritance_gaps classes (!smmapr) spec_file (fun msig -> is_method_abstract msig spec_file) "static" in
+  let s2d_if_needed key (spec, pos) =
+    if not (MethodMap.mem key !dmmapr) then begin
+      let dynamic_spec = List.map static_to_dynamic spec in
+      dmmapr := MethodMap.add key (dynamic_spec, pos) !dmmapr
+    end in
+  let d2s_if_needed ((cn, a, b, c) as key) (spec, pos) =
+    let not_needed = MethodMap.mem key !smmapr in
+    let not_needed = not_needed || is_interface cn spec_file in
+    let not_needed = not_needed || is_method_abstract key spec_file in
+    if not not_needed then begin
+      let dynamic_to_static = dynamic_to_static (Pprinter.class_name2str cn) in
+      let static_spec = List.map dynamic_to_static spec in
+      let dynamic_spec = List.map filter_dollar_spec spec in
+      smmapr := MethodMap.add key (static_spec, pos) !smmapr;
+      dmmapr := MethodMap.add key (dynamic_spec, pos) !dmmapr
+    end in
+  MethodMap.iter s2d_if_needed smmap;
+  MethodMap.iter d2s_if_needed dmmap;
+
+  (* Secondly, we fix the gaps created by inheritance *)
+  let classes = topological_sort (parent_relation spec_file) in
+  let fix r f m = fix_spec_inheritance_gaps classes !r spec_file f m in
+  dmmapr := fix dmmapr (fun _ -> false) "dynamic";
+  smmapr := fix smmapr (flip is_method_abstract spec_file) "static";
   (!smmapr,!dmmapr)
 
 
-let spec_file_to_method_specs
-    (sf : Spec_def.class_spec list) : (methodSpecs * methodSpecs) =
+let spec_file_to_method_specs sf =
   let rec sf_2_ms_inner sf (pairmmap) =
     match sf with
       [] -> pairmmap
@@ -706,16 +707,13 @@ let add_subtype_and_objsubtype_rules spec_list logic =
 
 (* ====================== Refinement type stuff ================================= *)
 
-(*
-let refinement_this logic spec1 spec2 cname =
-(*DBG  Format.fprintf Format.err_formatter "@[<2>===first===@\n";
-  spec2str Format.err_formatter spec1;
-  Format.fprintf Format.err_formatter "@]@\n@[<2>===second===@\n";
-  spec2str Format.err_formatter spec2;
-  Format.fprintf Format.err_formatter "@]@."; *)
-  refinement_extra logic spec1 spec2 (objtype this_var (Pprinter.class_name2str cname))
-*)
+let refines logic spec1 spec2 =
+  CoreOps.refines_spec logic (HashSet.of_list spec1) (HashSet.of_list spec2)
 
-let refinement_this_inner logic spec1 spec2 cname =
-  let this_typed = Sepprover.convert (objtype this_var (Pprinter.class_name2str cname)) in
-  refinement_inner_extra logic spec1 spec2 this_typed
+let refines_this cname logic spec1 spec2 =
+  let this_typed =
+    Sepprover.convert (objtype this_var (Pprinter.class_name2str cname)) in
+  let star_this_typed t =
+    { t with Core.pre = Sepprover.conjoin_inner t.Core.pre this_typed } in
+  let spec2 = List.map star_this_typed spec2 in
+  refines logic spec1 spec2

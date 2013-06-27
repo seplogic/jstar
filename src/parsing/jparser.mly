@@ -388,7 +388,7 @@ methods_specs:
 
 spec:
    | L_BRACE formula R_BRACE L_BRACE formula R_BRACE
-      { {pre=$2;post=$5;modifies=[]} (* XXX *) }
+      { {pre=$2;post=$5;modifies=None} }
 specs:
    | spec ANDALSO specs  { $1 :: $3 }
    | spec  {[$1]}

@@ -13,17 +13,14 @@ type toplPVars =
   ; queue : PS.args array array }
   (* INV: Each [PS.args] above should be [Arg_var _]. *)
 
-(* TODO: use the ones in Corestar_std *)
-let list_mapi f l =
-  let i = ref(-1) in List.map (fun a -> f (incr i; !i) a) l
-
-let list_iteri f l =
-  ignore (list_mapi f l)
+let var_of_term = function
+  | PS.Arg_var v -> v
+  | _ -> failwith "INTERNAL: toplPVars invariant broken?"
 
 let rec range i j = (* [i; i+1; ...; j-1] *)
   if i >= j then [] else i :: range (i + 1) j
 
-let wrap_call_arg a = PS.mkVar( CoreOps.parameter_var a)
+let wrap_call_arg a = PS.mkVar (CoreOps.parameter_var a)
 
 let get_specs_for_enqueue pv =
   let q_sz = Array.length pv.queue in
@@ -36,17 +33,19 @@ let get_specs_for_enqueue pv =
       let cp i = PS.P_EQ (e.(i), wrap_call_arg i) in
       PS.P_EQ (pv.size, PS.mkArgint (i+1))
       :: List.map cp (range 0 e_sz) in
-    HashSet.add specs { Core.pre; post; modifies = [] } (* XXX *)
+    let modifies = pv.size :: List.map (fun i -> e.(i)) (range 0 e_sz) in
+    let modifies = Some (List.map var_of_term modifies) in
+    HashSet.add specs { Core.pre; post; modifies }
   end done;
   specs
 
 let max_label_length_for_vertex ll =
-  List.fold_right (fun l acc -> 
+  List.fold_right (fun l acc ->
 (*     (* debug *) Format.printf "Internal call of max_label_length_for_vertex: acc = %d, cur = %d\n" acc (List.length l.TM.steps); *)
     max acc (List.length l.TM.steps)) ll 0
 
 let max_label_length a =
-  let f v ts acc = 
+  let f v ts acc =
 (*     (* debug *) Format.printf "Check max length for vertex %s with %d transitions\n" v (List.length ts); *)
     max (max_label_length_for_vertex ts) acc in
   TM.VMap.fold f a.TM.transitions 1
@@ -106,7 +105,10 @@ let make_logical_copy_of_store st i j =
   TM.RMap.mapi (fun r _ -> mk_var r) st
 
 let store_eq st l_st =
-  TM.RMap.fold (fun r v f -> PS.P_EQ (v, TM.VMap.find r l_st) :: f) st []
+  TM.RMap.fold (fun r v f -> PS.P_EQ (v, TM.RMap.find r l_st) :: f) st []
+
+let store_eq_modifies st _ =
+  List.map (var_of_term @@ snd) (TM.RMap.bindings st)
 
 let get_type = function
   | TM.Call_time -> "CALL"
@@ -139,14 +141,21 @@ let make_logical_copy_of_queue e =
   Array.iteri (fun i x -> Array.iteri (fun j eij -> set_el i j; set_ef i j eij) x) e;
   (el, !ef)
 
-let logical_dequeue e el n =
+let logical_deque_gen e el n =
   let ef = ref [] in
   for i = 0 to (Array.length e)-n-1 do
     for j = 0 to Array.length e.(0) - 1 do
-      ef =:: PS.P_EQ(e.(i).(j),el.(i+n).(j))
+      ef =:: (e.(i).(j), el.(i+n).(j))
     done;
   done;
   !ef
+
+let logical_dequeue e el n =
+  let mkEQ (x, y) = PS.P_EQ (x, y) in
+  List.map mkEQ (logical_deque_gen e el n)
+
+let logical_deque_modifies e el n =
+  List.map (var_of_term @@ fst) (logical_deque_gen e el n)
 
 (* Returns a list with all non-empty subsets of {0,...,n-1} *)
 let index_subsets n =
@@ -201,14 +210,14 @@ let rec negate_specs_it (f:PS.pform) : PS.pform_at =
    PS.P_EQ,PS.P_NEQ,PS.P_False and PS.P_Or, and a hacky PS.P_Wand *)
 let negate_pforms (f:PS.pform) : PS.pform =
   (* (* debug *) Format.printf "Call to negate_pforms: %a\n" PS.string_form f; *)
-  let f' = simplify_pform f in 
+  let f' = simplify_pform f in
   let f'' = match f' with
       | [PS.P_False] -> []
       | _ -> [negate_specs_it f']
-  in 
+  in
   let retn = simplify_pform f'' in
 (* (* debug *) Format.printf "-> and return: %a\n" PS.string_form retn; *)
-  retn 
+  retn
 
   (* Replace hacky Wand(x,y) by x@y *)
 let rec remove_dirty_wands (f:PS.pform) : PS.pform =
@@ -263,11 +272,14 @@ let step_conditions e st st' s =
 (* (* debug *) Format.printf "Now, here is the big cond of size %d: %a\n" (List.length big_cond) PS.string_form big_cond in*)
   let retn = simplify_pform big_cond in
 (*   (* debug *) Format.printf " and simplified, of size %d: %a\n" (List.length retn                                                                           ) PS.string_form retn; *)
-  (retn, ac_cond) 
+  (retn, ac_cond)
 
 let pDeQu n pv el =
   let m = Array.length pv.queue in
   PS.P_EQ(pv.size, PS.mkArgint (m-n)) :: (logical_dequeue pv.queue el n)
+
+let pDeQu_modifies n pv el =
+  var_of_term pv.size :: logical_deque_modifies pv.queue el n
 
 let trans_pre_and_post pv el l_sr0 j t =
   let st = t.TM.steps in
@@ -277,24 +289,23 @@ let trans_pre_and_post pv el l_sr0 j t =
   let sr = pv.store in
   let l_sr =  Array.init (len+1) ( fun i ->
     if i=0 then l_sr0 else make_logical_copy_of_store sr i j ) in
-  let unwanded = list_mapi (fun i s ->
+  let unwanded = ListH.mapi (fun i s ->
     step_conditions pv.queue.(i) l_sr.(i) l_sr.(i+1) s) st in
   let pre = List.fold_left (fun acc (x,y) -> (PS.P_Wand (y, acc)) :: x) [] (List.rev unwanded) in
-  let post = [PS.P_EQ(pv.state, PS.Arg_string(tg))]
-    @ (store_eq sr l_sr.(len)) @ (pDeQu len pv el) in 
+  let post = PS.P_EQ (pv.state, PS.Arg_string tg)
+    :: store_eq sr l_sr.(len) @ pDeQu len pv el in
 (*   (* debug *) Format.printf "\n==> Pre:\n %a\n ===> Post:\n %a\n" PS.string_form pre PS.string_form post; *)
-  (pre,post)
-
+  let modifies = var_of_term pv.state
+    :: store_eq_modifies sr l_sr.(len) @ pDeQu_modifies len pv el in
+  (pre, post, modifies)
 
 (* Given a set of indices k, negate all formulas in l whose index appears in k,
    and leave all other formulas intact *)
   (* let sign_pres k l =
-     list_mapi (fun i x -> if (IntSet.mem i k) then x else negate_pforms x) l *)
+     ListH.mapi (fun i x -> if (IntSet.mem i k) then x else negate_pforms x) l *)
 
-(* Given a set of indices k, P-Or all formulas in l whose index appears in k *)
-let sign_POr_posts k xs =
-  let xs = list_mapi (fun i x -> if (IntSet.mem i k) then x else PS.mkFalse) xs in
-  PS.mkBigOr xs
+let select_subset k xs =
+  ListH.foldri (fun i x xs -> if IntSet.mem i k then x :: xs else xs) xs []
 
 let get_specs_for_vertex t pv v s =
   let tl = (try TM.VMap.find v t with Not_found -> [] ) in
@@ -309,23 +320,26 @@ let get_specs_for_vertex t pv v s =
   let l_sr0 = make_logical_copy_of_store pv.store 0 (-1) in
   let pInit = store_eq pv.store l_sr0 in
 (*   (* debug *) Format.printf "Now, here is the pInit for %s: %a\n" v Psyntax.string_form pInit; *)
-  let (pAllSats,pAllPosts) = List.split (list_mapi (trans_pre_and_post pv el l_sr0) tl) in
+  let pAllSats, pAllPosts, allModifies =
+    ListH.split3 (ListH.mapi (trans_pre_and_post pv el l_sr0) tl) in
   let pAllSats_neg = List.map negate_pforms pAllSats in
   let pAllSats = List.map remove_dirty_wands pAllSats in
-(* (* debug *) list_iteri (fun i x -> Format.printf "\n\nNow, here is element %d of pAllSat for %s:\n%a\n" i v PS.string_form x) pAllSats in*)
-(* (* debug *) list_iteri (fun i x -> Format.printf "\n\nNow, here is negated element %d of pAllSat:\n%a\n" i PS.string_form x) pAllSats_neg in*)
-(* (* debug *) list_iteri (fun i a -> Format.printf "\nNow, here is element %d of pAllPost:\n%a\n" i PS.string_form a) pAllPosts in*)
+(* (* debug *) ListH.iteri (fun i x -> Format.printf "\n\nNow, here is element %d of pAllSat for %s:\n%a\n" i v PS.string_form x) pAllSats in*)
+(* (* debug *) ListH.iteri (fun i x -> Format.printf "\n\nNow, here is negated element %d of pAllSat:\n%a\n" i PS.string_form x) pAllSats_neg in*)
+(* (* debug *) ListH.iteri (fun i a -> Format.printf "\nNow, here is element %d of pAllPost:\n%a\n" i PS.string_form a) pAllPosts in*)
   let s_skip =
     let pre = pAt @ pInit @ pQud @ List.flatten pAllSats_neg in
-    let post = pAt @ pInit @ (pDeQu 1 pv el) in
-    [{ Core.pre; post; modifies = [] }] in (* XXX *)
+    let post = pAt @ pInit @ pDeQu 1 pv el in
+    let modifies = Some (pDeQu_modifies 1 pv el) in
+    [{ Core.pre; post; modifies }] in
   let subs = index_subsets (List.length tl) in
   let s_regular = List.map
     ( fun k ->
-      let pSats = list_mapi (fun i (x,y) -> if IntSet.mem i k then x else y) (List.combine pAllSats pAllSats_neg) in
+      let pSats = ListH.mapi (fun i (x,y) -> if IntSet.mem i k then x else y) (List.combine pAllSats pAllSats_neg) in
       let pre = pAt @ pInit @ pQud @ List.flatten pSats in
-      let post = sign_POr_posts k pAllPosts in
-      { Core.pre; post; modifies = [] }) subs in (* XXX *)
+      let post = PS.mkBigOr (select_subset k pAllPosts) in
+      let modifies = Some (List.concat (select_subset k allModifies)) in
+      { Core.pre; post; modifies }) subs in
   s_regular @ s_skip @ s
 
 let get_specs_for_step a pv =

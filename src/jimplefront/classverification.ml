@@ -120,7 +120,7 @@ let verify_methods_dynamic_dispatch_behavioral_subtyping_inheritance
     let cname, _, mname, _ = msig in
     let ss, _ =
       (try MethodMap.find msig sspecs with Not_found -> assert false) in
-    if refinement_this_inner logic ss ds cname then (
+    if Javaspecs.refines_this cname logic ss ds then (
       if log log_exec then
         fprintf logf "Dynamic and static specs of %a are consistent.@."
             Jparsetree.pp_name mname)
@@ -138,7 +138,7 @@ let verify_methods_dynamic_dispatch_behavioral_subtyping_inheritance
     let seen = HashSet.create 0 in
     let check (cnc, (sc, _)) (cnp, (sp, sp_pos)) =
       let _, _, mn, _ = msig in
-      if refinement_inner logic sc sp then (
+      if Javaspecs.refines logic sc sp then (
         if log log_exec then
           fprintf logf "OK: %a#%a <: %a#%a@."
               Jparsetree.pp_class_name cnc
@@ -173,7 +173,8 @@ let verify_methods_dynamic_dispatch_behavioral_subtyping_inheritance
 let compile_jimple js specs logic abs =
   prof_phase "split specs";
   let sspecs, dspecs = Javaspecs.spec_file_to_method_specs specs in
-  let convert_spec (t, l) = (CoreOps.ast_to_inner_triple t, l) in
+  let convert_spec (spec, l) =
+    (List.map CoreOps.ast_to_inner_triple spec, l) in
   let sspecs_inner = Javaspecs.MethodMap.map convert_spec sspecs in
   let dspecs_inner = Javaspecs.MethodMap.map convert_spec dspecs in
   prof_phase "init spec checks";

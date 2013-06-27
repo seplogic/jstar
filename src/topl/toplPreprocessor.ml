@@ -161,7 +161,7 @@ let hash_by_names =
           Some (Translatejimple.msig2str cn rt mn ps) in
     let one x = [x] in
     let zs = List.map (string_of J.pp_class_name) (xs @ ys) in
-    Some (Misc.hash_of_list one cons key_of_method val_of_method ms, zs) in
+    Some (Misc.hash_of_list one ListH.cons key_of_method val_of_method ms, zs) in
   Misc.hash_of_list (fun x -> x) undefined key_of_class val_of_class
 
 let get_overrides index cn mn arity =
@@ -291,7 +291,7 @@ let emit_proc a pv =
   let asgn_assert =
     { C.asgn_rets = []
     ; asgn_args = []
-    ; asgn_spec = HashSet.singleton {C.pre=f; post=f; modifies=[]} } in
+    ; asgn_spec = CoreOps.mk_assert f } in
   let emit_body =Some ([C.Call_core call_enqueue; C.Call_core call_step; C.Assignment_core asgn_assert]) in
   { C.proc_name = "emit_$$"; C.proc_spec = (HashSet.create 0); C.proc_body = emit_body;
     C.proc_rules = Psyntax.empty_logic }

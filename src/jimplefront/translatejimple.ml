@@ -97,7 +97,7 @@ let get_spec  (iexp: Jparsetree.invoke_expr) =
       (* Make "this" be the final parameter, i.e. subst @this: for @parametern: *)
       let subst = Psyntax.add (mk_this) (Arg_var (mk_parameter (List.length il))) Psyntax.empty in
       let n = string_of J.pp_name n in
-      sub_triple subst spec,(il @ [PS.mkPVar n])
+      (List.map (sub_triple subst) spec, il @ [PS.mkPVar n])
   | Invoke_static_exp (si,il) ->
       spec,il
 
@@ -160,7 +160,7 @@ let mk_array_set av i v =
 let mk_asgn rets pre post asgn_args =
   let asgn_rets = List.map (fun v -> variable2var (Var_name v)) rets in
   let asgn_spec = (* modifies = [] because jimple exprs have no side-effects *)
-    HashSet.singleton { Core.pre; post; modifies = [] } in
+    HashSet.singleton { Core.pre; post; modifies = Some [] } in
   C.Assignment_core { C.asgn_rets; asgn_args; asgn_spec }
 
 (* TODO: Pattern match separately on [v] and [e], not on [(v, e)], and
@@ -332,17 +332,19 @@ let get_spec_for m fields cname=
   let class_this_fields=make_this_fields fields in
 
   let msi = Methdec.get_msig m cname in
-  let spec=
+  let spec =
     try
       match (MethodMap.find msi !curr_static_methodSpecs) with
         | (spec, pos) -> spec
     with  Not_found ->
       failwith ("Cannot find spec for method " ^ methdec2signature_str m)
   in
-  let spec = logical_vars_to_prog spec in
-  if is_init_method m then (* we treat <init> in a special way*)
-    { spec with Core.pre = pconjunction spec.Core.pre class_this_fields }
-  else spec
+  let f triple =
+    let triple = logical_vars_to_prog triple in
+    if is_init_method m then (* we treat <init> in a special way*)
+      { triple with Core.pre = pconjunction triple.Core.pre class_this_fields }
+    else triple in
+  List.map f spec
 
 
 let resvar_term = Arg_var(Support_syntax.res_var)
@@ -381,7 +383,7 @@ let get_dyn_spec_for m fields cname =
                   failwith
                       ("Cannot find spec for method " ^ methdec2signature_str m)
         in
-        logical_vars_to_prog dynspec
+        List.map logical_vars_to_prog dynspec
 
 
 module LocalMap =
@@ -465,7 +467,7 @@ let add_dummy_procs xs =
   let h = HashSet.create 1 in
   List.iter (called_procs_from_proc h) xs;
   List.iter (remove_proc h) xs;
-  xs@(HashSet.fold (fun x y -> cons (dummy_proc x) y) h [])
+  xs@(HashSet.fold (fun x y -> dummy_proc x :: y) h [])
 
 let compile_method cname fields m =
   let proc_name = methdec2signature_str m in
@@ -473,7 +475,7 @@ let compile_method cname fields m =
     if Methdec.has_body m
     then Some (jimple_stmts2core m.bstmts)
     else None in
-  let proc_spec = HashSet.singleton (get_spec_for m fields cname) in
+  let proc_spec = HashSet.of_list (get_spec_for m fields cname) in
   let proc_rules = add_static_type_info PS.empty_logic m.locals in
   { C.proc_name; proc_spec; proc_body; proc_rules }
 

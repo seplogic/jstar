@@ -131,7 +131,8 @@ let ee_encode_label state label =
   let s = JG.Label_stmt label in
   try
     let t = Hashtbl.find state.ee_type label in
-    let mk_assume post = { Core.pre = Psyntax.mkEmpty; post; modifies = [] } in
+    let mk_assume post =
+      { Core.pre = Psyntax.mkEmpty; post; modifies = Some [] } in
     let type_ok = Jlogic.mk_statictyp ee_excvar_form t in
     let assume_type = JG.Spec_stmt ([], mk_assume type_ok) in
     [ s; assume_type ]

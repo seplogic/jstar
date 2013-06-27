@@ -93,7 +93,7 @@ let preprocess_jimple (JFile (a, b, c, d, e, f)) =
       , _) :: _ -> []
     | x :: _ -> [x]
     | [] -> [] in
-  let body = option_map (fun (xs, b) -> (tails xs >>= statements, b)) in
+  let body = option_map (fun (xs, b) -> (ListH.tails xs >>= statements, b)) in
   let member = function
     | JG.Method (a, b, c, d, e, f, g, h, i)
         -> JG.Method (a, b, c, d, e, body f, List.map body g, body h, body i)
