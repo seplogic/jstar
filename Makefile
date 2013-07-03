@@ -12,7 +12,7 @@ export JSTAR_HOME
 
 SRC_DIRS=src corestar_src
 MAINS=jstar
-OB_FLAGS=-cflags -dtypes -yaccflags -v -use-ocamlfind
+OB_FLAGS=-cflags -annot -yaccflags -v -use-ocamlfind
 
 # section with stuff that shouldn't change often
 
