@@ -156,8 +156,6 @@ let main () =
     List.iter Mkspecs.print_specs_template programs
   end else (
     if !Config.smt_run then Smt.smt_init();
-    (* Load abstract interpretation plugins *)
-    List.iter (fun file_name -> Plugin_manager.load_plugin file_name) !Config.abs_int_plugins;
 
     let parse x fn = System.parse_file Parser.file Lexer.token fn x in
     let add_rule logic = function
