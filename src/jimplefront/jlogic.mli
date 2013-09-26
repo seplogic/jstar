@@ -12,17 +12,17 @@
  ********************************************************)
 
 
-val class2args : Jparsetree.class_name -> Psyntax.args
+val class2args : Jparsetree.class_name -> Expression.t (* Psyntax.args *) 
 val mk_pointsto :
-  Psyntax.args -> Psyntax.args -> Psyntax.args -> Psyntax.form
-val mk_subtype1 : Psyntax.args -> Psyntax.args -> Psyntax.form
+  Expression.t (* Psyntax.args *) -> Expression.t (* Psyntax.args *) -> Expression.t (* Psyntax.args *) -> Expression.t
+val mk_subtype1 : Expression.t (* Psyntax.args *) -> Expression.t (* Psyntax.args *) -> Expression.t
 val objtype_name : string
-val mk_type1 : Psyntax.args -> Psyntax.args -> Psyntax.form
-val mk_type : Psyntax.args -> Jparsetree.class_name -> Psyntax.form
+val mk_type1 : Expression.t (* Psyntax.args *) -> Expression.t (* Psyntax.args *) -> Expression.t
+val mk_type : Expression.t (* Psyntax.args *) -> Jparsetree.class_name -> Expression.t
 val mk_type_all :
-  Psyntax.args -> Jparsetree.j_base_type -> Psyntax.form
-val objtype : Vars.var -> string -> Psyntax.form
-val mk_objsubtyp1 : Psyntax.args -> Psyntax.args -> Psyntax.pform_at
-val mk_objsubtyp : Psyntax.args -> Jparsetree.class_name -> Psyntax.pform_at
-val mk_statictyp1 : Psyntax.args -> Psyntax.args -> Psyntax.form
-val mk_statictyp : Psyntax.args -> Jparsetree.class_name -> Psyntax.form
+  Expression.t (* Psyntax.args *) -> Jparsetree.j_base_type -> Expression.t
+val objtype : Vars.var -> string -> Expression.t
+val mk_objsubtyp1 : Expression.t (* Psyntax.args *) -> Expression.t (* Psyntax.args *) -> Expression.t
+val mk_objsubtyp : Expression.t (* Psyntax.args *) -> Jparsetree.class_name -> Expression.t
+val mk_statictyp1 : Expression.t (* Psyntax.args *) -> Expression.t (* Psyntax.args *) -> Expression.t
+val mk_statictyp : Expression.t (* Psyntax.args *) -> Jparsetree.class_name -> Expression.t

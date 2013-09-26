@@ -13,7 +13,7 @@
 
 
 exception Contained
-val conjoin_with_res_true : Psyntax.pform -> Psyntax.pform
+val conjoin_with_res_true : Expression.t -> Expression.t
 module LocalMap :
   sig
     type key = string
@@ -31,7 +31,7 @@ module LocalMap :
     val compare : ('a -> 'a -> int) -> 'a t -> 'a t -> int
     val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
   end
-type local_map = Psyntax.args list Javaspecs.AxiomMap.t
+type local_map = Expression.t (* Psyntax.args *) list Javaspecs.AxiomMap.t
 val msig2str
   : Jparsetree.class_name
     -> Jparsetree.j_type

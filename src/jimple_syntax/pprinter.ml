@@ -21,7 +21,7 @@ open Jparsetree
 open Jimple_global_types
 
 module J = Jparsetree
-module PS = Psyntax
+(* module PS = Psyntax *)
 
 (* TODO(rgrig): The functions here should be pretty printers. *)
 
@@ -72,7 +72,7 @@ let name2str = string_of J.pp_name
 
 let class_name2str = string_of J.pp_class_name
 
-let immediate2str = string_of PS.string_args
+let immediate2str = string_of Expression.pp
 
 let fixed_array_descriptor2str s = "["^immediate2str s^"]"
 
@@ -211,7 +211,7 @@ let statement2str = function
    | Invoke_stmt e -> invoke_expr2str e^";"
    | Spec_stmt (vars, triple) ->
       (list2str Vars.string_var vars ", ")^" : "
-      ^ string_of CoreOps.pp_ast_triple triple ^";"
+      ^ string_of CoreOps.pp_triple triple ^";"
 
 let declaration_or_statement2str =function
   |  DOS_dec d -> declaration2str d

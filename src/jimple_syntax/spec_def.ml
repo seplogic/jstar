@@ -16,24 +16,26 @@
 
 open Jparsetree
 open Printing
-open Psyntax
+(* open Psyntax *)
 open Vars
 
 
-type methodspec =
-      Dynamic of method_signature_short * (Core.ast_triple list) * source_location option
-  |   Static of method_signature_short * (Core.ast_triple list) * source_location option
+type fldlist = (string * Expression.t) list
 
-type methodspecs =
+type methodspec =
+      Dynamic of method_signature_short * (Core.triple list) * source_location option
+  |   Static of method_signature_short * (Core.triple list) * source_location option
+
+type methodspecs = 
     methodspec list
 
-type apf_define = (string * var * fldlist * Psyntax.pform * bool)
+type apf_define = (string * var * fldlist * Expression.t * bool)
 
 type apf_defines = apf_define list
 
-type named_implication = (string * Psyntax.pform * Psyntax.pform)
+type named_implication = (string * Expression.t * Expression.t)
 
-type exportLocal_predicate = (string * var list * Psyntax.pform)
+type exportLocal_predicate = (string * var list * Expression.t)
 
 type exports_clause = (named_implication list * exportLocal_predicate list) option
 
@@ -56,7 +58,7 @@ let pp_methodspec f m =
     | Dynamic (s, sp, _) -> ("dynamic", s, sp)
     | Static (s, sp, _) -> ("static", s, sp) in
   Format.fprintf f "@\n@[<2>%a" pp_method_signature_short s;
-  List.iter (fun x -> Format.fprintf f "@\n@[<2>%s%a@]" t CoreOps.pp_ast_triple x) sp;
+  List.iter (fun x -> Format.fprintf f "@\n@[<2>%s%a@]" t CoreOps.pp_triple x) sp;
   Format.fprintf f "@]"
 
 let pp_class_spec f {

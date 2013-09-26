@@ -23,24 +23,25 @@ open Format
 open Jimple_global_types
 open Jlogic
 open Jparsetree
-open Psyntax
-open Sepprover
+(* open Psyntax *)
+(* open Sepprover *)
 open Spec_def
-open Specification
+(* open Specification *)
 open Support_syntax
 open System
 open Vars
 
-module PS = Psyntax
+(* module PS = Psyntax *)
 
 exception Class_defines_external_spec
 
 (* ================ General stuff =================== *)
 
-let append_rules (logic : logic) (rules : sequent_rule list) : Psyntax.logic =
+let append_rules _ _ = failwith "TODO"
+  (* (logic : logic) (rules : sequent_rule list) : Psyntax.logic = *)
 (*        let old_rules,rm,f = logic in
         (old_rules @ rules,rm,f) *)
-  {logic with seq_rules = logic.seq_rules @ rules}
+  (* {logic with seq_rules = logic.seq_rules @ rules} *)
 
 
 let rec are_neighbors_different = function
@@ -51,70 +52,76 @@ let rec are_neighbors_different = function
 
 (* ===================== Augment the logic with apf stuff of a class and exported apfs of other classes  ====================== *)
 
-let apf name receiver params = [P_SPred(name,[Arg_var receiver; mkArgRecord params])]
-let apf_match name receiver params = [P_SPred(name,[Arg_var receiver; Arg_var params])]
-let not_null1 name = [P_NEQ(name,Arg_op("nil",[]))]
-let not_null name = not_null1 (Arg_var name)
+let apf name receiver params = failwith "TODO" 
+  (* [P_SPred(name,[Arg_var receiver; mkArgRecord params])] *)
+let apf_match name receiver params = failwith "TODO" 
+  (* [P_SPred(name,[Arg_var receiver; Arg_var params])] *)
+let not_null1 name =  failwith "TODO" 
+  (* [P_NEQ(name,Arg_op("nil",[]))] *)
+let not_null name =  failwith "TODO" 
+  (* not_null1 (Arg_var name) *)
 
 exception BadAPF of string
 
 (* Add rules for the relationship between an apf and apf entry, as well as the apf entry and the body *)
-let add_apf_to_logic (logic : logic) apfdefines classname : Psyntax.logic =
-  let make_rules_from_defs (name,receiver,parameters, definition, global) rules =
-(* special variables to match the record as pattern matcher isn't that clever *)
-    let recvar = Vars.fresha () in
-    let definition = subst_pform (add receiver (Arg_var recvar) empty)  definition in
-    let paramvar = Vars.fresha () in
-    let param_eq = mkEQ(mkArgRecord parameters,Arg_var paramvar) in
-(* add resulting equality of definition. *)
-    let definition = param_eq&&&definition in
-(*    let parvars = VarSet.add receiver (Plogic.fv_fld_list parameters VarSet.empty) in*)
-    let parvars = VarSet.add recvar (VarSet.add paramvar VarSet.empty) in
-    let defvars = Psyntax.fv_form definition in
-    let sparevars = VarSet.diff defvars parvars in
-    let pvarsubst = subst_kill_vars_to_fresh_prog sparevars in
-    let evarsubst = subst_kill_vars_to_fresh_exist sparevars in
-    let pdefinition = subst_pform pvarsubst definition in
-    let edefinition = subst_pform evarsubst definition in
-    let bodyname = name ^ "$" ^ classname in
-(* open on left *)
-    rules @
-      (mk_seq_rule (PS.mk_psequent mkEmpty (objtype recvar classname &&& apf_match name recvar paramvar) mkEmpty,
-                    [[PS.mk_psequent 
-                        mkEmpty 
-                        (objtype recvar classname &&& apf_match bodyname recvar paramvar) 
-                        mkEmpty
-                     ]], 
-                    ("apf_open_left_" ^ name))
-     ::
-      mk_seq_rule (PS.mk_psequent mkEmpty (apf_match bodyname recvar paramvar) mkEmpty, [[ PS.mk_psequent mkEmpty pdefinition [] ]], ("apf_body_left_" ^ name))
-     ::
-       (* open on right *)
-     mk_seq_rule (PS.mk_psequent mkEmpty (objtype recvar classname) (apf_match name recvar paramvar),
-                  [[PS.mk_psequent mkEmpty (objtype recvar classname) (apf_match bodyname recvar paramvar)]],
-                    ("apf_open_right_" ^ name))
-     :: mk_seq_rule
-          ( PS.mk_psequent mkEmpty mkEmpty (apf_match bodyname recvar paramvar)
-          , [[PS.mk_psequent mkEmpty mkEmpty edefinition]]
-          , ("apf_body_right_" ^ name) )
-     ::[])
-  in let rec inner apfdefines rules =
-    match apfdefines with
-      [] -> rules
-    | apf::apfdefines -> inner apfdefines (make_rules_from_defs apf rules)
-  in
-  let rules = inner apfdefines logic.seq_rules in
-  {logic with seq_rules = rules}
+let add_apf_to_logic _ _ _ =  failwith "TODO" 
+(*   (logic : logic) apfdefines classname : Psyntax.logic =                                                                                                        *)
+(*   let make_rules_from_defs (name,receiver,parameters, definition, global) rules =                                                                               *)
+(* (* special variables to match the record as pattern matcher isn't that clever *)                                                                                *)
+(*     let recvar = Vars.fresha () in                                                                                                                              *)
+(*     let definition = subst_pform (add receiver (Arg_var recvar) empty)  definition in                                                                           *)
+(*     let paramvar = Vars.fresha () in                                                                                                                            *)
+(*     let param_eq = mkEQ(mkArgRecord parameters,Arg_var paramvar) in                                                                                             *)
+(* (* add resulting equality of definition. *)                                                                                                                     *)
+(*     let definition = param_eq&&&definition in                                                                                                                   *)
+(* (*    let parvars = VarSet.add receiver (Plogic.fv_fld_list parameters VarSet.empty) in*)                                                                       *)
+(*     let parvars = VarSet.add recvar (VarSet.add paramvar VarSet.empty) in                                                                                       *)
+(*     let defvars = Psyntax.fv_form definition in                                                                                                                 *)
+(*     let sparevars = VarSet.diff defvars parvars in                                                                                                              *)
+(*     let pvarsubst = subst_kill_vars_to_fresh_prog sparevars in                                                                                                  *)
+(*     let evarsubst = subst_kill_vars_to_fresh_exist sparevars in                                                                                                 *)
+(*     let pdefinition = subst_pform pvarsubst definition in                                                                                                       *)
+(*     let edefinition = subst_pform evarsubst definition in                                                                                                       *)
+(*     let bodyname = name ^ "$" ^ classname in                                                                                                                    *)
+(* (* open on left *)                                                                                                                                              *)
+(*     rules @                                                                                                                                                     *)
+(*       (mk_seq_rule (PS.mk_psequent mkEmpty (objtype recvar classname &&& apf_match name recvar paramvar) mkEmpty,                                               *)
+(*                     [[PS.mk_psequent                                                                                                                            *)
+(*                         mkEmpty                                                                                                                                 *)
+(*                         (objtype recvar classname &&& apf_match bodyname recvar paramvar)                                                                       *)
+(*                         mkEmpty                                                                                                                                 *)
+(*                      ]],                                                                                                                                        *)
+(*                     ("apf_open_left_" ^ name))                                                                                                                  *)
+(*      ::                                                                                                                                                         *)
+(*       mk_seq_rule (PS.mk_psequent mkEmpty (apf_match bodyname recvar paramvar) mkEmpty, [[ PS.mk_psequent mkEmpty pdefinition [] ]], ("apf_body_left_" ^ name)) *)
+(*      ::                                                                                                                                                         *)
+(*        (* open on right *)                                                                                                                                      *)
+(*      mk_seq_rule (PS.mk_psequent mkEmpty (objtype recvar classname) (apf_match name recvar paramvar),                                                           *)
+(*                   [[PS.mk_psequent mkEmpty (objtype recvar classname) (apf_match bodyname recvar paramvar)]],                                                   *)
+(*                     ("apf_open_right_" ^ name))                                                                                                                 *)
+(*      :: mk_seq_rule                                                                                                                                             *)
+(*           ( PS.mk_psequent mkEmpty mkEmpty (apf_match bodyname recvar paramvar)                                                                                 *)
+(*           , [[PS.mk_psequent mkEmpty mkEmpty edefinition]]                                                                                                      *)
+(*           , ("apf_body_right_" ^ name) )                                                                                                                        *)
+(*      ::[])                                                                                                                                                      *)
+(*   in let rec inner apfdefines rules =                                                                                                                           *)
+(*     match apfdefines with                                                                                                                                       *)
+(*       [] -> rules                                                                                                                                               *)
+(*     | apf::apfdefines -> inner apfdefines (make_rules_from_defs apf rules)                                                                                      *)
+(*   in                                                                                                                                                            *)
+(*   let rules = inner apfdefines logic.seq_rules in                                                                                                               *)
+(*   {logic with seq_rules = rules}                                                                                                                                *)
 
-let augmented_logic_for_class class_name sf (logic : logic) : logic =
-  let rec add_globals_and_apf_info sf (logic : logic) : logic =
-    match sf with
-      cs::sf ->
-         let apfs_to_add = if class_name=cs.classname then cs.apf else (List.filter (fun (a,b,x,y,w) -> w) cs.apf) in
-         let logic = add_apf_to_logic logic apfs_to_add (Pprinter.class_name2str cs.classname) in
-                     add_globals_and_apf_info sf logic
-    | [] -> logic
-        in add_globals_and_apf_info sf logic
+let augmented_logic_for_class _ _ _ =  failwith "TODO"
+  (* class_name sf (logic : logic) : logic = *)
+  (* let rec add_globals_and_apf_info sf (logic : logic) : logic =                                                       *)
+  (*   match sf with                                                                                                     *)
+  (*     cs::sf ->                                                                                                       *)
+  (*        let apfs_to_add = if class_name=cs.classname then cs.apf else (List.filter (fun (a,b,x,y,w) -> w) cs.apf) in *)
+  (*        let logic = add_apf_to_logic logic apfs_to_add (Pprinter.class_name2str cs.classname) in                     *)
+  (*                    add_globals_and_apf_info sf logic                                                                *)
+  (*   | [] -> logic                                                                                                     *)
+  (*       in add_globals_and_apf_info sf logic                                                                          *)
 
 
 (* =================== Inheritance relation stuff (classes+interfaces) =================================== *)
@@ -182,87 +189,89 @@ let parent_classes_and_interfaces classname spec_list =
 (* =================== Stuff exports and axioms both use ======================== *)
 
 (* The rules for prov => imp, where prov is the implication's proviso *)
-let rules_for_implication imp prov : sequent_rule list =
-        let name,antecedent,consequent = imp in
-        (* imp is assumed to contain only program variables and existential variables *)
-        (* to build a rule, we substitute all program variables (but no existentials) with fresh anyvars *)
-        let free_vars = Psyntax.fv_form (Psyntax.pconjunction prov (Psyntax.pconjunction antecedent consequent)) in
-        let free_prog_vars = VarSet.filter is_pvar free_vars in
-        let sub = VarSet.fold (fun var sub -> add var (Arg_var (Vars.fresha ())) sub) free_prog_vars empty in
-        let proviso : Psyntax.pform = subst_pform sub prov in
-        let antecedent : Psyntax.pform = subst_pform sub antecedent in
-        let consequent = subst_pform sub consequent in
-        (* General idea: for Prov => (P ==> (Q1 * Q2 * ... * Qn)), we build n rules of the form *)
-        (*  | P |- Qi *)
-        (* if *)
-        (*  Qi | Q1 * ... * Qi-1 * Qi+1 * ... * Qn |- Prov *)
-        (* Should Qi be a P_SPred, then we substitute the anyvars occurring in its 2nd, 3rd etc. arguments with fresh anyvars in the rule's conclusion, *)
-        (* and make the anyvar equalities proof obligations in the rule's premise along with Prov. *)
-        let split conjuncts =
-                let rec split_inner list others =
-                        match list with
-                                | [] -> []
-                                | x :: xs -> (x, xs@others) :: split_inner xs (x::others)
-                in
-                split_inner conjuncts [] in
-        let rules = List.map (fun ((conjunct : Psyntax.pform_at),(others : Psyntax.pform)) ->
-                        let qi,eqs = match conjunct with
-                                | P_SPred (pred_name,first_arg :: other_args) ->
-                                                let freevars = fv_args_list other_args VarSet.empty in
-                                                let free_anyvars = VarSet.filter is_avar freevars in
-                                                let var_newvar_pairs = VarSet.fold (fun var pairs -> (var,Vars.fresha ()) :: pairs) free_anyvars [] in
-                                                let sub = List.fold_left (fun sub (var,newvar) -> add var (Arg_var newvar) sub) empty var_newvar_pairs in
-                                                let new_other_args = List.map (subst_args sub) other_args in
-                                                let equalities : Psyntax.pform = List.map (fun (var,newvar) -> P_EQ(Arg_var var,Arg_var newvar)) var_newvar_pairs in
-                                                (P_SPred(pred_name,first_arg :: new_other_args),equalities)
-                                | _ -> (conjunct,[])
-                        in
-                          mk_seq_rule ( PS.mk_psequent mkEmpty antecedent [qi],
-                                        [[ PS.mk_psequent [conjunct]
-                                             others (PS.pconjunction eqs proviso) ]], (* Note the use of conjunct here and not qi. *)
-                                name)
-                ) (split consequent) in
-        (* Finally, adjust the sequent rule names *)
-        let _,rules = List.fold_right (fun (a,b,name,d,e) (counter,list) ->
-                (counter-1,(a,b,name^(string_of_int counter),d,e)::list)
-        ) rules (List.length rules,[]) in
-        rules
+let rules_for_implication _ _ =  failwith "TODO" 
+  (* imp prov : sequent_rule list =                                                                                                                                    *)
+  (*       let name,antecedent,consequent = imp in                                                                                                                     *)
+  (*       (* imp is assumed to contain only program variables and existential variables *)                                                                            *)
+  (*       (* to build a rule, we substitute all program variables (but no existentials) with fresh anyvars *)                                                         *)
+  (*       let free_vars = Psyntax.fv_form (Psyntax.pconjunction prov (Psyntax.pconjunction antecedent consequent)) in                                                 *)
+  (*       let free_prog_vars = VarSet.filter is_pvar free_vars in                                                                                                     *)
+  (*       let sub = VarSet.fold (fun var sub -> add var (Arg_var (Vars.fresha ())) sub) free_prog_vars empty in                                                       *)
+  (*       let proviso : Expression.t = subst_pform sub prov in                                                                                                        *)
+  (*       let antecedent : Expression.t = subst_pform sub antecedent in                                                                                               *)
+  (*       let consequent = subst_pform sub consequent in                                                                                                              *)
+  (*       (* General idea: for Prov => (P ==> (Q1 * Q2 * ... * Qn)), we build n rules of the form *)                                                                  *)
+  (*       (*  | P |- Qi *)                                                                                                                                            *)
+  (*       (* if *)                                                                                                                                                    *)
+  (*       (*  Qi | Q1 * ... * Qi-1 * Qi+1 * ... * Qn |- Prov *)                                                                                                       *)
+  (*       (* Should Qi be a P_SPred, then we substitute the anyvars occurring in its 2nd, 3rd etc. arguments with fresh anyvars in the rule's conclusion, *)          *)
+  (*       (* and make the anyvar equalities proof obligations in the rule's premise along with Prov. *)                                                               *)
+  (*       let split conjuncts =                                                                                                                                       *)
+  (*               let rec split_inner list others =                                                                                                                   *)
+  (*                       match list with                                                                                                                             *)
+  (*                               | [] -> []                                                                                                                          *)
+  (*                               | x :: xs -> (x, xs@others) :: split_inner xs (x::others)                                                                           *)
+  (*               in                                                                                                                                                  *)
+  (*               split_inner conjuncts [] in                                                                                                                         *)
+  (*       let rules = List.map (fun ((conjunct : Expression.t),(others : Expression.t)) ->                                                                            *)
+  (*                       let qi,eqs = match conjunct with                                                                                                            *)
+  (*                               | P_SPred (pred_name,first_arg :: other_args) ->                                                                                    *)
+  (*                                               let freevars = fv_args_list other_args VarSet.empty in                                                              *)
+  (*                                               let free_anyvars = VarSet.filter is_avar freevars in                                                                *)
+  (*                                               let var_newvar_pairs = VarSet.fold (fun var pairs -> (var,Vars.fresha ()) :: pairs) free_anyvars [] in              *)
+  (*                                               let sub = List.fold_left (fun sub (var,newvar) -> add var (Arg_var newvar) sub) empty var_newvar_pairs in           *)
+  (*                                               let new_other_args = List.map (subst_args sub) other_args in                                                        *)
+  (*                                               let equalities : Expression.t = List.map (fun (var,newvar) -> P_EQ(Arg_var var,Arg_var newvar)) var_newvar_pairs in *)
+  (*                                               (P_SPred(pred_name,first_arg :: new_other_args),equalities)                                                         *)
+  (*                               | _ -> (conjunct,[])                                                                                                                *)
+  (*                       in                                                                                                                                          *)
+  (*                         mk_seq_rule ( PS.mk_psequent mkEmpty antecedent [qi],                                                                                     *)
+  (*                                       [[ PS.mk_psequent [conjunct]                                                                                                *)
+  (*                                            others (PS.pconjunction eqs proviso) ]], (* Note the use of conjunct here and not qi. *)                               *)
+  (*                               name)                                                                                                                               *)
+  (*               ) (split consequent) in                                                                                                                             *)
+  (*       (* Finally, adjust the sequent rule names *)                                                                                                                *)
+  (*       let _,rules = List.fold_right (fun (a,b,name,d,e) (counter,list) ->                                                                                         *)
+  (*               (counter-1,(a,b,name^(string_of_int counter),d,e)::list)                                                                                            *)
+  (*       ) rules (List.length rules,[]) in                                                                                                                           *)
+  (*       rules                                                                                                                                                       *)
 
 
 (* =================== Exports clause stuff =============================*)
 
 (* Augment the logic with definitions of the secret 'where' predicates. See paper on exports. *)
-let logic_with_where_pred_defs exportLocal_predicates (logic : logic) : logic =
-        List.fold_left (fun logic where_pred_def ->
-                        let (name, args, body) = where_pred_def in
-                        let sub = List.fold_left (fun sub argname -> add argname (Arg_var (Vars.fresha ())) sub) empty args in
-                        let pred = P_SPred(name,List.map (fun argname -> Psyntax.find argname sub) args) in
-                        let defn = subst_pform sub body in
-                        let parvars = Psyntax.fv_form [pred] in
-                        let defvars = Psyntax.fv_form defn  in
-                        let sparevars = VarSet.diff defvars parvars in
-                        let pvarsubst = subst_kill_vars_to_fresh_prog sparevars in
-                        let evarsubst = subst_kill_vars_to_fresh_exist sparevars in
-                        let pdefinition = subst_pform pvarsubst defn in
-                        let edefinition = subst_pform evarsubst defn in
-                        let rules = logic.seq_rules @
-                          (mk_seq_rule (PS.mk_psequent mkEmpty [pred]
-                                           mkEmpty,
-                                        [[PS.mk_psequent mkEmpty
-                                            pdefinition []]],
-                                        ("exports_body_left_" ^ name))
-                                ::
-                                           mk_seq_rule (PS.mk_psequent
-                                                          mkEmpty
-                                                          mkEmpty [pred],
-                                                        [[PS.mk_psequent
-                                                            mkEmpty
-                                                            mkEmpty edefinition]],
-                                        ("exports_body_right_" ^ name))
-                                :: [])
-                        in
-                        {logic with seq_rules = rules}
-                ) logic exportLocal_predicates
+let logic_with_where_pred_defs _ _ =  failwith "TODO"
+  (* exportLocal_predicates (logic : logic) : logic =                                                                             *)
+  (*       List.fold_left (fun logic where_pred_def ->                                                                            *)
+  (*                       let (name, args, body) = where_pred_def in                                                             *)
+  (*                       let sub = List.fold_left (fun sub argname -> add argname (Arg_var (Vars.fresha ())) sub) empty args in *)
+  (*                       let pred = P_SPred(name,List.map (fun argname -> Psyntax.find argname sub) args) in                    *)
+  (*                       let defn = subst_pform sub body in                                                                     *)
+  (*                       let parvars = Psyntax.fv_form [pred] in                                                                *)
+  (*                       let defvars = Psyntax.fv_form defn  in                                                                 *)
+  (*                       let sparevars = VarSet.diff defvars parvars in                                                         *)
+  (*                       let pvarsubst = subst_kill_vars_to_fresh_prog sparevars in                                             *)
+  (*                       let evarsubst = subst_kill_vars_to_fresh_exist sparevars in                                            *)
+  (*                       let pdefinition = subst_pform pvarsubst defn in                                                        *)
+  (*                       let edefinition = subst_pform evarsubst defn in                                                        *)
+  (*                       let rules = logic.seq_rules @                                                                          *)
+  (*                         (mk_seq_rule (PS.mk_psequent mkEmpty [pred]                                                          *)
+  (*                                          mkEmpty,                                                                            *)
+  (*                                       [[PS.mk_psequent mkEmpty                                                               *)
+  (*                                           pdefinition []]],                                                                  *)
+  (*                                       ("exports_body_left_" ^ name))                                                         *)
+  (*                               ::                                                                                             *)
+  (*                                          mk_seq_rule (PS.mk_psequent                                                         *)
+  (*                                                         mkEmpty                                                              *)
+  (*                                                         mkEmpty [pred],                                                      *)
+  (*                                                       [[PS.mk_psequent                                                       *)
+  (*                                                           mkEmpty                                                            *)
+  (*                                                           mkEmpty edefinition]],                                             *)
+  (*                                       ("exports_body_right_" ^ name))                                                        *)
+  (*                               :: [])                                                                                         *)
+  (*                       in                                                                                                     *)
+  (*                       {logic with seq_rules = rules}                                                                         *)
+  (*               ) logic exportLocal_predicates                                                                                 *)
 
 (* Yields the logic augmented with 'where' predicate defs and the implications which are to be checked. *)
 let logic_and_implications_for_exports_verification class_name spec_list logic =
@@ -278,7 +287,7 @@ let logic_and_implications_for_exports_verification class_name spec_list logic =
         (logic, exported_implications)
 
 (* After exports verification, the exported implications of all classes in the spec file are added to the logic *)
-let add_exported_implications_to_logic spec_list logic : Psyntax.logic =
+let add_exported_implications_to_logic spec_list logic (* : Psyntax.logic *) =
         let exported_implications = List.fold_left (fun imps cs ->
                 match cs.exports with
                         | None -> imps
@@ -295,7 +304,7 @@ module AxiomMap =
                 let compare = compare
         end)
 
-type axiom_map = (Psyntax.pform * Psyntax.pform) AxiomMap.t
+type axiom_map = (Expression.t * Expression.t) AxiomMap.t
 
 let filtermap filterfun mapfun list =
         List.map mapfun (List.filter filterfun list)
@@ -366,23 +375,24 @@ let spec_file_to_axiom_map2 spec_list =
         !axiommap
 
 (* Add the axioms of all classes in the spec file to the logic *)
-let add_axiom_implications_to_logic spec_list (logic : logic) : logic =
-        let classlist = a_topological_ordering_of_all_classes spec_list in
-        let axiommap = spec_file_to_axiom_map2 spec_list in
-        let new_rules = List.fold_right (fun cl rules ->
-                try
-                        let named_imps : named_implication list = AxiomMap2.find cl axiommap in
-                        let proviso = [mk_objsubtyp (Arg_var this_var) cl] in
-                        let clname = Pprinter.class_name2str cl in
-                        let new_rules = List.fold_right (fun (n,a,c) ruls ->
-                                let freevars = Psyntax.fv_form (Psyntax.pconjunction a c) in
-                                let p = if VarSet.mem this_var freevars then proviso else [] in
-                                rules_for_implication ("axiom_"^clname^"_"^n,a,c) p
-                                @ ruls) named_imps [] in
-                        new_rules @ rules
-                with Not_found -> assert false
-        ) classlist [] in
-        append_rules logic new_rules
+let add_axiom_implications_to_logic _ _ =  failwith "TODO"
+  (* spec_list (logic : logic) : logic =                                                           *)
+  (*       let classlist = a_topological_ordering_of_all_classes spec_list in                      *)
+  (*       let axiommap = spec_file_to_axiom_map2 spec_list in                                     *)
+  (*       let new_rules = List.fold_right (fun cl rules ->                                        *)
+  (*               try                                                                             *)
+  (*                       let named_imps : named_implication list = AxiomMap2.find cl axiommap in *)
+  (*                       let proviso = [mk_objsubtyp (Arg_var this_var) cl] in                   *)
+  (*                       let clname = Pprinter.class_name2str cl in                              *)
+  (*                       let new_rules = List.fold_right (fun (n,a,c) ruls ->                    *)
+  (*                               let freevars = Psyntax.fv_form (Psyntax.pconjunction a c) in    *)
+  (*                               let p = if VarSet.mem this_var freevars then proviso else [] in *)
+  (*                               rules_for_implication ("axiom_"^clname^"_"^n,a,c) p             *)
+  (*                               @ ruls) named_imps [] in                                        *)
+  (*                       new_rules @ rules                                                       *)
+  (*               with Not_found -> assert false                                                  *)
+  (*       ) classlist [] in                                                                       *)
+  (*       append_rules logic new_rules                                                            *)
 
 
 (* ====================== Method spec manipulation and completion ====================================== *)
@@ -426,7 +436,7 @@ module MethodSet =
   end)
 
 type methodSpecs
-  = (Core.ast_triple list * Printing.source_location option) MethodMap.t
+  = (Core.triple list * Printing.source_location option) MethodMap.t
 
 let emptyMSpecs = MethodMap.empty
 let addMSpecs msig spec mmap = MethodMap.add msig spec mmap
@@ -451,51 +461,53 @@ let class_spec_to_ms cs (smmap,dmmap) =
     (smmap,dmmap) cs.methodspecs
 
 
-let remove_this_type_info prepure =
-  let is_this_type p =
-    match p with
-      P_PPred (name,a::al) -> if name = objtype_name  && a = (Arg_var (Vars.concretep_str this_var_name)) then false else true
-    | _ -> true
-  in List.filter is_this_type prepure
+let remove_this_type_info prepure =  failwith "TODO"
+  (* let is_this_type p =                                                                                                         *)
+  (*   match p with                                                                                                               *)
+  (*     P_PPred (name,a::al) -> if name = objtype_name  && a = (Arg_var (Vars.concretep_str this_var_name)) then false else true *)
+  (*   | _ -> true                                                                                                                *)
+  (* in List.filter is_this_type prepure                                                                                          *)
 
 let static_to_dynamic { Core.pre; post; modifies } =
   { Core.pre = remove_this_type_info pre; post; modifies }
 
-let rec filtertype_spat classname spat =
-  match spat with
-    P_SPred(name,t1::ar::[])  ->
-      (try
-        if t1=Arg_var(this_var) && ((String.rindex name '$') = (String.length name) -1 ) then
-          P_SPred(name ^ classname, t1::ar::[])
-        else spat
-      with Not_found -> spat)
-  | P_SPred(name,al) -> P_SPred(name,al)
-  | P_Or(form1,form2) -> P_Or(filtertype classname form1, filtertype classname form2)
-  | P_Wand (form1,form2) -> P_Wand(filtertype classname form1, filtertype classname form2)
-  | P_Septract (form1,form2) -> P_Septract(filtertype classname form1, filtertype classname form2)
-  | P_False -> P_False
-  | P_PPred(name,al) -> spat
-  | P_EQ(_,_) -> spat
-  | P_NEQ(_,_) -> spat
-and filtertype classname = List.map (filtertype_spat classname )
+let rec filtertype_spat classname spat =  failwith "TODO"
+(*   match spat with                                                                                  *)
+(*     P_SPred(name,t1::ar::[])  ->                                                                   *)
+(*       (try                                                                                         *)
+(*         if t1=Arg_var(this_var) && ((String.rindex name '$') = (String.length name) -1 ) then      *)
+(*           P_SPred(name ^ classname, t1::ar::[])                                                    *)
+(*         else spat                                                                                  *)
+(*       with Not_found -> spat)                                                                      *)
+(*   | P_SPred(name,al) -> P_SPred(name,al)                                                           *)
+(*   | P_Or(form1,form2) -> P_Or(filtertype classname form1, filtertype classname form2)              *)
+(*   | P_Wand (form1,form2) -> P_Wand(filtertype classname form1, filtertype classname form2)         *)
+(*   | P_Septract (form1,form2) -> P_Septract(filtertype classname form1, filtertype classname form2) *)
+(*   | P_False -> P_False                                                                             *)
+(*   | P_PPred(name,al) -> spat                                                                       *)
+(*   | P_EQ(_,_) -> spat                                                                              *)
+(*   | P_NEQ(_,_) -> spat                                                                             *)
+and filtertype classname _ =  failwith "TODO"
+  (* List.map (filtertype_spat classname ) *)
 
-let rec filterdollar_at spat =
-  match spat with
-    P_SPred(name,t1::ar::[])  ->
-      (try
-        if t1=Arg_var(this_var) && ((String.rindex name '$') = (String.length name) -1 ) then
-          P_SPred(String.sub name 0 (String.length name - 1), t1::ar::[])
-        else spat
-      with Not_found -> spat)
-  | P_SPred(name,al) -> P_SPred(name,al)
-  | P_PPred(name,al) -> spat
-  | P_Or(form1,form2) -> P_Or(filterdollar form1, filterdollar form2)
-  | P_Wand (form1,form2) -> P_Wand(filterdollar form1, filterdollar form2)
-  | P_Septract (form1,form2) -> P_Septract(filterdollar form1, filterdollar form2)
-  | P_False -> P_False
-  | P_EQ(_,_) -> spat
-  | P_NEQ(_,_) -> spat
-and filterdollar x = List.map (filterdollar_at) x
+let rec filterdollar_at spat =  failwith "TODO"
+(*   match spat with                                                                             *)
+(*     P_SPred(name,t1::ar::[])  ->                                                              *)
+(*       (try                                                                                    *)
+(*         if t1=Arg_var(this_var) && ((String.rindex name '$') = (String.length name) -1 ) then *)
+(*           P_SPred(String.sub name 0 (String.length name - 1), t1::ar::[])                     *)
+(*         else spat                                                                             *)
+(*       with Not_found -> spat)                                                                 *)
+(*   | P_SPred(name,al) -> P_SPred(name,al)                                                      *)
+(*   | P_PPred(name,al) -> spat                                                                  *)
+(*   | P_Or(form1,form2) -> P_Or(filterdollar form1, filterdollar form2)                         *)
+(*   | P_Wand (form1,form2) -> P_Wand(filterdollar form1, filterdollar form2)                    *)
+(*   | P_Septract (form1,form2) -> P_Septract(filterdollar form1, filterdollar form2)            *)
+(*   | P_False -> P_False                                                                        *)
+(*   | P_EQ(_,_) -> spat                                                                         *)
+(*   | P_NEQ(_,_) -> spat                                                                        *)
+and filterdollar x =  failwith "TODO"
+  (* List.map (filterdollar_at) x *)
 
 let dynamic_to_static cn { Core.pre; post; modifies } =
   { Core.pre = filtertype cn pre; post = filtertype cn post; modifies }
@@ -578,8 +590,10 @@ let spec_file_to_method_specs sf =
 (* ========================== Common/useful rules ================================ *)
 
 
-let mk_subeq (var1,var2) = [P_PPred("subeq",[Arg_var var1;Arg_var var2])]
-let mk_sub (var1,var2) = [P_PPred("sub",[Arg_var var1;Arg_var var2])]
+let mk_subeq (var1,var2) =  failwith "TODO"
+  (* [P_PPred("subeq",[Arg_var var1;Arg_var var2])] *)
+let mk_sub (var1,var2) =  failwith "TODO"
+  (* [P_PPred("sub",[Arg_var var1;Arg_var var2])] *)
 
 (*
 A rule for subeq is generated:
@@ -605,48 +619,48 @@ and
 if
  P(?x,?y) | |-
 *)
-let add_common_apf_predicate_rules spec_list logic =
-        let make_apf = apf_match in
-        let add_if_not_there element list = if List.mem element list then list else element::list in
-        let apf_preds,apf_entries = List.fold_left (fun (apf_preds,apf_entries) cs ->
-                let classname = Pprinter.class_name2str cs.classname in
-                List.fold_left (fun (apf_preds,apf_entries) (name,receiver,parameters,_,_) ->
-                        (add_if_not_there name apf_preds,(name^"$"^classname)::apf_entries)
-                ) (apf_preds,apf_entries) cs.apf
-        ) ([],[]) spec_list in
-        let recvar = Vars.fresha() in
-        let param = Vars.fresha() in
-        let param' = Vars.fresha() in
-        let subeq_rule =
-          mk_seq_rule (PS.mk_psequent [] [] (mk_subeq (param,param')),
-                       [[ PS.mk_psequent [] [] (mkEQ (Arg_var param,Arg_var param'))];
-                        [ PS.mk_psequent [] [] (mk_sub (param,param'))
-                        ]],
-                        "subeq_rule"
-                )
-        in
-        let match_rules = List.map (fun predname ->
-                let left = make_apf predname recvar param in
-                let right = make_apf predname recvar param' in
-                  mk_seq_rule ( PS.mk_psequent mkEmpty left right,
-                                [[ PS.mk_psequent left mkEmpty
-                                     (mk_subeq (param,param')) ]],
-                        (predname^"_match")
-                )
-        ) (apf_preds @ apf_entries) in
-        let not_null_rules = List.fold_left (fun rules predname ->
-                let form = make_apf predname recvar param in
-                  (mk_seq_rule (PS.mk_psequent mkEmpty form (not_null recvar),
-                                [[ PS.mk_psequent mkEmpty form mkEmpty
-                                 ]],
-                        (predname^"_not_nil1")
-                 ) ::
-                     mk_seq_rule (PS.mk_psequent form mkEmpty (not_null recvar),
-                                  [[ PS.mk_psequent form mkEmpty mkEmpty ]],
-                        (predname^"_not_nil2")
-                 ) :: rules)
-        ) [] apf_preds in
-        append_rules logic (subeq_rule::(match_rules @ not_null_rules))
+let add_common_apf_predicate_rules spec_list logic =  failwith "TODO"
+        (* let make_apf = apf_match in                                                                  *)
+        (* let add_if_not_there element list = if List.mem element list then list else element::list in *)
+        (* let apf_preds,apf_entries = List.fold_left (fun (apf_preds,apf_entries) cs ->                *)
+        (*         let classname = Pprinter.class_name2str cs.classname in                              *)
+        (*         List.fold_left (fun (apf_preds,apf_entries) (name,receiver,parameters,_,_) ->        *)
+        (*                 (add_if_not_there name apf_preds,(name^"$"^classname)::apf_entries)          *)
+        (*         ) (apf_preds,apf_entries) cs.apf                                                     *)
+        (* ) ([],[]) spec_list in                                                                       *)
+        (* let recvar = Vars.fresha() in                                                                *)
+        (* let param = Vars.fresha() in                                                                 *)
+        (* let param' = Vars.fresha() in                                                                *)
+        (* let subeq_rule =                                                                             *)
+        (*   mk_seq_rule (PS.mk_psequent [] [] (mk_subeq (param,param')),                               *)
+        (*                [[ PS.mk_psequent [] [] (mkEQ (Arg_var param,Arg_var param'))];               *)
+        (*                 [ PS.mk_psequent [] [] (mk_sub (param,param'))                               *)
+        (*                 ]],                                                                          *)
+        (*                 "subeq_rule"                                                                 *)
+        (*         )                                                                                    *)
+        (* in                                                                                           *)
+        (* let match_rules = List.map (fun predname ->                                                  *)
+        (*         let left = make_apf predname recvar param in                                         *)
+        (*         let right = make_apf predname recvar param' in                                       *)
+        (*           mk_seq_rule ( PS.mk_psequent mkEmpty left right,                                   *)
+        (*                         [[ PS.mk_psequent left mkEmpty                                       *)
+        (*                              (mk_subeq (param,param')) ]],                                   *)
+        (*                 (predname^"_match")                                                          *)
+        (*         )                                                                                    *)
+        (* ) (apf_preds @ apf_entries) in                                                               *)
+        (* let not_null_rules = List.fold_left (fun rules predname ->                                   *)
+        (*         let form = make_apf predname recvar param in                                         *)
+        (*           (mk_seq_rule (PS.mk_psequent mkEmpty form (not_null recvar),                       *)
+        (*                         [[ PS.mk_psequent mkEmpty form mkEmpty                               *)
+        (*                          ]],                                                                 *)
+        (*                 (predname^"_not_nil1")                                                       *)
+        (*          ) ::                                                                                *)
+        (*              mk_seq_rule (PS.mk_psequent form mkEmpty (not_null recvar),                     *)
+        (*                           [[ PS.mk_psequent form mkEmpty mkEmpty ]],                         *)
+        (*                 (predname^"_not_nil2")                                                       *)
+        (*          ) :: rules)                                                                         *)
+        (* ) [] apf_preds in                                                                            *)
+        (* append_rules logic (subeq_rule::(match_rules @ not_null_rules))                              *)
 
 (*
 Adds a rule containing the transitive subtype relation, as well as one to reason
@@ -675,45 +689,45 @@ or
  | |- ?o!=nil() * !stattype(?o,_e) * !subtype(_e,?c)
 |
 *)
-let add_subtype_and_objsubtype_rules spec_list logic =
-        let pr = parent_relation spec_list in
-        let tc = transitive_closure pr in
-        let x = Arg_var (Vars.fresha ()) in
-        let y = Arg_var (Vars.fresha ()) in
-        let premise : (Psyntax.psequent list list) =
-          [ PS.mk_psequent mkEmpty mkEmpty (mkEQ(x,y)) ] ::
-            List.map (fun (ancestor,descendent) -> [ PS.mk_psequent
-                                                       mkEmpty mkEmpty
-                                                       [P_EQ(x,Jlogic.class2args descendent);P_EQ(y,Jlogic.class2args ancestor)]]) tc in
-        let subtype_rule = mk_seq_rule ( PS.mk_psequent mkEmpty
-                                           mkEmpty (Jlogic.mk_subtype1
-                                                      x y), premise,
-                                         "subtype_relation_right" ) in
-        let o = Arg_var (Vars.fresha ()) in
-        let c = Arg_var (Vars.fresha ()) in
-        let d = Arg_var (Vars.fresha ()) in
-        let e = Arg_var (Vars.freshe ()) in
-        let objsubtype_rule = mk_seq_rule (
-          PS.mk_psequent mkEmpty mkEmpty [Jlogic.mk_objsubtyp1 o c],
-          [[ PS.mk_psequent mkEmpty mkEmpty ((Jlogic.mk_type1 o d) @ (Jlogic.mk_subtype1 d c))];
-           [ PS.mk_psequent mkEmpty mkEmpty ((not_null1 o)
-           @ Jlogic.mk_statictyp1 o e
-           @ Jlogic.mk_subtype1 e c)]],
-                "objsubtype_right"
-        ) in
-        append_rules logic [objsubtype_rule;subtype_rule]
+let add_subtype_and_objsubtype_rules spec_list logic =  failwith "TODO"
+        (* let pr = parent_relation spec_list in                                                                                            *)
+        (* let tc = transitive_closure pr in                                                                                                *)
+        (* let x = Arg_var (Vars.fresha ()) in                                                                                              *)
+        (* let y = Arg_var (Vars.fresha ()) in                                                                                              *)
+        (* let premise : (Psyntax.psequent list list) =                                                                                     *)
+        (*   [ PS.mk_psequent mkEmpty mkEmpty (mkEQ(x,y)) ] ::                                                                              *)
+        (*     List.map (fun (ancestor,descendent) -> [ PS.mk_psequent                                                                      *)
+        (*                                                mkEmpty mkEmpty                                                                   *)
+        (*                                                [P_EQ(x,Jlogic.class2args descendent);P_EQ(y,Jlogic.class2args ancestor)]]) tc in *)
+        (* let subtype_rule = mk_seq_rule ( PS.mk_psequent mkEmpty                                                                          *)
+        (*                                    mkEmpty (Jlogic.mk_subtype1                                                                   *)
+        (*                                               x y), premise,                                                                     *)
+        (*                                  "subtype_relation_right" ) in                                                                   *)
+        (* let o = Arg_var (Vars.fresha ()) in                                                                                              *)
+        (* let c = Arg_var (Vars.fresha ()) in                                                                                              *)
+        (* let d = Arg_var (Vars.fresha ()) in                                                                                              *)
+        (* let e = Arg_var (Vars.freshe ()) in                                                                                              *)
+        (* let objsubtype_rule = mk_seq_rule (                                                                                              *)
+        (*   PS.mk_psequent mkEmpty mkEmpty [Jlogic.mk_objsubtyp1 o c],                                                                     *)
+        (*   [[ PS.mk_psequent mkEmpty mkEmpty ((Jlogic.mk_type1 o d) @ (Jlogic.mk_subtype1 d c))];                                         *)
+        (*    [ PS.mk_psequent mkEmpty mkEmpty ((not_null1 o)                                                                               *)
+        (*    @ Jlogic.mk_statictyp1 o e                                                                                                    *)
+        (*    @ Jlogic.mk_subtype1 e c)]],                                                                                                  *)
+        (*         "objsubtype_right"                                                                                                       *)
+        (* ) in                                                                                                                             *)
+        (* append_rules logic [objsubtype_rule;subtype_rule]                                                                                *)
 
 
 
 (* ====================== Refinement type stuff ================================= *)
 
 let refines logic spec1 spec2 =
-  CoreOps.refines_spec logic (HashSet.of_list spec1) (HashSet.of_list spec2)
+  CoreOps.refines_spec logic spec1 spec2
 
-let refines_this cname logic spec1 spec2 =
-  let this_typed =
-    Sepprover.convert (objtype this_var (Pprinter.class_name2str cname)) in
-  let star_this_typed t =
-    { t with Core.pre = Sepprover.conjoin_inner t.Core.pre this_typed } in
-  let spec2 = List.map star_this_typed spec2 in
-  refines logic spec1 spec2
+let refines_this cname logic spec1 spec2 =  failwith "TODO"
+  (* let this_typed =                                                          *)
+  (*   Sepprover.convert (objtype this_var (Pprinter.class_name2str cname)) in *)
+  (* let star_this_typed t =                                                   *)
+  (*   { t with Core.pre = Sepprover.conjoin_inner t.Core.pre this_typed } in  *)
+  (* let spec2 = List.map star_this_typed spec2 in                             *)
+  (* refines logic spec1 spec2                                                 *)

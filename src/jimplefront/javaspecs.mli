@@ -13,57 +13,57 @@
 
 
 val append_rules :
-  Psyntax.logic -> Psyntax.sequent_rule list -> Psyntax.logic
+  Calculus.t -> Calculus.t -> Calculus.t
 val apf :
-  string -> Vars.var -> (string * Psyntax.args) list -> Psyntax.pform_at list
+  string -> Vars.var -> (string * Expression.t) list -> Expression.t
 val augmented_logic_for_class :
-  Jparsetree.class_name ->
-  Spec_def.class_spec list -> Psyntax.logic -> Psyntax.logic
+  Jparsetree.class_name -> 
+  Spec_def.class_spec list -> Calculus.t -> Calculus.t
 val remove_duplicates : 'a list -> 'a list
 val parent_classes_and_interfaces :
   Jparsetree.class_name ->
   Spec_def.class_spec list -> Jparsetree.class_name list
 val logic_with_where_pred_defs :
-  (string * Psyntax.VarMap.key list * Psyntax.pform) list ->
-  Psyntax.logic -> Psyntax.logic
+  (string * Vars.StrVarHash.key list * Expression.t) list ->
+  Calculus.t -> Calculus.t
 val logic_and_implications_for_exports_verification :
   Jparsetree.class_name ->
   Spec_def.class_spec list ->
-  Psyntax.logic -> Psyntax.logic * Spec_def.named_implication list
+  Calculus.t -> Calculus.t * Spec_def.named_implication list
 val add_exported_implications_to_logic :
-  Spec_def.class_spec list -> Psyntax.logic -> Psyntax.logic
+  Spec_def.class_spec list -> Calculus.t -> Calculus.t
 module AxiomMap : Map.S with type key = Jparsetree.class_name * string
-type axiom_map = (Psyntax.pform * Psyntax.pform) AxiomMap.t
+type axiom_map = (Expression.t * Expression.t) AxiomMap.t
 val spec_file_to_axiom_map :
-  Spec_def.class_spec list -> (Psyntax.pform * Psyntax.pform) AxiomMap.t
+  Spec_def.class_spec list -> (Expression.t * Expression.t) AxiomMap.t
 val implications_for_axioms_verification :
   Jparsetree.class_name ->
-  (Psyntax.pform * Psyntax.pform) AxiomMap.t ->
+  (Expression.t * Expression.t) AxiomMap.t ->
   Spec_def.named_implication list
 module AxiomMap2 : Map.S with type key = Jparsetree.class_name
 type axiom_map2 = Spec_def.named_implication list AxiomMap2.t
 val add_axiom_implications_to_logic :
-  Spec_def.class_spec list -> Psyntax.logic -> Psyntax.logic
+  Spec_def.class_spec list -> Calculus.t -> Calculus.t
 val is_interface : Jparsetree.class_name -> Spec_def.class_spec list -> bool
 module MethodMap : Map.S with type key = Jparsetree.method_signature
 module MethodSet : Set.S with type elt = Jparsetree.method_signature
 type methodSpecs
-  = (Core.ast_triple list * Printing.source_location option) MethodMap.t
+  = (Core.triple list * Printing.source_location option) MethodMap.t
 val emptyMSpecs : methodSpecs
 val spec_file_to_method_specs :
   Spec_def.class_spec list -> methodSpecs * methodSpecs
 val add_common_apf_predicate_rules :
-  Spec_def.class_spec list -> Psyntax.logic -> Psyntax.logic
+  Spec_def.class_spec list -> Calculus.t -> Calculus.t
 val add_subtype_and_objsubtype_rules :
-  Spec_def.class_spec list -> Psyntax.logic -> Psyntax.logic
+  Spec_def.class_spec list -> Calculus.t -> Calculus.t
 val refines
-  : Sepprover.inner_logic
-  -> Core.inner_triple list
-  -> Core.inner_triple list
+  : Calculus.t (* logic *)
+  -> Core.spec
+  -> Core.spec
   -> bool
 val refines_this
   : Jparsetree.class_name
-  -> Sepprover.inner_logic
-  -> Core.inner_triple list
-  -> Core.inner_triple list
+  -> Calculus.t
+  -> Core.spec
+  -> Core.spec
   -> bool

@@ -22,7 +22,7 @@ type 'pattern event =
   information.  In the second phase, the pattern is a list of [Core] procedure
   names, which are strings. *)
 
-type value = Psyntax.args
+type value = Expression.t
 
 type register = string
 

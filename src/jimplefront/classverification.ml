@@ -19,9 +19,7 @@ open Format
 open Javaspecs
 open Jimple_global_types
 open Printing
-open Psyntax
 open Spec_def
-open Specification
 open Support_symex
 open System
 
@@ -41,67 +39,69 @@ let parent_classes_and_interfaces (jfile : Jimple_global_types.jimple_file) =
 	let Jimple_global_types.JFile(_,_,_,parent_classes,parent_interfaces,_) = jfile in
 	parent_classes @ parent_interfaces  (* stephan mult inh *)
 
-let implies_opt logic f1o f2 =
-  option true (fun f1 -> Sepprover.implies logic f1 f2) f1o
+let implies_opt logic f1o f2 = failwith "TODO"
+  (* option true (fun f1 -> Sepprover.implies logic f1 f2) f1o *)
 
-let verify_exports_implications implications logic_with_where_pred_defs =
-  List.iter
-    (fun implication ->
-      let name,antecedent,consequent = implication in
-      let antecedent = Sepprover.convert antecedent in
-      let consequent = Sepprover.convert consequent in
-      if Sepprover.implies logic_with_where_pred_defs antecedent consequent then
-        (if log log_exec then printf "@{<g> OK@}: exported implication %s@." name)
-      else
-        printf "@{<b>NOK@}: exported implication %s@." name)
-    implications
+let verify_exports_implications implications logic_with_where_pred_defs = 
+	failwith "TODO"
+  (* List.iter                                                                        *)
+  (*   (fun implication ->                                                            *)
+  (*     let name,antecedent,consequent = implication in                              *)
+  (*     let antecedent = Sepprover.convert antecedent in                             *)
+  (*     let consequent = Sepprover.convert consequent in                             *)
+  (*     if Sepprover.implies logic_with_where_pred_defs antecedent consequent then   *)
+  (*       (if log log_exec then printf "@{<g> OK@}: exported implication %s@." name) *)
+  (*     else                                                                         *)
+  (*       printf "@{<b>NOK@}: exported implication %s@." name)                       *)
+  (*   implications                                                                   *)
 
 (* Check both proof obligations (Implication and Parent consistency) for each axiom in 'implications'. *)
 let verify_axioms_implications class_name jimple_file implications axiom_map logic =
-  let abstract_class_or_interface =
-    is_class_abstract jimple_file || is_interface jimple_file in
-  let parents = parent_classes_and_interfaces jimple_file in
-  let conjunct = Jlogic.mk_type (Arg_var Support_syntax.this_var) class_name in
-  List.iter (fun implication ->
-      let name,antecedent,consequent = implication in
-      let antecedent = Sepprover.convert antecedent in
-      let consequent = Sepprover.convert consequent in
-      (* We first tackle the Implication proof obligation if the class is not abstract or an interface. *)
-      if not abstract_class_or_interface then (
-        let antecedent =
-          Sepprover.conjoin_inner (Sepprover.convert conjunct) antecedent in
-        let m = sprintf "implication verification of axiom %s" name in
-        if Sepprover.implies logic antecedent consequent then
-          (if log log_logic then printf "@{<g> OK@}: %s@." m)
-        else
-          printf "@{<b>NOK@}: %s@." m);
-      (* Then we tackle the Parent consistency proof obligation *)
-      List.iter (fun parent ->
-          let parent_name = (Pprinter.class_name2str parent) in
-          try
-            let p_antecedent,p_consequent =
-              AxiomMap.find (parent,name) axiom_map in
-            (* We must verify
-                 (antecedent=>consequent) => (p_antecedent=>p_consequent)
-               which is equivalent to
-                 (p_antecedent => p_consequent) \/
-                 ((p_antecedent => antecedent) /\ (consequent => p_consequent))
-             *)
-            let m =
-              sprintf "axiom %s consistent with parent %s" name parent_name in
-            let p_antecedent = Sepprover.convert p_antecedent in
-            let p_consequent = Sepprover.convert p_consequent in
-            if Sepprover.implies logic p_antecedent p_consequent ||
-                (Sepprover.implies logic p_antecedent antecedent &&
-                Sepprover.implies logic consequent p_consequent) then
-              (if log log_logic then printf "@{<g>OK@}: %s@." m)
-            else
-              (* Note that P\/Q may be valid even if P and Q are not! *)
-              (* TODO(rgrig): Try to not approximate the condition. *)
-              printf "@{<b>POSSIBLY NOK@}: %s@." m;
-          with Not_found -> () (* TODO(rgrig): Should this print something? *)
-      ) parents
-  ) implications
+	 failwith "TODO"
+  (* let abstract_class_or_interface =                                                                        *)
+  (*   is_class_abstract jimple_file || is_interface jimple_file in                                           *)
+  (* let parents = parent_classes_and_interfaces jimple_file in                                               *)
+  (* let conjunct = Jlogic.mk_type (Arg_var Support_syntax.this_var) class_name in                            *)
+  (* List.iter (fun implication ->                                                                            *)
+  (*     let name,antecedent,consequent = implication in                                                      *)
+  (*     let antecedent = Sepprover.convert antecedent in                                                     *)
+  (*     let consequent = Sepprover.convert consequent in                                                     *)
+  (*     (* We first tackle the Implication proof obligation if the class is not abstract or an interface. *) *)
+  (*     if not abstract_class_or_interface then (                                                            *)
+  (*       let antecedent =                                                                                   *)
+  (*         Sepprover.conjoin_inner (Sepprover.convert conjunct) antecedent in                               *)
+  (*       let m = sprintf "implication verification of axiom %s" name in                                     *)
+  (*       if Sepprover.implies logic antecedent consequent then                                              *)
+  (*         (if log log_logic then printf "@{<g> OK@}: %s@." m)                                              *)
+  (*       else                                                                                               *)
+  (*         printf "@{<b>NOK@}: %s@." m);                                                                    *)
+  (*     (* Then we tackle the Parent consistency proof obligation *)                                         *)
+  (*     List.iter (fun parent ->                                                                             *)
+  (*         let parent_name = (Pprinter.class_name2str parent) in                                            *)
+  (*         try                                                                                              *)
+  (*           let p_antecedent,p_consequent =                                                                *)
+  (*             AxiomMap.find (parent,name) axiom_map in                                                     *)
+  (*           (* We must verify                                                                              *)
+  (*                (antecedent=>consequent) => (p_antecedent=>p_consequent)                                  *)
+  (*              which is equivalent to                                                                      *)
+  (*                (p_antecedent => p_consequent) \/                                                         *)
+  (*                ((p_antecedent => antecedent) /\ (consequent => p_consequent))                            *)
+  (*            *)                                                                                            *)
+  (*           let m =                                                                                        *)
+  (*             sprintf "axiom %s consistent with parent %s" name parent_name in                             *)
+  (*           let p_antecedent = Sepprover.convert p_antecedent in                                           *)
+  (*           let p_consequent = Sepprover.convert p_consequent in                                           *)
+  (*           if Sepprover.implies logic p_antecedent p_consequent ||                                        *)
+  (*               (Sepprover.implies logic p_antecedent antecedent &&                                        *)
+  (*               Sepprover.implies logic consequent p_consequent) then                                      *)
+  (*             (if log log_logic then printf "@{<g>OK@}: %s@." m)                                           *)
+  (*           else                                                                                           *)
+  (*             (* Note that P\/Q may be valid even if P and Q are not! *)                                   *)
+  (*             (* TODO(rgrig): Try to not approximate the condition. *)                                     *)
+  (*             printf "@{<b>POSSIBLY NOK@}: %s@." m;                                                        *)
+  (*         with Not_found -> () (* TODO(rgrig): Should this print something? *)                             *)
+  (*     ) parents                                                                                            *)
+  (* ) implications                                                                                           *)
 
 
 
@@ -171,25 +171,26 @@ let verify_methods_dynamic_dispatch_behavioral_subtyping_inheritance
 
 
 let compile_jimple js specs logic abs =
-  prof_phase "split specs";
-  let sspecs, dspecs = Javaspecs.spec_file_to_method_specs specs in
-  let convert_spec (spec, l) =
-    (List.map CoreOps.ast_to_inner_triple spec, l) in
-  let sspecs_inner = Javaspecs.MethodMap.map convert_spec sspecs in
-  let dspecs_inner = Javaspecs.MethodMap.map convert_spec dspecs in
-  prof_phase "init spec checks";
-  let j_by_name =
-    Misc.hash_of_list
-      (fun x->x)
-      (fun _ _ -> failwith "Duplicated class.") (* TODO(rgrig): nicer error/exc *)
-      (function (JG.JFile (_,_,cn,_,_,_)) -> Some cn)
-      (fun x-> Some x)
-      js in
-  verify_methods_dynamic_dispatch_behavioral_subtyping_inheritance
-    j_by_name
-    sspecs_inner
-    dspecs_inner
-    logic
-    abs;
-  prof_phase "actual compile jimple -> core";
-  Translatejimple.compile js sspecs dspecs
+	 failwith "TODO"
+  (* prof_phase "split specs";                                                        *)
+  (* let sspecs, dspecs = Javaspecs.spec_file_to_method_specs specs in                *)
+  (* let convert_spec (spec, l) =                                                     *)
+  (*   (List.map CoreOps.ast_to_inner_triple spec, l) in                              *)
+  (* let sspecs_inner = Javaspecs.MethodMap.map convert_spec sspecs in                *)
+  (* let dspecs_inner = Javaspecs.MethodMap.map convert_spec dspecs in                *)
+  (* prof_phase "init spec checks";                                                   *)
+  (* let j_by_name =                                                                  *)
+  (*   Misc.hash_of_list                                                              *)
+  (*     (fun x->x)                                                                   *)
+  (*     (fun _ _ -> failwith "Duplicated class.") (* TODO(rgrig): nicer error/exc *) *)
+  (*     (function (JG.JFile (_,_,cn,_,_,_)) -> Some cn)                              *)
+  (*     (fun x-> Some x)                                                             *)
+  (*     js in                                                                        *)
+  (* verify_methods_dynamic_dispatch_behavioral_subtyping_inheritance                 *)
+  (*   j_by_name                                                                      *)
+  (*   sspecs_inner                                                                   *)
+  (*   dspecs_inner                                                                   *)
+  (*   logic                                                                          *)
+  (*   abs;                                                                           *)
+  (* prof_phase "actual compile jimple -> core";                                      *)
+  (* Translatejimple.compile js sspecs dspecs                                         *)

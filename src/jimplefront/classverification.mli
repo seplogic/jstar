@@ -16,15 +16,15 @@ val is_interface : Jimple_global_types.jimple_file -> bool
 val parent_classes_and_interfaces :
   Jimple_global_types.jimple_file -> Jparsetree.class_name list
 val verify_exports_implications :
-  (string * Psyntax.form * Psyntax.form) list -> Sepprover.inner_logic -> unit
+  (string * Expression.t * Expression.t) list -> Calculus.t -> unit
 val verify_axioms_implications :
   Jparsetree.class_name ->
   Jimple_global_types.jimple_file ->
-  (string * Psyntax.pform * Psyntax.form) list ->
-  (Psyntax.form * Psyntax.form) Javaspecs.AxiomMap.t -> Sepprover.inner_logic -> unit
+  (string * Expression.t * Expression.t) list ->
+  (Expression.t * Expression.t) Javaspecs.AxiomMap.t -> Calculus.t -> unit
 val compile_jimple :
   Jimple_global_types.jimple_file list (* jimples *)
     -> Spec_def.class_spec list (* specs *)
-    -> Sepprover.inner_logic (* logic *)
-    -> Sepprover.inner_logic (* abs *)
+    -> Calculus.t (* logic *)
+    -> Calculus.t (* abs *)
     -> Core.ast_procedure list

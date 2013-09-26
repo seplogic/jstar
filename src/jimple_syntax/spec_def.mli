@@ -11,17 +11,18 @@
       LICENSE.txt
  ********************************************************)
 
+type fldlist = (string * Expression.t) list
 
 type methodspec =
-    Dynamic of Jparsetree.method_signature_short * Core.ast_triple list *
+    Dynamic of Jparsetree.method_signature_short * Core.triple list *
       Printing.source_location option
-  | Static of Jparsetree.method_signature_short * Core.ast_triple list *
+  | Static of Jparsetree.method_signature_short * Core.triple list *
       Printing.source_location option
 type methodspecs = methodspec list
-type apf_define = string * Vars.var * Psyntax.fldlist * Psyntax.pform * bool
+type apf_define = string * Vars.var * fldlist * Expression.t * bool
 type apf_defines = apf_define list
-type named_implication = string * Psyntax.pform * Psyntax.pform
-type exportLocal_predicate = string * Vars.var list * Psyntax.pform
+type named_implication = string * Expression.t * Expression.t
+type exportLocal_predicate = string * Vars.var list * Expression.t
 type exports_clause =
     (named_implication list * exportLocal_predicate list) option
 type axioms_clause = named_implication list option

@@ -14,7 +14,7 @@
 
 
 open Vars
-open Psyntax
+(* open Psyntax *)
 open Config
 open Jparsetree
 open Support_syntax
@@ -33,44 +33,44 @@ let variable2key v = Pprinter.variable2str v
   returns fresh exists var with n as its name base if
    it doesn't know what to do.
 *)
-let default_for ty n =
-  try (
-    match ty with
-      Void -> assert false
-    | Non_void jty -> (
-	match jty with
-	| Base (jbt,arraylist) -> (
-	    match jbt,arraylist with
-	      Class_name _, _
-	    | Null_type, _
-	    | _, _::_ -> Arg_op("nil",[])
-	    | Int,_
-	    | Char,_
-	    | Short,_
-	    | Byte,_
-	    | Long,_ -> Arg_op("numeric_const",[Arg_string("0")])
-	    | Float,_
-	    | Double,_ -> Arg_var(Vars.freshe_str (Pprinter.name2str n))
-	    | Boolean,_ -> Arg_op("false",[])
-	   )
-	| _ -> Arg_op("nil",[])
-       )
-   )
-  with Assert_failure (e,i,j) -> Printf.printf "Default for failed on type %s.\n" (Pprinter.j_type2str ty); raise (Assert_failure(e,i,j) )
+let default_for ty n = failwith "TODO"
+  (* try (                                                                                                                                    *)
+  (*   match ty with                                                                                                                          *)
+  (*     Void -> assert false                                                                                                                 *)
+  (*   | Non_void jty -> (                                                                                                                    *)
+	(* match jty with                                                                                                                           *)
+	(* | Base (jbt,arraylist) -> (                                                                                                              *)
+	(*     match jbt,arraylist with                                                                                                             *)
+	(*       Class_name _, _                                                                                                                    *)
+	(*     | Null_type, _                                                                                                                       *)
+	(*     | _, _::_ -> Arg_op("nil",[])                                                                                                        *)
+	(*     | Int,_                                                                                                                              *)
+	(*     | Char,_                                                                                                                             *)
+	(*     | Short,_                                                                                                                            *)
+	(*     | Byte,_                                                                                                                             *)
+	(*     | Long,_ -> Arg_op("numeric_const",[Arg_string("0")])                                                                                *)
+	(*     | Float,_                                                                                                                            *)
+	(*     | Double,_ -> Arg_var(Vars.freshe_str (Pprinter.name2str n))                                                                         *)
+	(*     | Boolean,_ -> Arg_op("false",[])                                                                                                    *)
+	(*    )                                                                                                                                     *)
+	(* | _ -> Arg_op("nil",[])                                                                                                                  *)
+  (*      )                                                                                                                                   *)
+  (*  )                                                                                                                                       *)
+  (* with Assert_failure (e,i,j) -> Printf.printf "Default for failed on type %s.\n" (Pprinter.j_type2str ty); raise (Assert_failure(e,i,j) ) *)
 
 
-let signature2args si =
-  Arg_string(Pprinter.signature2str si)
+let signature2args si = failwith "TODO"
+  (* Arg_string(Pprinter.signature2str si) *)
 
 
-let name2args n =
-  match n with
-  | Quoted_name s
-  | Identifier_name s -> Arg_var(Vars.concretep_str s)
+let name2args n = failwith "TODO"
+  (* match n with                                         *)
+  (* | Quoted_name s                                      *)
+  (* | Identifier_name s -> Arg_var(Vars.concretep_str s) *)
 
 
-let identifier2args s =
-    Arg_var(Vars.concretep_str s)
+let identifier2args s = failwith "TODO"
+    (* Arg_var(Vars.concretep_str s) *)
 
 
 let reference2args r = (* not sure we need this. Maybe we need reference2PPred*)
@@ -80,42 +80,44 @@ let reference2args r = (* not sure we need this. Maybe we need reference2PPred*)
   |Field_sig_ref(si) -> assert false
 
 (* for the moment only few cases are done of this. Need to be extended *)
-let expression2args e =
-  match e with
-  | New_simple_exp ty -> assert false
-  | New_array_exp (nv_ty,fad) -> assert false
-  | New_multiarray_exp (ty,adl) -> assert false
-  | Cast_exp (nv_ty,im) -> assert false
-  | Instanceof_exp (im,nv_ty) -> assert false
-  | Binop_exp (bop,im1,im2) ->
-      Arg_op(bop_to_prover_arg bop
-	,   [im1; im2] )
-  | Unop_exp (uop,im) -> assert false
-  | Invoke_exp ie -> assert false
-  | Immediate_exp im -> im
-  | Reference_exp r -> reference2args r (* do we need this translation of better to PPred???*)
+let expression2args e =  failwith "TODO"
+  (* match e with                                                                                 *)
+  (* | New_simple_exp ty -> assert false                                                          *)
+  (* | New_array_exp (nv_ty,fad) -> assert false                                                  *)
+  (* | New_multiarray_exp (ty,adl) -> assert false                                                *)
+  (* | Cast_exp (nv_ty,im) -> assert false                                                        *)
+  (* | Instanceof_exp (im,nv_ty) -> assert false                                                  *)
+  (* | Binop_exp (bop,im1,im2) ->                                                                 *)
+  (*     Arg_op(bop_to_prover_arg bop                                                             *)
+	(* ,   [im1; im2] )                                                                             *)
+  (* | Unop_exp (uop,im) -> assert false                                                          *)
+  (* | Invoke_exp ie -> assert false                                                              *)
+  (* | Immediate_exp im -> im                                                                     *)
+  (* | Reference_exp r -> reference2args r (* do we need this translation of better to PPred???*) *)
 
 
 let variable2var v =
   Vars.concretep_str (variable2key v )
 
 
-let var2args x =Arg_var x
+let var2args x =  failwith "TODO"
+  (* Arg_var x *)
 
 
-let immediate2var e =
-  match e with
-    Arg_var v -> v
-  | _ -> assert false
+let immediate2var e =  failwith "TODO"
+  (* match e with        *)
+  (*   Arg_var v -> v    *)
+  (* | _ -> assert false *)
 
 
 (* ==============  printing facilities  ======================= *)
-let form2str f = Psyntax.string_form f
+let form2str f =  failwith "TODO"
+  (* Psyntax.string_form f *)
 
-let print_formset s fs=
-  Format.printf "@\n%s@  [ @[%a@]@ ]@."
-    s
-    (fun ppf -> List.iter (fun f ->Format.fprintf ppf "@[%a@]@\n " Sepprover.string_inner_form f )) fs
+let print_formset s fs= failwith "TODO"
+  (* Format.printf "@\n%s@  [ @[%a@]@ ]@."                                                                *)
+  (*   s                                                                                                  *)
+  (*   (fun ppf -> List.iter (fun f ->Format.fprintf ppf "@[%a@]@\n " Sepprover.string_inner_form f )) fs *)
 
 
 (* =============   end printing facilities ==================== *)
