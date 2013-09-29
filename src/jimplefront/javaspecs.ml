@@ -23,26 +23,15 @@ open Format
 open Jimple_global_types
 open Jlogic
 open Jparsetree
-(* open Psyntax *)
-(* open Sepprover *)
 open Spec_def
-(* open Specification *)
 open Support_syntax
 open System
-open Vars
-
-(* module PS = Psyntax *)
 
 exception Class_defines_external_spec
 
 (* ================ General stuff =================== *)
 
-let append_rules _ _ = failwith "TODO"
-  (* (logic : logic) (rules : sequent_rule list) : Psyntax.logic = *)
-(*        let old_rules,rm,f = logic in
-        (old_rules @ rules,rm,f) *)
-  (* {logic with seq_rules = logic.seq_rules @ rules} *)
-
+let append_rules l rs = l @ rs
 
 let rec are_neighbors_different = function
   | [] | [_] -> true
@@ -52,19 +41,19 @@ let rec are_neighbors_different = function
 
 (* ===================== Augment the logic with apf stuff of a class and exported apfs of other classes  ====================== *)
 
-let apf name receiver params = failwith "TODO" 
+let apf name receiver params = failwith "TODO"
   (* [P_SPred(name,[Arg_var receiver; mkArgRecord params])] *)
-let apf_match name receiver params = failwith "TODO" 
+let apf_match name receiver params = failwith "TODO"
   (* [P_SPred(name,[Arg_var receiver; Arg_var params])] *)
-let not_null1 name =  failwith "TODO" 
+let not_null1 name =  failwith "TODO"
   (* [P_NEQ(name,Arg_op("nil",[]))] *)
-let not_null name =  failwith "TODO" 
+let not_null name =  failwith "TODO"
   (* not_null1 (Arg_var name) *)
 
 exception BadAPF of string
 
 (* Add rules for the relationship between an apf and apf entry, as well as the apf entry and the body *)
-let add_apf_to_logic _ _ _ =  failwith "TODO" 
+let add_apf_to_logic _ _ _ =  failwith "TODO"
 (*   (logic : logic) apfdefines classname : Psyntax.logic =                                                                                                        *)
 (*   let make_rules_from_defs (name,receiver,parameters, definition, global) rules =                                                                               *)
 (* (* special variables to match the record as pattern matcher isn't that clever *)                                                                                *)
@@ -189,7 +178,7 @@ let parent_classes_and_interfaces classname spec_list =
 (* =================== Stuff exports and axioms both use ======================== *)
 
 (* The rules for prov => imp, where prov is the implication's proviso *)
-let rules_for_implication _ _ =  failwith "TODO" 
+let rules_for_implication _ _ =  failwith "TODO"
   (* imp prov : sequent_rule list =                                                                                                                                    *)
   (*       let name,antecedent,consequent = imp in                                                                                                                     *)
   (*       (* imp is assumed to contain only program variables and existential variables *)                                                                            *)

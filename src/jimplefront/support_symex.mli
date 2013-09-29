@@ -12,15 +12,15 @@
  ********************************************************)
 
 
-val default_for : Jparsetree.j_type -> Jparsetree.name -> Expression.t (* Psyntax.args *)
-val signature2args : Jparsetree.signature -> Expression.t (* Psyntax.args *)
-val name2args : Jparsetree.name -> Expression.t (* Psyntax.args *)
-val variable2var : Jparsetree.variable -> Vars.var
-val var2args : Vars.var -> Expression.t (* Psyntax.args *)
+val default_for : Jparsetree.j_type -> Jparsetree.name -> Expression.t
+val signature2args : Jparsetree.signature -> Expression.t
+val name2args : Jparsetree.name -> Expression.t
+val variable2var : Jparsetree.variable -> Expression.t
+val var2args : Expression.t -> Expression.t
 val negate : Jparsetree.expression -> Jparsetree.expression
 val this_var_name : string
 val parameter : int -> string
-val mk_this : Vars.var
+val mk_this : Expression.t
 val make_field_signature :
   Jparsetree.class_name ->
   Jparsetree.j_type -> Jparsetree.name -> Jparsetree.signature

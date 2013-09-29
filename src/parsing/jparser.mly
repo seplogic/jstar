@@ -27,19 +27,16 @@ open Lexing
 open Load
 open Parsing
 open Printing
-(* open Psyntax *)
 open Spec_def
-open Vars
 
 (* TODO(rgrig): Keep these instead of the above. *)
 module J = Jparsetree
-(* module PS = Psyntax *)
 module SS = Support_syntax
 
-let newVar x =
-  if x = "_" then freshe()
-  else if String.get x 0 = '_' then concretee_str (String.sub x 1 ((String.length x) -1))
-  else concretep_str x
+let newVar x = failwith "TODO"
+  (* if x = "_" then freshe()                                                                *)
+  (* else if String.get x 0 = '_' then concretee_str (String.sub x 1 ((String.length x) -1)) *)
+  (* else concretep_str x                                                                    *)
 
 let mkBinOp left op right = failwith "TODO"
   (* PS.Arg_op (SS.bop_to_prover_arg op, [left; right]) *)
@@ -793,9 +790,9 @@ name:
 
 
 lvariable:
-   | at_identifier { concretep_str $1 }
+   | at_identifier { Expression.mk_var $1 }
    | identifier { newVar $1 }
-   | QUESTIONMARK identifier { concretea_str $2 }
+   | QUESTIONMARK identifier { Expression.mk_var $2 }
 ;
 
 lvariable_list_ne:

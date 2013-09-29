@@ -11,10 +11,6 @@
       LICENSE.txt
  ********************************************************)
 
-
-
-open Vars
-(* open Psyntax *)
 open Config
 open Jparsetree
 open Support_syntax
@@ -97,7 +93,7 @@ let expression2args e =  failwith "TODO"
 
 
 let variable2var v =
-  Vars.concretep_str (variable2key v )
+  Expression.mk_var (variable2key v )
 
 
 let var2args x =  failwith "TODO"
@@ -111,10 +107,11 @@ let immediate2var e =  failwith "TODO"
 
 
 (* ==============  printing facilities  ======================= *)
-let form2str f =  failwith "TODO"
-  (* Psyntax.string_form f *)
+let form2str f =
+	Corestar_std.string_of Expression.pp f
 
-let print_formset s fs= failwith "TODO"
+(* this is not used or exported from the module, thus commented out (nikos g) *)
+(* let print_formset s fs=  *)
   (* Format.printf "@\n%s@  [ @[%a@]@ ]@."                                                                *)
   (*   s                                                                                                  *)
   (*   (fun ppf -> List.iter (fun f ->Format.fprintf ppf "@[%a@]@\n " Sepprover.string_inner_form f )) fs *)
@@ -175,12 +172,12 @@ let this_var_name = Support_syntax.this_var_name
 let parameter n = "@parameter"^(string_of_int n)^":"
 
 (* create the "this" *)
-let mk_this : Vars.var =
-  Vars.concretep_str this_var_name
+let mk_this  =
+  Expression.mk_var this_var_name
 
 (* create the "res" used for the result of traditional assertions *)
-let mk_res : Vars.var =
-  Vars.concretep_str res_var_name
+let mk_res =
+  Expression.mk_var res_var_name
 
 let make_field_signature  cname ty n =
   Field_signature(cname,ty,n)

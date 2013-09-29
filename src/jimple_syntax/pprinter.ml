@@ -210,7 +210,7 @@ let statement2str = function
    | Throw_stmt i -> "throw "^immediate2str i^";"
    | Invoke_stmt e -> invoke_expr2str e^";"
    | Spec_stmt (vars, triple) ->
-      (list2str Vars.string_var vars ", ")^" : "
+      (list2str (string_of Expression.pp) vars ", ")^" : "
       ^ string_of CoreOps.pp_triple triple ^";"
 
 let declaration_or_statement2str =function

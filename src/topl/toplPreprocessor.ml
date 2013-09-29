@@ -254,8 +254,7 @@ let iter_wrap w n =
   in f [] (n-1)
 
 let wrap_ret_arg a = CoreOps.return_var a
-let wrap_call_arg a =  failwith "TODO"
-  (* Psyntax.mkVar (CoreOps.parameter_var a) *)
+let wrap_call_arg a = Expression.mk_var (CoreOps.parameter_var a)
 
 let make_instrumented_proc_pair (get_arg_cnt, get_ret_cnt) p =
 	failwith "TODO"

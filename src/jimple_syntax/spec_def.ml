@@ -16,8 +16,6 @@
 
 open Jparsetree
 open Printing
-(* open Psyntax *)
-open Vars
 
 
 type fldlist = (string * Expression.t) list
@@ -26,16 +24,16 @@ type methodspec =
       Dynamic of method_signature_short * (Core.triple list) * source_location option
   |   Static of method_signature_short * (Core.triple list) * source_location option
 
-type methodspecs = 
+type methodspecs =
     methodspec list
 
-type apf_define = (string * var * fldlist * Expression.t * bool)
+type apf_define = (string * Expression.t * fldlist * Expression.t * bool)
 
 type apf_defines = apf_define list
 
 type named_implication = (string * Expression.t * Expression.t)
 
-type exportLocal_predicate = (string * var list * Expression.t)
+type exportLocal_predicate = (string * Expression.t list * Expression.t)
 
 type exports_clause = (named_implication list * exportLocal_predicate list) option
 

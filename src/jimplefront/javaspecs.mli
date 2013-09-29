@@ -15,16 +15,16 @@
 val append_rules :
   Calculus.t -> Calculus.t -> Calculus.t
 val apf :
-  string -> Vars.var -> (string * Expression.t) list -> Expression.t
+  string -> Expression.t -> (string * Expression.t) list -> Expression.t
 val augmented_logic_for_class :
-  Jparsetree.class_name -> 
+  Jparsetree.class_name ->
   Spec_def.class_spec list -> Calculus.t -> Calculus.t
 val remove_duplicates : 'a list -> 'a list
 val parent_classes_and_interfaces :
   Jparsetree.class_name ->
   Spec_def.class_spec list -> Jparsetree.class_name list
 val logic_with_where_pred_defs :
-  (string * Vars.StrVarHash.key list * Expression.t) list ->
+  (string * Corestar_std.StringMap.key list * Expression.t) list ->
   Calculus.t -> Calculus.t
 val logic_and_implications_for_exports_verification :
   Jparsetree.class_name ->

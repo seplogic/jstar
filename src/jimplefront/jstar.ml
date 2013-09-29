@@ -98,43 +98,43 @@ let preprocess_jimple (JFile (a, b, c, d, e, f)) =
     | x -> x in
   JG.JFile (a, b, c, d, e, List.map member f)
 
-let make_logic_for_one_program spec_list logic program = failwith "TODO"
-   (*     let Jimple_global_types.JFile(_,_,class_name,_,_,_) = program in                                                                        *)
-   (*     let logic = Javaspecs.augmented_logic_for_class class_name spec_list logic in                                                           *)
-   (*     let logic = Javaspecs.add_common_apf_predicate_rules spec_list logic in                                                                 *)
-   (*     (* Axioms use the "subtype" and "objsubtype" relation - see jlogic.ml *)                                                                *)
-   (*     let logic = Javaspecs.add_subtype_and_objsubtype_rules spec_list logic in                                                               *)
+let make_logic_for_one_program spec_list logic program = 
+       let Jimple_global_types.JFile(_,_,class_name,_,_,_) = program in
+       let logic = Javaspecs.augmented_logic_for_class class_name spec_list logic in
+       let logic = Javaspecs.add_common_apf_predicate_rules spec_list logic in
+       (* Axioms use the "subtype" and "objsubtype" relation - see jlogic.ml *)
+       let logic = Javaspecs.add_subtype_and_objsubtype_rules spec_list logic in
 
-   (*     (* Exports clause treatment *)                                                                                                          *)
-   (*     let (logic_with_where_pred_defs,implications) = Javaspecs.logic_and_implications_for_exports_verification class_name spec_list logic in *)
-   (*     if safe then                                                                                                                            *)
-	 (* Classverification.verify_exports_implications                                                                                               *)
-	 (*     implications                                                                                                                            *)
-	 (*     (Sepprover.convert_logic logic_with_where_pred_defs);                                                                                   *)
-	 (* (* Since where predicates are local to the exports clause, we discard them after exports clause verification *)                             *)
+       (* Exports clause treatment *)
+       let (logic_with_where_pred_defs,implications) = Javaspecs.logic_and_implications_for_exports_verification class_name spec_list logic in
+       if safe then
+	 Classverification.verify_exports_implications
+	     implications
+	     logic_with_where_pred_defs;
+	 (* Since where predicates are local to the exports clause, we discard them after exports clause verification *)
 
-   (*     let logic = Javaspecs.add_exported_implications_to_logic spec_list logic in                                                             *)
-   (*     if log log_logic then (                                                                                                                 *)
-	 (* fprintf                                                                                                                                     *)
-	 (*    logf                                                                                                                                     *)
-	 (*    "@[<2>Augmented logic sequent rules%a@."                                                                                                 *)
-	 (*    (pp_list Psyntax.pp_sequent_rule) logic.seq_rules);                                                                                      *)
-   (*     (* End of exports clause treatment *)                                                                                                   *)
+       let logic = Javaspecs.add_exported_implications_to_logic spec_list logic in
+       if log log_logic then (
+	 fprintf
+	    logf
+	    "@[<2>Augmented logic sequent rules%a@."
+	    (pp_list CalculusOps.pp_rule_schema) logic);
+       (* End of exports clause treatment *)
 
-   (*     (* Axioms clause treatment *)                                                                                                           *)
-   (*     let axiom_map = Javaspecs.spec_file_to_axiom_map spec_list in                                                                           *)
-   (*     let implications = Javaspecs.implications_for_axioms_verification class_name axiom_map in                                               *)
-   (*     if safe then                                                                                                                            *)
-	 (* Classverification.verify_axioms_implications                                                                                                *)
-	 (*    class_name                                                                                                                               *)
-	 (*    program                                                                                                                                  *)
-	 (*    implications                                                                                                                             *)
-	 (*    axiom_map                                                                                                                                *)
-	 (*    (Sepprover.convert_logic logic);                                                                                                         *)
-   (*     let logic = Javaspecs.add_axiom_implications_to_logic spec_list logic in                                                                *)
-   (*     logic                                                                                                                                   *)
-   (*     (*let _ = Prover.pprint_sequent_rules logic in*)                                                                                        *)
-   (*     (* End of axioms clause treatment *)                                                                                                    *)
+       (* Axioms clause treatment *)
+       let axiom_map = Javaspecs.spec_file_to_axiom_map spec_list in
+       let implications = Javaspecs.implications_for_axioms_verification class_name axiom_map in
+       if safe then
+	 Classverification.verify_axioms_implications
+	    class_name
+	    program
+	    implications
+	    axiom_map
+	    logic;
+       let logic = Javaspecs.add_axiom_implications_to_logic spec_list logic in
+       logic
+       (*let _ = Prover.pprint_sequent_rules logic in*)
+       (* End of axioms clause treatment *)
 
 
 let main () =

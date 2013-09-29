@@ -171,26 +171,24 @@ let verify_methods_dynamic_dispatch_behavioral_subtyping_inheritance
 
 
 let compile_jimple js specs logic abs =
-	 failwith "TODO"
-  (* prof_phase "split specs";                                                        *)
-  (* let sspecs, dspecs = Javaspecs.spec_file_to_method_specs specs in                *)
-  (* let convert_spec (spec, l) =                                                     *)
-  (*   (List.map CoreOps.ast_to_inner_triple spec, l) in                              *)
-  (* let sspecs_inner = Javaspecs.MethodMap.map convert_spec sspecs in                *)
-  (* let dspecs_inner = Javaspecs.MethodMap.map convert_spec dspecs in                *)
-  (* prof_phase "init spec checks";                                                   *)
-  (* let j_by_name =                                                                  *)
-  (*   Misc.hash_of_list                                                              *)
-  (*     (fun x->x)                                                                   *)
-  (*     (fun _ _ -> failwith "Duplicated class.") (* TODO(rgrig): nicer error/exc *) *)
-  (*     (function (JG.JFile (_,_,cn,_,_,_)) -> Some cn)                              *)
-  (*     (fun x-> Some x)                                                             *)
-  (*     js in                                                                        *)
-  (* verify_methods_dynamic_dispatch_behavioral_subtyping_inheritance                 *)
-  (*   j_by_name                                                                      *)
-  (*   sspecs_inner                                                                   *)
-  (*   dspecs_inner                                                                   *)
-  (*   logic                                                                          *)
-  (*   abs;                                                                           *)
-  (* prof_phase "actual compile jimple -> core";                                      *)
-  (* Translatejimple.compile js sspecs dspecs                                         *)
+  prof_phase "split specs";
+  let sspecs, dspecs = Javaspecs.spec_file_to_method_specs specs in
+  let convert_spec (spec, l) = (Core.TripleSet.of_list spec, l) in
+  let sspecs_inner = Javaspecs.MethodMap.map convert_spec sspecs in
+  let dspecs_inner = Javaspecs.MethodMap.map convert_spec dspecs in
+  prof_phase "init spec checks";
+  let j_by_name =
+    Misc.hash_of_list
+      (fun x->x)
+      (fun _ _ -> failwith "Duplicated class.") (* TODO(rgrig): nicer error/exc *)
+      (function (JG.JFile (_,_,cn,_,_,_)) -> Some cn)
+      (fun x-> Some x)
+      js in
+  verify_methods_dynamic_dispatch_behavioral_subtyping_inheritance
+    j_by_name
+    sspecs_inner
+    dspecs_inner
+    logic
+    abs;
+  prof_phase "actual compile jimple -> core";
+  Translatejimple.compile js sspecs dspecs

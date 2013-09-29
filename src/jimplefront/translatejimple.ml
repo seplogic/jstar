@@ -15,13 +15,10 @@ open Corestar_std
 open Format
 
 (* TODO(rgrig): Don't open these. *)
-(* open Psyntax *)
 open Jlogic
 open Jimple_global_types
 open Jparsetree
 open Spec_def
-(* open Specification *)
-open Vars
 open Support_symex
 open Javaspecs
 
@@ -46,7 +43,7 @@ let fresh_label =
 (* create the variable for a  parameter *)
 let mk_parameter n =
   let p=parameter n in
-  let v=Vars.concretep_str p in
+  let v=Expression.mk_var p in
   v
 
 (* retrieve static spec of a method from table of specs*)
@@ -393,7 +390,7 @@ module LocalMap =
 	Map.Make (struct
 		type t = string
 		let compare = compare
-	end) 
+	end)
 
 (* type local_map = Psyntax.args list AxiomMap.t *)
 type local_map = Expression.t (* Psyntax.args *) list Javaspecs.AxiomMap.t
