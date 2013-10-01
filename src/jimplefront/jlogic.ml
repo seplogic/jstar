@@ -18,8 +18,8 @@ open Jimple_global_types
 
 (* module PS = Psyntax *)
 
-let class2args cl = failwith "TODO"
-  (* PS.mkString (class_name2str cl) *)
+let class2args cl = 
+  Expression.mk_string_const (class_name2str cl)
 
 (* create n.si|->e *)
 let mk_pointsto n si e = failwith "TODO" 
@@ -31,8 +31,8 @@ let mk_subtype1 a1 a2 = failwith "TODO"
 let mk_subtype cl1 cl2 = mk_subtype1 (class2args cl1) (class2args cl2)
 
 
-let base_type2args ty = failwith "TODO"
-  (* PS.Arg_string (Pprinter.j_base_type2str ty) *)
+let base_type2args ty = 
+  Expression.mk_string_const (Pprinter.j_base_type2str ty)
 
 (* create var : cl   (precise type not static type) *)
 let objtype_name = "type"

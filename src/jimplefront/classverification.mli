@@ -26,5 +26,5 @@ val compile_jimple :
   Jimple_global_types.jimple_file list (* jimples *)
     -> Spec_def.class_spec list (* specs *)
     -> Calculus.t (* logic *)
-    -> Calculus.t (* abs *)
+    -> Abstraction.t (* abs *)
     -> Core.ast_procedure list

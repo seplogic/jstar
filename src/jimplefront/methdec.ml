@@ -125,19 +125,19 @@ let ee_update_in_scope state label =
 (* NOTE: This name is used by the error handlers in jimple. Don't change. *)
 let ee_excvar_name = "@caughtexception"
 let ee_excvar_jimp = J.Var_name (J.Identifier_name ee_excvar_name)
-let ee_excvar_form =  failwith "TODO"
-  (* Psyntax.mkVar (Vars.concretep_str ee_excvar_name) *)
+let ee_excvar_form =  
+  Expression.mk_var ee_excvar_name
 
-let ee_encode_label state label =  failwith "TODO"
-  (* let s = JG.Label_stmt label in                                  *)
-  (* try                                                             *)
-  (*   let t = Hashtbl.find state.ee_type label in                   *)
-  (*   let mk_assume post =                                          *)
-  (*     { Core.pre = Psyntax.mkEmpty; post; modifies = Some [] } in *)
-  (*   let type_ok = Jlogic.mk_statictyp ee_excvar_form t in         *)
-  (*   let assume_type = JG.Spec_stmt ([], mk_assume type_ok) in     *)
-  (*   [ s; assume_type ]                                            *)
-  (* with Not_found -> [s]                                           *)
+let ee_encode_label state label =  
+  let s = JG.Label_stmt label in
+  try
+    let t = Hashtbl.find state.ee_type label in
+    let mk_assume post =
+      { Core.pre = Expression.emp; post; modifies = Some [] } in
+    let type_ok = Jlogic.mk_statictyp ee_excvar_form t in
+    let assume_type = JG.Spec_stmt ([], mk_assume type_ok) in
+    [ s; assume_type ]
+  with Not_found -> [s]
 
 let ee_encode_throw state e =
   let withs =
