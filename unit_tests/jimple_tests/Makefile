@@ -5,7 +5,7 @@ ifndef TARGETS
 endif
 
 ifndef CLEAN
-  CLEAN =  *.class *~ *.dot *proof_file*.txt \#* .\#* *.core
+  CLEAN =  *.class *~ *.dot *proof_file*.txt \#* .\#* *.core stdout stderr
 endif 
 
 ifndef SOURCES
@@ -41,7 +41,7 @@ time :  all $(addsuffix .time, $(TARGETS))
 %.jimple: %.class
 	java soot.Main $* -f J -d . -print-tags -keep-line-number  || (echo "WARNING: Soot failed, using old Jimple file." ; touch $@)
 
-%.test.dir: 
+%.test.dir:
 	@$(MAKE) -C $* test
 
 clean:: 

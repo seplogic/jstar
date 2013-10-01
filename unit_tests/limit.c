@@ -22,6 +22,7 @@ void usage() {
  *  2 - I can't fork
  *  3 - I can't execute
  *  4 - wall time expired, I had to abort
+ *  5 - child retuned nonzero exit code
  */
 int main(int argc, char* argv[]) {
   int i;
@@ -94,5 +95,9 @@ int main(int argc, char* argv[]) {
     usleep(50000);
   }
   if (WIFSIGNALED(status)) return 4;
+  if (WEXITSTATUS(status)) {
+    fprintf(stderr, "EXIT CODE %d\n", WEXITSTATUS(status));
+    return 5;
+  }
   return 0;
 }
