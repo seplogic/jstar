@@ -3,43 +3,39 @@ open Corestar_std
 (* module PS = Psyntax *)
 module TM = ToplMonitor
 module TN = ToplNames
+module E = Expression
 
 (* TODO(rgrig): Use the more high-level functions in [Psyntax] if possible. *)
 
 type toplPVars =
-  { state : Expression.t
-  ; store : Expression.t TM.RMap.t
-  ; size : Expression.t
-  ; queue : Expression.t array array }
-  (* INV: Each [Expression.t] above should be [Arg_var _]. *)
-
-let var_of_term = failwith "TODO"
-  (* function                                                *)
-  (* | PS.Arg_var v -> v                                     *)
-  (* | _ -> failwith "INTERNAL: toplPVars invariant broken?" *)
+  { state : E.t
+  ; store : E.t TM.RMap.t
+  ; size : E.t
+  ; queue : E.t array array }
+  (* INV: Each [E.t] above should be [Arg_var _]. *)
 
 let rec range i j = (* [i; i+1; ...; j-1] *)
   if i >= j then [] else i :: range (i + 1) j
 
-let wrap_call_arg a = failwith "TODO"
- (* PS.mkVar (CoreOps.parameter_var a) *)
+let wrap_call_arg a = 
+ E.mk_var (CoreOps.parameter a)
 
-let get_specs_for_enqueue pv = failwith "TODO"
-  (* let q_sz = Array.length pv.queue in                                     *)
-  (* let e_sz = Array.length pv.queue.(0) in                                 *)
-  (* let specs = HashSet.create 0 in                                         *)
-  (* for i = 0 to q_sz - 1 do begin                                          *)
-  (*   let e = pv.queue.(i) in                                               *)
-  (*   let pre = [PS.P_EQ(pv.size, PS.mkArgint i)] in                        *)
-  (*   let post =                                                            *)
-  (*     let cp i = PS.P_EQ (e.(i), wrap_call_arg i) in                      *)
-  (*     PS.P_EQ (pv.size, PS.mkArgint (i+1))                                *)
-  (*     :: List.map cp (range 0 e_sz) in                                    *)
-  (*   let modifies = pv.size :: List.map (fun i -> e.(i)) (range 0 e_sz) in *)
-  (*   let modifies = Some (List.map var_of_term modifies) in                *)
-  (*   HashSet.add specs { Core.pre; post; modifies }                        *)
-  (* end done;                                                               *)
-  (* specs                                                                   *)
+let get_specs_for_enqueue pv = 
+  let q_sz = Array.length pv.queue in
+  let e_sz = Array.length pv.queue.(0) in
+  let specs = Core.TripleSet.create 0 in
+  for i = 0 to q_sz - 1 do begin 
+    let e = pv.queue.(i) in
+    let pre = E.mk_eq pv.size (E.mk_int_const (string_of_int i)) in
+    let post = E.mk_big_star 
+      (let cp i = E.mk_eq e.(i) (wrap_call_arg i) in
+      E.mk_eq pv.size (E.mk_int_const (string_of_int (i+1)))
+      :: List.map cp (range 0 e_sz)) in
+    let modifies = pv.size :: List.map (fun i -> e.(i)) (range 0 e_sz) in
+    let modifies = Some (List.map E.bk_var modifies) in
+    Core.TripleSet.add specs { Core.pre; post; modifies }
+  end done;
+  specs
 
 let max_label_length_for_vertex ll =
   List.fold_right (fun l acc ->
@@ -109,8 +105,8 @@ let make_logical_copy_of_store st i j = failwith "TODO"
 let store_eq st l_st =  failwith "TODO"
   (* TM.RMap.fold (fun r v f -> PS.P_EQ (v, TM.RMap.find r l_st) :: f) st [] *)
 
-let store_eq_modifies st _ =
-  List.map (var_of_term @@ snd) (TM.RMap.bindings st)
+(* let store_eq_modifies st _ =                          *)
+(*   List.map (var_of_term @@ snd) (TM.RMap.bindings st) *)
 
 let get_type = function
   | TM.Call_time -> "CALL"
@@ -156,8 +152,8 @@ let logical_dequeue e el n = failwith "TODO"
   (* let mkEQ (x, y) = PS.P_EQ (x, y) in      *)
   (* List.map mkEQ (logical_deque_gen e el n) *)
 
-let logical_deque_modifies e el n =
-  List.map (var_of_term @@ fst) (logical_deque_gen e el n)
+(* let logical_deque_modifies e el n =                        *)
+(*   List.map (var_of_term @@ fst) (logical_deque_gen e el n) *)
 
 (* Returns a list with all non-empty subsets of {0,...,n-1} *)
 let index_subsets n =
@@ -283,8 +279,8 @@ let pDeQu n pv el = failwith "TODO"
   (* let m = Array.length pv.queue in                                       *)
   (* PS.P_EQ(pv.size, PS.mkArgint (m-n)) :: (logical_dequeue pv.queue el n) *)
 
-let pDeQu_modifies n pv el =
-  var_of_term pv.size :: logical_deque_modifies pv.queue el n
+(* let pDeQu_modifies n pv el =                                  *)
+(*   var_of_term pv.size :: logical_deque_modifies pv.queue el n *)
 
 let trans_pre_and_post pv el l_sr0 j t = failwith "TODO"
 (*   let st = t.TM.steps in                                                                                        *)

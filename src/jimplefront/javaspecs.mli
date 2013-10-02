@@ -57,7 +57,7 @@ val add_common_apf_predicate_rules :
 val add_subtype_and_objsubtype_rules :
   Spec_def.class_spec list -> Calculus.t -> Calculus.t
 val refines
-  : Calculus.t (* logic *)
+  : Calculus.t
   -> Core.spec
   -> Core.spec
   -> bool

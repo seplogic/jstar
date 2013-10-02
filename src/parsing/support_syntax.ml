@@ -38,10 +38,10 @@ let bop_to_prover_arg = function
       | Div -> "builtin_div"
 
 let bop_to_prover_pred bop i1 i2 =
-	(* TODO: are there a standard identifiers for !=, GT etc? *)
+	(* TODO: are there a standard identifiers for GT etc? *)
   match bop with
   | Cmpeq -> Expression.mk_eq i1 i2
-  | Cmpne -> Expression.mk_2 "!=" i1 i2
+  | Cmpne -> Expression.mk_neq i1 i2
   | Cmpgt -> Expression.mk_2 "GT" i1 i2
   | Cmplt -> Expression.mk_2 "LT" i1 i2
   | Cmpge -> Expression.mk_2 "GE" i1 i2

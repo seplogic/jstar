@@ -122,29 +122,28 @@ let get_name  (iexp: Jparsetree.invoke_expr) =
 
 
 
-let retvar_term =  failwith "TODO"
-  (* Arg_var CoreOps.ret_v1 *)
+let retvar_term =
+  Expression.mk_var CoreOps.name_ret_v1
 
 (* make terms/predicates related to the array representation *) (* {{{ *)
 let mk_array a i j v = failwith "TODO"
   (* PS.mkSPred ("array", [a; i; j; v]) *)
 
-let mk_zero =  failwith "TODO"
-  (* function *)
-  (* | Base (Boolean, _)          *)
-  (* | Base (Byte, _)             *)
-  (* | Base (Char, _)             *)
-  (* | Base (Short, _)            *)
-  (* | Base (Int, _)              *)
-  (* | Base (Long, _)             *)
-  (* | Base (Float, _)            *)
-  (* | Base (Double, _)           *)
-  (*     -> PS.mkNumericConst "0" *)
-  (* | Base _                     *)
-  (* | Quoted _                   *)
-  (* | Ident_NVT _                *)
-  (* | Full_ident_NVT _           *)
-  (*     -> PS.Arg_op ("nil", []) *)
+let mk_zero = function
+  | Base (Boolean, _)
+  | Base (Byte, _)
+  | Base (Char, _)
+  | Base (Short, _)
+  | Base (Int, _)
+  | Base (Long, _)
+  | Base (Float, _)
+  | Base (Double, _)
+      -> Expression.mk_int_const "0"
+  | Base _
+  | Quoted _
+  | Ident_NVT _
+  | Full_ident_NVT _
+      -> Expression.mk_0 "nil"
 
 let mk_succ n = failwith "TODO"
   (* PS.mkFun "builtin_plus" [n; PS.mkNumericConst "1"] *)
@@ -346,8 +345,8 @@ let get_spec_for m fields cname= failwith "TODO"
   (* List.map f spec                                                                         *)
 
 
-let resvar_term = failwith "TODO"
- (* Arg_var(Support_syntax.res_var) *)
+let resvar_term =
+   Support_syntax.res_var
 
 let conjoin_with_res_true (assertion : Expression.t) : Expression.t =  failwith "TODO"
 	 (* pconjunction assertion (mkEQ(resvar_term, PS.mkNumericConst "1")) *)
@@ -386,14 +385,14 @@ let get_dyn_spec_for m fields cname = failwith "TODO"
         (* List.map logical_vars_to_prog dynspec                                    *)
 
 
-module LocalMap =
-	Map.Make (struct
-		type t = string
-		let compare = compare
-	end)
+(* module LcalMap =          *)
+(* 	Map.Make (struct        *)
+(* 		type t = string       *)
+(* 		let compare = compare *)
+(* 	end)                    *)
 
 (* type local_map = Psyntax.args list AxiomMap.t *)
-type local_map = Expression.t (* Psyntax.args *) list Javaspecs.AxiomMap.t
+(* type local_map = Expression.t (* Psyntax.args *) list Javaspecs.AxiomMap.t *)
 
 (*
 A jimple method body contains a list of local variable declarations.

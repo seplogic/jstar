@@ -32,20 +32,21 @@ open Spec_def
 (* TODO(rgrig): Keep these instead of the above. *)
 module J = Jparsetree
 module SS = Support_syntax
+module E = Expression
 
-let newVar x = failwith "TODO"
-  (* if x = "_" then freshe()                                                                *)
-  (* else if String.get x 0 = '_' then concretee_str (String.sub x 1 ((String.length x) -1)) *)
-  (* else concretep_str x                                                                    *)
+let newVar x = 
+  if x = "_" then E.freshen "v"
+  else if String.get x 0 = '_' then (String.sub x 1 ((String.length x) -1))
+  else x
 
-let mkBinOp left op right = failwith "TODO"
+let mkBinOp left op right = failwith "TODO1"
   (* PS.Arg_op (SS.bop_to_prover_arg op, [left; right]) *)
 
-let mkNegNumericConst n = failwith "TODO"
+let mkNegNumericConst n = failwith "TODO2"
   (* mkBinOp (PS.mkNumericConst "0") J.Minus (PS.mkNumericConst n) *)
 
-let check_npv =
-  let rec check_term_npv =  failwith "TODO" in
+(* let check_npv =                                *)
+(*   let rec check_term_npv =  failwith "TODO" in *)
     (* function                                                                   *)
     (* | Arg_var v ->                                                             *)
     (*     if Vars.is_avar v then begin                                           *)
@@ -56,8 +57,8 @@ let check_npv =
     (* | Arg_string _ -> ()                                                       *)
     (* | Arg_op (_, xs) -> List.iter check_term_npv xs                            *)
     (* | _ -> failwith "INTERNAL: Using deprecated stuff." in                     *)
-  let check_term_list_npv = List.iter check_term_npv in
-  let rec check_pform_at_npv =  failwith "TODO"
+  (* let check_term_list_npv = List.iter check_term_npv in *)
+  (* let rec check_pform_at_npv =  failwith "TODO"         *)
     (* function                                           *)
     (* | P_EQ (t1, t2)                                    *)
     (* | P_NEQ (t1, t2) -> check_term_list_npv [t1; t2]   *)
@@ -67,14 +68,14 @@ let check_npv =
     (* | P_Or (f1, f2)                                    *)
     (* | P_Septract (f1, f2) -> check_pform_npv (f1 @ f2) *)
     (* | P_False -> ()                                    *)
-  and check_pform_npv f = List.iter check_pform_at_npv f in
-  check_pform_npv
+  (* and check_pform_npv f = List.iter check_pform_at_npv f in *)
+  (* check_pform_npv                                           *)
 
 let msig_simp (mods,typ,name,args_list) =
   let args_list = List.map fst args_list in
   (mods,typ,name,args_list)
 
-let bind_spec_vars (mods,typ,name,args_list) triple = failwith "TODO"
+let bind_spec_vars (mods,typ,name,args_list) triple = failwith "TODO3"
   (* (* Make substitution to normalise names *)                                                 *)
   (* let subst = Psyntax.empty in                                                               *)
   (* let subst = Psyntax.add (concretep_str "this") (Arg_var(Support_syntax.this_var)) subst in *)
@@ -714,17 +715,17 @@ arg_list:
    | immediate COMMA arg_list { $1 :: $3 }
 ;
 immediate:
-  | local_name {  failwith "TODO" (*PS.mkPVar (string_of J.pp_name $1)*) }
+  | local_name { E.mk_var (string_of J.pp_name $1) }
   | constant { $1 }
 ;
 constant:
-  | INTEGER_CONSTANT {  failwith "TODO" (*PS.mkNumericConst $1*) }
+  | INTEGER_CONSTANT { E.mk_int_const $1 }
   | MINUS INTEGER_CONSTANT { mkNegNumericConst $2 }
-  | FLOAT_CONSTANT  {  failwith "TODO" (*PS.mkNumericConst $1*) }
+  | FLOAT_CONSTANT  {  failwith "TODO6" (*PS.mkNumericConst $1*) }
   | MINUS FLOAT_CONSTANT  { mkNegNumericConst $2 }
-  | STRING_CONSTANT {  failwith "TODO" (*PS.mkStringConst $1*) }
-  | CLASS STRING_CONSTANT {  failwith "TODO" (*PS.Arg_op ("class_const", [PS.mkString $2])*) }
-  | NULL {  failwith "TODO" (*PS.Arg_op ("nil", [])*) }
+  | STRING_CONSTANT {  failwith "TODO7" (*PS.mkStringConst $1*) }
+  | CLASS STRING_CONSTANT {  failwith "TODO8" (*PS.Arg_op ("class_const", [PS.mkString $2])*) }
+  | NULL { E.nil }
 ;
 binop_no_mult:
    | AND {And}
@@ -790,9 +791,9 @@ name:
 
 
 lvariable:
-   | at_identifier { Expression.mk_var $1 }
-   | identifier { newVar $1 }
-   | QUESTIONMARK identifier { Expression.mk_var $2 }
+   | at_identifier { E.mk_var $1 }
+   | identifier { E.mk_var (newVar $1) }
+   | QUESTIONMARK identifier { E.mk_var $2 }
 ;
 
 lvariable_list_ne:
@@ -816,20 +817,20 @@ paramlist_question_mark:
    | /* empty */ { None }
 ;
 paramlist:
-   | identifier EQUALS lvariable {  failwith "TODO" (*[($1,Arg_var $3)]*) }
+   | identifier EQUALS lvariable {  failwith "TODO10" (*[($1,Arg_var $3)]*) }
    | /*empty*/ { [] }
-   | identifier EQUALS lvariable SEMICOLON fldlist  {  failwith "TODO" (*($1,Arg_var $3) :: $5*) }
+   | identifier EQUALS lvariable SEMICOLON fldlist  {  failwith "TODO11" (*($1,Arg_var $3) :: $5*) }
 ;
 
 
 jargument:
-  | RETURN {  failwith "TODO"(*Arg_var (concretep_str CoreOps.name_ret_v1)*) }
-  | lvariable {  failwith "TODO" (*Arg_var ($1)*) }
-  | identifier L_PAREN jargument_list R_PAREN {  failwith "TODO" (*Arg_op($1,$3)*) }
+  | RETURN { E.mk_var CoreOps.name_ret_v1 }
+  | lvariable { $1 }
+  | identifier L_PAREN jargument_list R_PAREN {  failwith "TODO13" (*Arg_op($1,$3)*) }
   | constant { $1 }
-  | field_signature {  failwith "TODO" (*Arg_string(field_signature2str $1)*)}
-  | L_BRACE fldlist R_BRACE {  failwith "TODO" (*mkArgRecord $2*) }
-  | L_PAREN jargument binop_val_no_multor jargument R_PAREN {  failwith "TODO" (*Arg_op(Support_syntax.bop_to_prover_arg $3, [$2;$4])*) }
+  | field_signature { E.mk_string_const (field_signature2str $1) }
+  | L_BRACE fldlist R_BRACE {  failwith "TODO15" (*mkArgRecord $2*) }
+  | L_PAREN jargument binop_val_no_multor jargument R_PAREN {  failwith "TODO16" (*Arg_op(Support_syntax.bop_to_prover_arg $3, [$2;$4])*) }
   /* TODO(rgrig): Last branch is weird. */
 ;
 jargument_list_ne:
@@ -844,22 +845,22 @@ formula:
    | EMP  { Expression.emp }
    | FALSE { Expression.fls }
    | lvariable DOT jargument MAPSTO  jargument
-     { failwith "TODO" (*[P_SPred("field", [Arg_var $1; $3; $5] )]*) }
+     { E.mk_app "field" [ $1; $3; $5] }
    | BANG identifier L_PAREN jargument_list R_PAREN
-     { failwith "TODO" (*[P_PPred($2, $4)]*) }
+     { failwith "TODO18" (*[P_PPred($2, $4)]*) }
    | identifier L_PAREN jargument_list R_PAREN
-     { failwith "TODO"
+     { failwith "TODO19"
       (*if List.length $3 =1 then [P_SPred($1,$3 @ [mkArgRecord []])] else [P_SPred($1,$3)]*) }
    | full_identifier L_PAREN jargument_list R_PAREN
-     { failwith "TODO"
+     { failwith "TODO20"
       (*if List.length $3 =1 then [P_SPred($1,$3 @ [mkArgRecord []])] else [P_SPred($1,$3)]*) }
-   | formula MULT formula {  failwith "TODO" (*pconjunction $1 $3*) }
+   | formula MULT formula { E.mk_star $1 $3 }
    | formula OR formula
-     {  failwith "TODO"
+     {  failwith "TODO21"
        (*if Config.parse_debug() then parse_warning "deprecated use of |"  ; pconjunction (purify $1) $3*) }
-   | formula OROR formula {  failwith "TODO" (*mkOr ($1,$3)*) }
+   | formula OROR formula { E.mk_or $1 $3 }
    | lvariable COLON identifier
-     { failwith "TODO" (*[P_PPred("type", [Arg_var($1);Arg_string($3)])]*) }
+     { failwith "TODO22" (*[P_PPred("type", [Arg_var($1);Arg_string($3)])]*) }
    | jargument binop_cmp jargument { Support_syntax.bop_to_prover_pred $2 $1 $3 }
    | jargument EQUALS jargument { Support_syntax.bop_to_prover_pred (Cmpeq) $1 $3 }
    | L_PAREN formula R_PAREN { $2 }
@@ -867,15 +868,15 @@ formula:
 /* TODO(rgrig): This goes away, unless somebody wants to maintain unnecessary bits.*/
 question:
    | IMPLICATION COLON formula VDASH formula
-      {  failwith "TODO" (*check_npv $3; check_npv $5; Implication ($3,$5)*) }
+      {  failwith "TODO23" (*check_npv $3; check_npv $5; Implication ($3,$5)*) }
    | INCONSISTENCY COLON formula
-      {  failwith "TODO" (*check_npv $3; Inconsistency $3*) }
+      {  failwith "TODO24" (*check_npv $3; Inconsistency $3*) }
    | FRAME COLON formula VDASH formula
-      {  failwith "TODO" (*check_npv $3; check_npv $5; Frame ($3,$5)*) }
+      {  failwith "TODO25" (*check_npv $3; check_npv $5; Frame ($3,$5)*) }
    | ABS COLON formula
-      {  failwith "TODO" (*check_npv $3; Abs $3*) }
+      {  failwith "TODO26" (*check_npv $3; Abs $3*) }
    | ABDUCTION COLON formula VDASH formula
-      {  failwith "TODO" (*check_npv $3; check_npv $5; Abduction ($3,$5)*) }
+      {  failwith "TODO27" (*check_npv $3; check_npv $5; Abduction ($3,$5)*) }
 ;
 
 question_file:

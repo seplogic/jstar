@@ -138,7 +138,6 @@ let make_logic_for_one_program spec_list logic program =
 
 
 let main () =
-	(* failwith "TODO" *)
   let usage_msg =
     Printf.sprintf "usage: %s [options] <jimple_programs>" Sys.argv.(0) in
   Arg.parse arg_list set_file usage_msg;

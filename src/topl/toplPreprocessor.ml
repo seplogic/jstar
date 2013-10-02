@@ -9,6 +9,7 @@ module J = Jparsetree
 module JG = Jimple_global_types
 module TM = ToplMonitor
 module TN = ToplNames
+module E = Expression
 
 (* }}} *)
 (* used to communicate between conversion and instrumentation *) (* {{{ *)
@@ -257,22 +258,31 @@ let wrap_ret_arg a = CoreOps.return a
 let wrap_call_arg a = Expression.mk_var (CoreOps.parameter a)
 
 let make_instrumented_proc_pair (get_arg_cnt, get_ret_cnt) p =
-	failwith "TODO"
-  (* let proc' = {C.proc_name=p.C.proc_name^"_I"; proc_spec=p.C.proc_spec; proc_body=p.C.proc_body; proc_rules=p.C.proc_rules} in *)
-  (* let call_args = iter_wrap wrap_call_arg (get_arg_cnt p.C.proc_name) in                                                       *)
-  (* let call_rets = iter_wrap wrap_ret_arg (get_ret_cnt p.C.proc_name) in                                                        *)
-  (* let emit_call =                                                                                                              *)
-  (*   { C.call_name = "emit_$$"                                                                                                  *)
-  (*   ; call_rets =[]                                                                                                            *)
-  (*   ; call_args = TN.call_event p.C.proc_name :: call_args } in                                                                *)
-  (* let call_p' = { C.call_name = p.C.proc_name^"_I"; call_rets; call_args } in                                                  *)
-  (* let emit_ret =                                                                                                               *)
-  (*   { C.call_name = "emit_$$"                                                                                                  *)
-  (*   ; call_rets = []                                                                                                           *)
-  (*   ; call_args = [ TN.return_event p.C.proc_name ] } in (* TODO(rgrig): return values *)                                      *)
-  (* let proc_body = Some ([C.Call_core emit_call; C.Call_core call_p' ; C.Call_core emit_ret])  in                               *)
-  (* let proc = {C.proc_name=p.C.proc_name; proc_spec=HashSet.create 0; proc_body; proc_rules=Psyntax.empty_logic} in             *)
-  (* [proc; proc']                                                                                                                *)
+  let proc' = 
+    { C.proc_name=p.C.proc_name^"_I"
+    ; proc_spec=p.C.proc_spec
+    ; proc_body=p.C.proc_body
+    ; proc_rules=p.C.proc_rules 
+    ; proc_ok = true } in
+  let call_args = iter_wrap wrap_call_arg (get_arg_cnt p.C.proc_name) in
+  let call_rets = iter_wrap wrap_ret_arg (get_ret_cnt p.C.proc_name) in
+  let emit_call =
+    { C.call_name = "emit_$$"
+    ; call_rets =[]
+    ; call_args = TN.call_event p.C.proc_name :: call_args } in
+  let call_p' = { C.call_name = p.C.proc_name^"_I"; call_rets; call_args } in
+  let emit_ret =
+    { C.call_name = "emit_$$"
+    ; call_rets = []
+    ; call_args = [ TN.return_event p.C.proc_name ] } in (* TODO(rgrig): return values *)
+  let proc_body = Some ([C.Call_core emit_call; C.Call_core call_p' ; C.Call_core emit_ret])  in
+  let proc = 
+    { C.proc_name=p.C.proc_name
+    ; proc_spec=C.TripleSet.create 0
+    ; proc_body
+    ; proc_rules= {C.calculus = [] ; C.abstraction = [] }
+    ; proc_ok = true } in
+  [proc; proc']
 
 let instrument_procedures ps =
   let arg_counts = compute_arg_counts ps in
@@ -283,30 +293,34 @@ let instrument_procedures ps =
 
 (* this procedure expects the event to be emitted, and the condition for the assert statement *)
 let emit_proc a pv =
-	 failwith "TODO"
-  (* let e_sz = Array.length pv.ToplSpecs.queue.(0) in                                                         *)
-  (* let call_args = iter_wrap wrap_call_arg e_sz in                                                           *)
-  (* let call_enqueue = {C.call_name = "enqueue_$$"; C.call_rets=[]; call_args} in                             *)
-  (* let call_step = {C.call_name = "step_$$"; C.call_rets=[]; C.call_args=[]} in                              *)
-  (* let errors = TM.VMap.fold (fun k _ acc -> k :: acc) a.TM.error_messages [] in                             *)
-  (* let f = errors >>= (fun e -> Psyntax.mkNEQ(pv.ToplSpecs.state, Psyntax.mkString e)) in                    *)
-  (* let asgn_assert =                                                                                         *)
-  (*   { C.asgn_rets = []                                                                                      *)
-  (*   ; asgn_args = []                                                                                        *)
-  (*   ; asgn_spec = CoreOps.mk_assert f } in                                                                  *)
-  (* let emit_body =Some ([C.Call_core call_enqueue; C.Call_core call_step; C.Assignment_core asgn_assert]) in *)
-  (* { C.proc_name = "emit_$$"; C.proc_spec = (HashSet.create 0); C.proc_body = emit_body;                     *)
-  (*   C.proc_rules = Psyntax.empty_logic }                                                                    *)
+  let e_sz = Array.length pv.ToplSpecs.queue.(0) in
+  let call_args = iter_wrap wrap_call_arg e_sz in
+  let call_enqueue = {C.call_name = "enqueue_$$"; C.call_rets=[]; call_args} in
+  let call_step = {C.call_name = "step_$$"; C.call_rets=[]; C.call_args=[]} in
+  let errors = TM.VMap.fold (fun k _ acc -> k :: acc) a.TM.error_messages [] in
+  let l = 
+    List.map (fun e -> E.mk_neq pv.ToplSpecs.state (E.mk_string_const e)) errors in
+  let f = E.mk_big_star l in
+  let asgn_assert =
+    { C.asgn_rets = []
+    ; asgn_args = []
+    ; asgn_spec = CoreOps.mk_assert f } in
+  let emit_body =Some ([C.Call_core call_enqueue; C.Call_core call_step; C.Assignment_core asgn_assert]) in
+    { C.proc_name = "emit_$$"
+    ; C.proc_spec = C.TripleSet.create 0
+    ; C.proc_body = emit_body
+    ; C.proc_rules = { C.calculus=[]; C.abstraction=[] }
+    ; proc_ok = true }
 
 let step_proc a pv =
-	 failwith "TODO"
-  (* let proc_spec = ToplSpecs.get_specs_for_step a pv in                                     *)
-  (* { C.proc_name = "step_$$"; proc_spec; proc_body=None; C.proc_rules=Psyntax.empty_logic } *)
+  let proc_spec = ToplSpecs.get_specs_for_step a pv in
+  { C.proc_name = "step_$$"; proc_spec; proc_body=None; C.proc_rules= { C.calculus=[]; C.abstraction=[] }
+    ; proc_ok = true }
 
 let enqueue_proc pv =
-	 failwith "TODO"
-  (* let proc_spec = ToplSpecs.get_specs_for_enqueue pv in                                       *)
-  (* { C.proc_name = "enqueue_$$"; proc_spec; proc_body=None; C.proc_rules=Psyntax.empty_logic } *)
+  let proc_spec = ToplSpecs.get_specs_for_enqueue pv in
+  { C.proc_name = "enqueue_$$"; proc_spec; proc_body=None; C.proc_rules={ C.calculus=[]; C.abstraction=[] }
+    ; proc_ok = true }
 
 let build_core_monitor m =
    let pv = ToplSpecs.init_TOPL_program_vars m in

@@ -1,7 +1,7 @@
 open Corestar_std
 open Printf
 
-let s _ = Expression.mk_string_const
+let s = Expression.mk_string_const
 
 let call_event p = s& sprintf "call_$$_%s" p
 let return_event p = s& sprintf "return_$$_%s" p
