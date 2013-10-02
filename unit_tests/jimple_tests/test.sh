@@ -3,7 +3,7 @@ if [ -z "$TIMELIMIT" ]; then
   TIMELIMIT=5
 fi
 echo -n .
-( $1/unit_tests/limit -w $TIMELIMIT -x "$1/bin/jstar -f $2.jimple" ) \
+( $1/unit_tests/limit -w $TIMELIMIT -x "$1/bin/jstar $2.jimple" ) \
   > stdout 2> stderr
 EC=$?
 case $EC in
