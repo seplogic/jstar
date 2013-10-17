@@ -140,7 +140,7 @@ let main () =
        let spec_list : (Spec_def.class_spec list) = Load.import_flatten
            Cli_utils.specs_dirs            
            !spec_file_name
-           (Jparser.spec_file Jlexer.token) in
+           Jparser.spec_file Jlexer.token in
 
        let Jimple_global_types.JFile(_,_,class_name,_,_,_) = program in
 

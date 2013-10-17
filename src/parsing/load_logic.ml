@@ -21,7 +21,7 @@ open System
 let load_logic_extra_rules 
     dirs filename extra_rules 
     : (Psyntax.sequent_rule list * Psyntax.rewrite_rule list * string list) =
-  let fileentrys = import_flatten_extra_rules dirs filename extra_rules (Jparser.rule_file Jlexer.token) in  
+  let fileentrys = import_flatten_extra_rules dirs filename extra_rules Jparser.rule_file Jlexer.token in  
   let rl = expand_equiv_rules fileentrys in 
   let sl,rm,cn = 
     List.fold_left
