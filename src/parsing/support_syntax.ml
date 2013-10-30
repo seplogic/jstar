@@ -55,7 +55,7 @@ let parameter_var n = Expression.mk_var (parameter n)
 
 
 (* constant name for "this" object *)
-let this_var_name  =  "@this:"
+let this_var_name  = "@this:"
 let this_var = Expression.mk_var this_var_name
 
 let res_var_name = "$res"

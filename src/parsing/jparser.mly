@@ -75,7 +75,9 @@ let msig_simp (mods,typ,name,args_list) =
   let args_list = List.map fst args_list in
   (mods,typ,name,args_list)
 
-let bind_spec_vars (mods,typ,name,args_list) triple = failwith "TODO3"
+let bind_spec_vars (mods,typ,name,args_list) triple = triple
+  (* TODO: What is below should be reimplemented to allow users to use
+  friendlier identifiers in specs (rather than the funny-looking jimple-ones). *)
   (* (* Make substitution to normalise names *)                                                 *)
   (* let subst = Psyntax.empty in                                                               *)
   (* let subst = Psyntax.add (concretep_str "this") (Arg_var(Support_syntax.this_var)) subst in *)
@@ -355,9 +357,9 @@ apf_defines:
 
 apf_define:
    | EXPORT identifier L_PAREN lvariable paramlist_question_mark R_PAREN AS formula SEMICOLON
-       { let a=match $5 with | Some b -> b | None -> [] in ($2,$4,a,$8,true) }
+       { let a=match $5 with | Some b -> b | None -> [] in ($2,E.mk_var $4,a,$8,true) }
    | DEFINE identifier L_PAREN lvariable paramlist_question_mark R_PAREN AS formula SEMICOLON
-       { let a=match $5 with | Some b -> b | None -> [] in ($2,$4,a,$8,false) }
+       { let a=match $5 with | Some b -> b | None -> [] in ($2,E.mk_var $4,a,$8,false) }
 
 exports_clause:
   | EXPORTS L_BRACE named_implication_star R_BRACE WHERE L_BRACE exportLocal_predicate_def_star R_BRACE { Some ($3,$7) }
@@ -380,7 +382,8 @@ exportLocal_predicate_def_star:
    | /*empty*/ { [] }
 
 exportLocal_predicate_def:
-   | identifier L_PAREN lvariable_list_ne R_PAREN AS formula SEMICOLON { ($1,$3,$6) }
+   | identifier L_PAREN lvariable_list_ne R_PAREN AS formula SEMICOLON
+      { ($1,List.map E.mk_var $3,$6) }
 
 methods_specs:
    | SPEC method_spec methods_specs { $2 :: $3 }
@@ -599,7 +602,12 @@ statement:
   | RETURN immediate_question_mark SEMICOLON  {Return_stmt($2)}
   | THROW immediate SEMICOLON     {Throw_stmt($2)}
   | invoke_expr SEMICOLON     {Invoke_stmt($1)}
-  | L_BRACE lvariable_list R_BRACE COLON spec SEMICOLON {Spec_stmt($2,$5)}
+  | L_BRACE lvariable_list R_BRACE COLON spec SEMICOLON
+    { Spec_stmt
+      { Core.asgn_rets = $2
+      ; asgn_args = []
+      (* TODO: change spec -> specs in grammar?*)
+      ; asgn_spec = Core.TripleSet.singleton $5 } }
 ;
 immediate_question_mark:
    | immediate {Some $1}
@@ -791,9 +799,9 @@ name:
 
 
 lvariable:
-   | at_identifier { E.mk_var $1 }
-   | identifier { E.mk_var (newVar $1) }
-   | QUESTIONMARK identifier { E.mk_var $2 }
+   | at_identifier { $1 }
+   | identifier { newVar $1 }
+   | QUESTIONMARK identifier { $2 }
 ;
 
 lvariable_list_ne:
@@ -825,7 +833,7 @@ paramlist:
 
 jargument:
   | RETURN { E.mk_var CoreOps.name_ret_v1 }
-  | lvariable { $1 }
+  | lvariable { E.mk_var $1 }
   | identifier L_PAREN jargument_list R_PAREN {  failwith "TODO13" (*Arg_op($1,$3)*) }
   | constant { $1 }
   | field_signature { E.mk_string_const (field_signature2str $1) }
@@ -845,7 +853,7 @@ formula:
    | EMP  { Expression.emp }
    | FALSE { Expression.fls }
    | lvariable DOT jargument MAPSTO  jargument
-     { E.mk_app "field" [ $1; $3; $5] }
+     { E.mk_app "field" [ E.mk_var $1; $3; $5] }
    | BANG identifier L_PAREN jargument_list R_PAREN
      { failwith "TODO18" (*[P_PPred($2, $4)]*) }
    | identifier L_PAREN jargument_list R_PAREN

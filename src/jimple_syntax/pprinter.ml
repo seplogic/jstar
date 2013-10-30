@@ -209,9 +209,7 @@ let statement2str = function
    | Return_stmt (None) -> "return;"
    | Throw_stmt i -> "throw "^immediate2str i^";"
    | Invoke_stmt e -> invoke_expr2str e^";"
-   | Spec_stmt (vars, triple) ->
-      (list2str (string_of Expression.pp) vars ", ")^" : "
-      ^ string_of CoreOps.pp_triple triple ^";"
+   | Spec_stmt asgn -> string_of CoreOps.pp_statement (Core.Assignment_core asgn)
 
 let declaration_or_statement2str =function
   |  DOS_dec d -> declaration2str d

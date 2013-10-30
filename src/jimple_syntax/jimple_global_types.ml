@@ -36,7 +36,7 @@ type statement_inner =
    | Return_stmt of immediate option
    | Throw_stmt of immediate
    | Invoke_stmt of invoke_expr
-   | Spec_stmt of Expression.t list * Core.triple
+   | Spec_stmt of Core.assignment
 
 type statement = statement_inner * source_location option
 

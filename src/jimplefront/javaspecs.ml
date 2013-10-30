@@ -11,20 +11,16 @@
       LICENSE.txt
  ********************************************************)
 
-
-
 (* Support functions for symbolic execution and misc conversion facilities *)
-
-
 open Corestar_std
 open Format
 
+module SS = Support_syntax
+
 (* TODO(rgrig): These shouldn't be opened. *)
 open Jimple_global_types
-open Jlogic
 open Jparsetree
 open Spec_def
-open Support_syntax
 open System
 
 exception Class_defines_external_spec
@@ -101,16 +97,18 @@ let add_apf_to_logic _ _ _ =  failwith "TODO"
 (*   let rules = inner apfdefines logic.seq_rules in                                                                                                               *)
 (*   {logic with seq_rules = rules}                                                                                                                                *)
 
-let augmented_logic_for_class _ _ _ =  failwith "TODO"
-  (* class_name sf (logic : logic) : logic = *)
-  (* let rec add_globals_and_apf_info sf (logic : logic) : logic =                                                       *)
-  (*   match sf with                                                                                                     *)
-  (*     cs::sf ->                                                                                                       *)
-  (*        let apfs_to_add = if class_name=cs.classname then cs.apf else (List.filter (fun (a,b,x,y,w) -> w) cs.apf) in *)
-  (*        let logic = add_apf_to_logic logic apfs_to_add (Pprinter.class_name2str cs.classname) in                     *)
-  (*                    add_globals_and_apf_info sf logic                                                                *)
-  (*   | [] -> logic                                                                                                     *)
-  (*       in add_globals_and_apf_info sf logic                                                                          *)
+let augmented_logic_for_class class_name sf logic = logic
+(* TODO: Implement this when you want abstract predicate families again. *)
+(*
+  let rec add_globals_and_apf_info sf (logic : logic) : logic =
+    match sf with
+      cs::sf ->
+         let apfs_to_add = if class_name=cs.classname then cs.apf else (List.filter (fun (a,b,x,y,w) -> w) cs.apf) in
+         let logic = add_apf_to_logic logic apfs_to_add (Pprinter.class_name2str cs.classname) in
+                     add_globals_and_apf_info sf logic
+    | [] -> logic in
+  add_globals_and_apf_info sf logic
+*)
 
 
 (* =================== Inheritance relation stuff (classes+interfaces) =================================== *)
@@ -364,7 +362,8 @@ let spec_file_to_axiom_map2 spec_list =
         !axiommap
 
 (* Add the axioms of all classes in the spec file to the logic *)
-let add_axiom_implications_to_logic _ _ =  failwith "TODO"
+let add_axiom_implications_to_logic _ logic = logic
+(* TODO: Do we need this? *)
   (* spec_list (logic : logic) : logic =                                                           *)
   (*       let classlist = a_topological_ordering_of_all_classes spec_list in                      *)
   (*       let axiommap = spec_file_to_axiom_map2 spec_list in                                     *)
@@ -450,7 +449,9 @@ let class_spec_to_ms cs (smmap,dmmap) =
     (smmap,dmmap) cs.methodspecs
 
 
-let remove_this_type_info prepure =  failwith "TODO"
+(* type(this, _) -> emp *)
+let remove_this_type_info e = e
+(* TODO: Reimplement, but check if it makes sense. *)
   (* let is_this_type p =                                                                                                         *)
   (*   match p with                                                                                                               *)
   (*     P_PPred (name,a::al) -> if name = objtype_name  && a = (Arg_var (Vars.concretep_str this_var_name)) then false else true *)
@@ -608,7 +609,8 @@ and
 if
  P(?x,?y) | |-
 *)
-let add_common_apf_predicate_rules spec_list logic =  failwith "TODO"
+let add_common_apf_predicate_rules spec_list logic = logic
+(* TODO: Reimplement whenn you want apf-s back. *)
         (* let make_apf = apf_match in                                                                  *)
         (* let add_if_not_there element list = if List.mem element list then list else element::list in *)
         (* let apf_preds,apf_entries = List.fold_left (fun (apf_preds,apf_entries) cs ->                *)
@@ -678,7 +680,8 @@ or
  | |- ?o!=nil() * !stattype(?o,_e) * !subtype(_e,?c)
 |
 *)
-let add_subtype_and_objsubtype_rules spec_list logic =  failwith "TODO"
+let add_subtype_and_objsubtype_rules spec_list logic = logic
+(* XXX: IMPORTANT: reimplement. *)
         (* let pr = parent_relation spec_list in                                                                                            *)
         (* let tc = transitive_closure pr in                                                                                                *)
         (* let x = Arg_var (Vars.fresha ()) in                                                                                              *)
@@ -713,10 +716,10 @@ let add_subtype_and_objsubtype_rules spec_list logic =  failwith "TODO"
 let refines logic spec1 spec2 =
   CoreOps.refines_spec logic spec1 spec2
 
-let refines_this cname logic spec1 spec2 =  failwith "TODO"
-  (* let this_typed =                                                          *)
-  (*   Sepprover.convert (objtype this_var (Pprinter.class_name2str cname)) in *)
-  (* let star_this_typed t =                                                   *)
-  (*   { t with Core.pre = Sepprover.conjoin_inner t.Core.pre this_typed } in  *)
-  (* let spec2 = List.map star_this_typed spec2 in                             *)
-  (* refines logic spec1 spec2                                                 *)
+let refines_this cname logic spec1 spec2 =
+  let ( * ) = Expression.mk_star in
+  let cname = Pprinter.class_name2str cname in
+  let p = Jlogic.objtype SS.this_var cname in
+  let star_pre t = { t with Core.pre = t.Core.pre * p } in
+  let spec2 = Core.TripleSet.map star_pre spec2 in
+  refines logic spec1 spec2

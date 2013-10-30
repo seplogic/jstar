@@ -23,8 +23,8 @@ open Support_symex
 open Javaspecs
 
 module C = Core
+module Expr = Expression
 module J = Jparsetree
-(* module PS = Psyntax *)
 
 (* global variables *)
 let curr_static_methodSpecs: Javaspecs.methodSpecs ref = ref Javaspecs.emptyMSpecs
@@ -70,7 +70,7 @@ let get_dynamic_spec si =
 
 
 
-let get_spec  (iexp: Jparsetree.invoke_expr) =  failwith "TODO"
+let get_spec  (iexp: Jparsetree.invoke_expr) =  failwith "TODO get_spec"
   (* let spec =                                                                                       *)
   (*   match iexp with                                                                                *)
   (*   | Invoke_nostatic_exp (Virtual_invoke,_,si,_)                                                  *)
@@ -126,7 +126,7 @@ let retvar_term =
   Expression.mk_var CoreOps.name_ret_v1
 
 (* make terms/predicates related to the array representation *) (* {{{ *)
-let mk_array a i j v = failwith "TODO"
+let mk_array a i j v = failwith "TODO mk_array"
   (* PS.mkSPred ("array", [a; i; j; v]) *)
 
 let mk_zero = function
@@ -145,17 +145,17 @@ let mk_zero = function
   | Full_ident_NVT _
       -> Expression.mk_0 "nil"
 
-let mk_succ n = failwith "TODO"
+let mk_succ n = failwith "TODO mk_succ"
   (* PS.mkFun "builtin_plus" [n; PS.mkNumericConst "1"] *)
 
-let mk_array_get av i v = failwith "TODO"
+let mk_array_get av i v = failwith "TODO mk_array_get"
   (* PS.mkPPred ("array_get", [av; i; v]) *)
-let mk_array_set av i v = failwith "TODO"
+let mk_array_set av i v = failwith "TODO mk_array_set"
   (* PS.mkFun "array_set" [av; i; v] *)
 
 (* }}} *)
 
-let mk_asgn rets pre post asgn_args = failwith "TODO"
+let mk_asgn rets pre post asgn_args = failwith "TODO mk_asgn"
   (* let asgn_rets = List.map (fun v -> variable2var (Var_name v)) rets in         *)
   (* let asgn_spec = (* modifies = [] because jimple exprs have no side-effects *) *)
   (*   HashSet.singleton { Core.pre; post; modifies = Some [] } in                 *)
@@ -165,7 +165,8 @@ let mk_asgn rets pre post asgn_args = failwith "TODO"
   handle all cases. *)
 (* TODO(rgrig): The encoding of an assignment x:=e *should* be
   x:={}{$ret1=$arg1}(e) rather than x:={}{$ret1=e}(); low priority, though. *)
-let rec translate_assign_stmt  (v:Jparsetree.variable) (e:Jparsetree.expression) = failwith "TODO"
+let rec translate_assign_stmt  (v:Jparsetree.variable) (e:Jparsetree.expression)
+  = failwith "TODO translate_assign_stmt"
   (* match v, e with                                                                                                    *)
   (* | Var_ref (Field_local_ref (n,si)), Immediate_exp p1  ->                                                           *)
   (*     let e_var = freshe() in                                                                                        *)
@@ -235,59 +236,58 @@ let assert_core b =
   | _ -> assert false
 
 
-let jimple_statement2core_statement s (* : Core.ast_core list *) = failwith "TODO"
-  (* if !Config.verbosity >= 4 then begin                                                               *)
-  (*   printf "@[<2>Translating jimple statement@\n%s@\n@]"                                             *)
-  (*     (Pprinter.statement2str s)                                                                     *)
-  (* end;                                                                                               *)
-  (* let oops m =                                                                                       *)
-  (*   eprintf "@[@{<b>TODO@}: translate jimple statement %s.@ \                                        *)
-  (*     Treating as skip for now.@." m; [] in                                                          *)
-  (* match s with                                                                                       *)
-  (* | Label_stmt l -> [C.Label_stmt_core l]                                                            *)
-  (* | Breakpoint_stmt -> oops "breakpoint"                                                             *)
-  (* | Entermonitor_stmt i -> oops "entermonitor"                                                       *)
-  (* | Exitmonitor_stmt i -> oops "exitmonitor"                                                         *)
-  (* | Tableswitch_stmt (i,cl) -> oops "tableswitch"                                                    *)
-  (* | Lookupswitch_stmt(i,cl) -> oops "lookupswitch"                                                   *)
-  (* | Identity_stmt(nn,id,_)  (* TODO(rgrig): use type, don't ignore. *)                               *)
-  (* | Identity_no_type_stmt(nn,id) ->                                                                  *)
-  (*     (* nn := id: LinkedList   ---> nn:={emp}{return=param0}(id) *)                                 *)
-  (*     let id'= PS.mkPVar id in                                                                       *)
-  (*     let post= mkEQ(retvar_term,id') in                                                             *)
-  (*     [mk_asgn [nn] [] post []]                                                                      *)
-  (* | Assign_stmt(v,e) ->                                                                              *)
-  (*     [translate_assign_stmt v e]                                                                    *)
-  (* | If_stmt(b,l) ->                                                                                  *)
-  (*     let l1 = fresh_label () in                                                                     *)
-  (*     let l2 = fresh_label () in                                                                     *)
-  (*     [ C.Goto_stmt_core [l1; l2]                                                                    *)
-  (*     ; C.Label_stmt_core l1                                                                         *)
-  (*     ; assert_core b                                                                                *)
-  (*     ; C.Goto_stmt_core [l]                                                                         *)
-  (*     ; C.Label_stmt_core l2                                                                         *)
-  (*     ; assert_core (negate b) ]                                                                     *)
-  (* | Goto_stmt ls ->                                                                                  *)
-  (*     [C.Goto_stmt_core ls]                                                                          *)
-  (* | Nop_stmt ->                                                                                      *)
-  (*     [C.Nop_stmt_core]                                                                              *)
-  (* | Ret_stmt(i)  (* return i ---->  ret_var:=i  or as nop operation if it does not return anything*) *)
-  (* | Return_stmt(i) ->                                                                                *)
-  (*     (match i with                                                                                  *)
-  (*      | None -> [C.Nop_stmt_core]                                                                   *)
-  (*      | Some e' ->                                                                                  *)
-	(*  let p0 = Arg_var(mk_parameter 0) in (* ddino: should it be a fresh program variable? *)           *)
-	(*  let post= mkEQ(retvar_term,p0) in                                                                 *)
-  (*        [mk_asgn [] [] post [e']; C.End]                                                            *)
-  (*     )                                                                                              *)
-  (* | Throw_stmt _ ->                                                                                  *)
-  (*     failwith "INTERNAL: At this point catch clauses aren't available anymore."                     *)
-  (* | Invoke_stmt (e) ->                                                                               *)
-  (*     let call_name, call_args = get_name e in                                                       *)
-  (*     [C.Call_core { C.call_name; call_rets = []; call_args }]                                       *)
-  (* | Spec_stmt (asgn_rets, asgn_spec) ->                                                              *)
-  (*     let asgn_spec = HashSet.singleton asgn_spec in                                                 *)
-  (*     [C.Assignment_core { C.asgn_rets; asgn_args = []; asgn_spec }]                                 *)
+let jimple_statement2core_statement s =
+  if !Config.verbosity >= 4 then begin
+    printf "@[<2>Translating jimple statement@\n%s@\n@]"
+      (Pprinter.statement2str s)
+  end;
+  let oops m =
+    eprintf "@[@{<b>TODO@}: translate jimple statement %s.@ \
+      Treating as skip for now.@." m; [] in
+  match s with
+  | Label_stmt l -> [C.Label_stmt_core l]
+  | Breakpoint_stmt -> oops "breakpoint"
+  | Entermonitor_stmt i -> oops "entermonitor"
+  | Exitmonitor_stmt i -> oops "exitmonitor"
+  | Tableswitch_stmt (i,cl) -> oops "tableswitch"
+  | Lookupswitch_stmt(i,cl) -> oops "lookupswitch"
+  | Identity_stmt(nn,id,_)  (* TODO(rgrig): use type, don't ignore. *)
+  | Identity_no_type_stmt(nn,id) ->
+      (* nn := id: LinkedList   ---> nn:={emp}{return=param0}(id) *)
+      let id'= Expr.mk_var id in
+      let post = Expr.mk_eq retvar_term id' in
+      [mk_asgn [nn] [] post []]
+  | Assign_stmt(v,e) ->
+      [translate_assign_stmt v e]
+  | If_stmt(b,l) ->
+      let l1 = fresh_label () in
+      let l2 = fresh_label () in
+      [ C.Goto_stmt_core [l1; l2]
+      ; C.Label_stmt_core l1
+      ; assert_core b
+      ; C.Goto_stmt_core [l]
+      ; C.Label_stmt_core l2
+      ; assert_core (negate b) ]
+  | Goto_stmt ls ->
+      [C.Goto_stmt_core ls]
+  | Nop_stmt ->
+      [C.Nop_stmt_core]
+  | Ret_stmt(i)  (* return i ---->  ret_var:=i  or as nop operation if it does not return anything*)
+  | Return_stmt(i) ->
+      (match i with
+       | None -> [C.Nop_stmt_core]
+       | Some e' ->
+            (* ddino: should [p0] be a fresh program variable? *)
+           let p0 = Expr.mk_var (CoreOps.parameter 0) in
+           let post= Expr.mk_eq retvar_term p0 in
+         [mk_asgn [] [] post [e']; C.End]
+      )
+  | Throw_stmt _ ->
+      failwith "INTERNAL: At this point catch clauses aren't available anymore."
+  | Invoke_stmt (e) ->
+      let call_name, call_args = get_name e in
+      [C.Call_core { C.call_name; call_rets = []; call_args }]
+  | Spec_stmt asgn -> [ C.Assignment_core asgn ]
 
 (* ================   ==================  *)
 
@@ -305,18 +305,19 @@ let methdec2signature_str dec =
   msig2str dec.class_name dec.ret_type dec.name_m dec.params
 
 
-let jimple_stmts2core stms = failwith "TODO"
-  (* let do_one_stmt (stmt_jimple, source_pos) =                                                            *)
-  (*   let s=jimple_statement2core_statement stmt_jimple in                                                 *)
-  (*   if !Config.verbosity >= 4 then                                                                       *)
-  (*     printf "@[<2>@\ninto the core statement:@\n%a@\n@]"                                                *)
-  (*     (pp_list_sep "; " CoreOps.pp_ast_core) s;                                                          *)
-  (*     s (* here we throw away the source position -- might want to restore it for nice error messages *) *)
-  (* in                                                                                                     *)
-  (* stms >>= do_one_stmt                                                                                   *)
+let jimple_stmts2core stms =
+  let do_one_stmt (stmt_jimple, source_pos) =
+    let s = jimple_statement2core_statement stmt_jimple in
+    if !Config.verbosity >= 4 then
+      printf "@[<2>@\ninto the core statement:@\n%a@\n@]"
+      (pp_list_sep "; " CoreOps.pp_statement) s;
+      s (* here we throw away the source position -- might want to restore it for nice error messages *)
+  in
+  stms >>= do_one_stmt
 
 (* returns a triple (m,initial_formset, final_formset)*)
-let get_spec_for m fields cname= failwith "TODO"
+let get_spec_for m fields cname = []
+(* TODO: Reimplement. *)
   (* let this = mk_this in                                                                   *)
   (* let rec make_this_fields fl=                                                            *)
   (*   match fl with                                                                         *)
@@ -348,7 +349,8 @@ let get_spec_for m fields cname= failwith "TODO"
 let resvar_term =
    Support_syntax.res_var
 
-let conjoin_with_res_true (assertion : Expression.t) : Expression.t =  failwith "TODO"
+let conjoin_with_res_true (assertion : Expression.t) : Expression.t =
+  failwith "TODO conjoin_with_res_true"
 	 (* pconjunction assertion (mkEQ(resvar_term, PS.mkNumericConst "1")) *)
 
 (* XXX remove
@@ -371,7 +373,7 @@ let get_requires_clause_spec_for m fields cname =
         }
 *)
 
-let get_dyn_spec_for m fields cname = failwith "TODO"
+let get_dyn_spec_for m fields cname = failwith "TODO get_dyn_spec_for"
         (* let msi = Methdec.get_msig m cname in                                    *)
         (* (* First the the method's dynamic spec *)                                *)
         (* let dynspec =                                                            *)
@@ -410,7 +412,8 @@ or
 or
  | |- ?x=vn
 *)
-let jimple_locals2stattype_rules _ = failwith "TODO"
+let jimple_locals2stattype_rules _ = []
+(* TODO: Reimplement. Probably important. *)
   (* (locals : local_var list) : sequent_rule list =                        *)
 	(* let localmap = ref (LocalMap.empty) in                                 *)
 	(* let _ = List.iter (fun (atype,name) ->                                 *)
@@ -439,12 +442,6 @@ let jimple_locals2stattype_rules _ = failwith "TODO"
 	(* 	) :: rules                                                           *)
 	(* ) (!localmap) []                                                       *)
 
-let add_static_type_info logic locals (*: Psyntax.logic*) =
-	let rules = jimple_locals2stattype_rules locals in
-	Javaspecs.append_rules logic rules
-
-
-
 let add_if_called_proc acc stmt =
   match stmt with
     | C.Call_core c -> HashSet.add acc c.C.call_name
@@ -461,7 +458,7 @@ let called_procs_from_proc acc proc =
 let remove_proc acc proc =
   HashSet.remove acc proc.C.proc_name
 
-let dummy_proc n = failwith "TODO"
+let dummy_proc n = failwith "TODO dummy_proc"
   (* { C.proc_name = n; proc_spec = (HashSet.create 1); proc_body = None; proc_rules = PS.empty_logic } *)
 
 let add_dummy_procs xs =
@@ -470,15 +467,17 @@ let add_dummy_procs xs =
   List.iter (remove_proc h) xs;
   xs@(HashSet.fold (fun x y -> dummy_proc x :: y) h [])
 
-let compile_method cname fields m = failwith "TODO"
-  (* let proc_name = methdec2signature_str m in                       *)
-  (* let proc_body =                                                  *)
-  (*   if Methdec.has_body m                                          *)
-  (*   then Some (jimple_stmts2core m.bstmts)                         *)
-  (*   else None in                                                   *)
-  (* let proc_spec = HashSet.of_list (get_spec_for m fields cname) in *)
-  (* let proc_rules = add_static_type_info PS.empty_logic m.locals in *)
-  (* { C.proc_name; proc_spec; proc_body; proc_rules }                *)
+let compile_method cname fields m =
+  let proc_name = methdec2signature_str m in
+  let proc_body =
+    if Methdec.has_body m
+    then Some (jimple_stmts2core m.bstmts)
+    else None in
+  let proc_spec = Core.TripleSet.of_list (get_spec_for m fields cname) in
+  let proc_rules =
+    { Core.calculus = jimple_locals2stattype_rules m.locals
+    ; abstraction = [] } in
+  { C.proc_name; proc_spec; proc_body; proc_rules; proc_ok = true }
 
 let compile_class jimple =
   let cname = Methdec.get_class_name jimple in
