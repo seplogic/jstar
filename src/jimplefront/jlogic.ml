@@ -38,9 +38,7 @@ let base_type2args ty =
 let objtype_name = "type"
 let mk_type1 = Expr.mk_2 objtype_name
 let mk_type var cl = mk_type1 var (class2args cl)
-
-let mk_type_all var cl = failwith "TODO"
-  (* PS.mkPPred (objtype_name, [var; base_type2args cl]) *)
+let mk_type_all var cl = mk_type1 var (base_type2args cl)
 
 let objtype receiver classname =
   mk_type1 receiver (Expr.mk_string_const classname)

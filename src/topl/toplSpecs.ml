@@ -3,36 +3,36 @@ open Corestar_std
 (* module PS = Psyntax *)
 module TM = ToplMonitor
 module TN = ToplNames
-module E = Expression
+module Expr = Expression
 
 (* TODO(rgrig): Use the more high-level functions in [Psyntax] if possible. *)
 
 type toplPVars =
-  { state : E.t
-  ; store : E.t TM.RMap.t
-  ; size : E.t
-  ; queue : E.t array array }
-  (* INV: Each [E.t] above should be [Arg_var _]. *)
+  { state : Expr.t
+  ; store : Expr.t TM.RMap.t
+  ; size : Expr.t
+  ; queue : Expr.t array array }
+  (* INV: Each [Expr.t] above should be [Arg_var _]. *)
 
 let rec range i j = (* [i; i+1; ...; j-1] *)
   if i >= j then [] else i :: range (i + 1) j
 
-let wrap_call_arg a = 
- E.mk_var (CoreOps.parameter a)
+let wrap_call_arg a =
+ Expr.mk_var (CoreOps.parameter a)
 
-let get_specs_for_enqueue pv = 
+let get_specs_for_enqueue pv =
   let q_sz = Array.length pv.queue in
   let e_sz = Array.length pv.queue.(0) in
   let specs = Core.TripleSet.create 0 in
-  for i = 0 to q_sz - 1 do begin 
+  for i = 0 to q_sz - 1 do begin
     let e = pv.queue.(i) in
-    let pre = E.mk_eq pv.size (E.mk_int_const (string_of_int i)) in
-    let post = E.mk_big_star 
-      (let cp i = E.mk_eq e.(i) (wrap_call_arg i) in
-      E.mk_eq pv.size (E.mk_int_const (string_of_int (i+1)))
+    let pre = Expr.mk_eq pv.size (Expr.mk_int_const (string_of_int i)) in
+    let post = Expr.mk_big_star
+      (let cp i = Expr.mk_eq e.(i) (wrap_call_arg i) in
+      Expr.mk_eq pv.size (Expr.mk_int_const (string_of_int (i+1)))
       :: List.map cp (range 0 e_sz)) in
     let modifies = pv.size :: List.map (fun i -> e.(i)) (range 0 e_sz) in
-    let modifies = Some (List.map E.bk_var modifies) in
+    let modifies = Some (List.map Expr.bk_var modifies) in
     Core.TripleSet.add specs { Core.pre; post; modifies }
   end done;
   specs
@@ -64,13 +64,13 @@ let max_arg a =
   let max_arg_vertex _ ts y = max y (map_max max_arg_trans ts) in
   TM.VMap.fold max_arg_vertex a.TM.transitions (-1)
 
-let make_event_queue m n = failwith "TODO"
+let make_event_queue m n = failwith "TODO diwuhf"
   (* let mk_name i j = TN.global (Printf.sprintf "queue_event_%d_position_%d" i j) in *)
   (* Array.init m                                                                     *)
   (*   (fun i -> Array.init n (fun j ->                                               *)
   (*     PS.Arg_var (Vars.concretep_str (mk_name i j))))                              *)
 
-let mk_terms prefix set = failwith "TODO"
+let mk_terms prefix set = failwith "TODO a9wsd8hwq"
   (* let f s = StringMap.add s (PS.Arg_var (Vars.concretep_str (prefix^s))) in *)
   (* StringSet.fold f set StringMap.empty                                      *)
 
@@ -95,14 +95,14 @@ let make_registers a =
 (* Create a set of logical variables corresponding to the store. Each such set is indexed
    with the transition j examined, and the step i inside the transition. The value -1 for j
    means a logical copy common to all transitions from a given vertex. *)
-let make_logical_copy_of_store st i j = failwith "TODO"
+let make_logical_copy_of_store st i j = failwith "TODO scadindusa"
   (* let mk_name =                                                    *)
   (*   let t = if j < 0 then "" else Printf.sprintf "_trans_%d" j in  *)
   (*   fun r -> Printf.sprintf "log_register_%s_%d%s" r i t in        *)
   (* let mk_var r = r |> mk_name |> Vars.concretee_str |> PS.mkVar in *)
   (* TM.RMap.mapi (fun r _ -> mk_var r) st                            *)
 
-let store_eq st l_st =  failwith "TODO"
+let store_eq st l_st =  failwith "TODO sd8cayubd"
   (* TM.RMap.fold (fun r v f -> PS.P_EQ (v, TM.RMap.find r l_st) :: f) st [] *)
 
 (* let store_eq_modifies st _ =                          *)
@@ -120,15 +120,15 @@ let print_automaton a =
     List.iter print_t ts in
   TM.VMap.iter print_v a.TM.transitions
 
-let init_TOPL_program_vars a = failwith "TODO"
-(* (*   (* debug *) print_automaton a; *)                                             *)
-(*   let st = PS.mkVar(Vars.concretep_str (TN.global ("current_automaton_state"))) in *)
-(*   let sr = make_registers a in                                                     *)
-(*   let sz = PS.mkVar(Vars.concretep_str (TN.global ("current_queue_list_size"))) in *)
-(*   let e = make_event_queue (max_label_length a) (2 + max_arg a) in                 *)
-(*   { state=st; store=sr; size=sz; queue=e }                                         *)
+let init_TOPL_program_vars a =
+(*   (* debug *) print_automaton a; *)
+  let state = Expr.mk_var (TN.global "current_automaton_state") in
+  let store = make_registers a in
+  let size = Expr.mk_var (TN.global "current_queue_list_size") in
+  let queue = make_event_queue (max_label_length a) (2 + max_arg a) in
+  { state; store; size; queue }
 
-let make_logical_copy_of_queue e = failwith "TODO"
+let make_logical_copy_of_queue e = failwith "TODO isdnai"
   (* let mM = Array.length e in                                                                    *)
   (* let nN = Array.length e.(0) in                                                                *)
   (* let el = Array.make_matrix mM nN (PS.mkString("dummy")) in                                    *)
@@ -148,7 +148,7 @@ let logical_deque_gen e el n =
   done;
   !ef
 
-let logical_dequeue e el n = failwith "TODO"
+let logical_dequeue e el n = failwith "TODO dai9uh2w"
   (* let mkEQ (x, y) = PS.P_EQ (x, y) in      *)
   (* List.map mkEQ (logical_deque_gen e el n) *)
 
@@ -169,7 +169,7 @@ let index_subsets n =
      - then g holds
      Thus, Wand(f,g) simplifies to Wand(f,simplify(g))
   *)
-let rec simplify_pform xs = failwith "TODO"
+let rec simplify_pform xs = failwith "TODO dqiwneuiwdd"
 (*   let xs = xs >>= simplify_pform_at in                                             *)
 (*   let retn = if List.mem PS.P_False xs then [PS.P_False] else xs in                *)
 (*   retn                                                                             *)
@@ -190,7 +190,7 @@ let rec simplify_pform xs = failwith "TODO"
     - then g holds
     Thus, Wand(f,g) negates to f * negate(g)
  *)
-let rec negate_specs_it _ =  failwith "TODO"
+let rec negate_specs_it _ =  failwith "TODO adksnad"
   (* (f:PS.pform) : PS.pform_at =                                                                        *)
   (*   match f with                                                                                      *)
   (*     | [] -> PS.P_False                                                                              *)
@@ -207,7 +207,7 @@ let rec negate_specs_it _ =  failwith "TODO"
 
 (* Performs a rather unsophisticated negation of pforms built out of
    PS.P_EQ,PS.P_NEQ,PS.P_False and PS.P_Or, and a hacky PS.P_Wand *)
-let negate_pforms _ = failwith "TODO"
+let negate_pforms _ = failwith "TODO ssadoiwdia"
 (*   (f:PS.pform) : PS.pform =                                                       *)
 (*   (* (* debug *) Format.printf "Call to negate_pforms: %a\n" PS.string_form f; *) *)
 (*   let f' = simplify_pform f in                                                    *)
@@ -220,7 +220,7 @@ let negate_pforms _ = failwith "TODO"
 (*   retn                                                                            *)
 
   (* Replace hacky Wand(x,y) by x@y *)
-let rec remove_dirty_wands _ =  failwith "TODO"
+let rec remove_dirty_wands _ =  failwith "TODO casidfbasidbn"
 (*   (f:PS.pform) : PS.pform =                                                       *)
 (*   let f' = remove_dirty_wands_it f in                                             *)
 (*   simplify_pform f'                                                               *)
@@ -231,7 +231,7 @@ let rec remove_dirty_wands _ =  failwith "TODO"
 
 (* Returns a pform given guard gd, assuming that value i of each event is stored in
    e.(i+1) in event queue *)
-let rec guard_conditions gd e st = failwith "TODO"
+let rec guard_conditions gd e st = failwith "TODO akdbnadij"
   (* match gd with                                              *)
   (*   | TM.True -> []                                          *)
   (*   | TM.EqCt (i,v) -> PS.mkEQ (e.(i+1), v)                  *)
@@ -239,7 +239,7 @@ let rec guard_conditions gd e st = failwith "TODO"
   (*   | TM.Not g -> negate_pforms (guard_conditions g e st)    *)
   (*   | TM.And gs -> gs >>= (fun g -> guard_conditions g e st) *)
 
-let obs_conditions e { TM.event_time; pattern } = failwith "TODO"
+let obs_conditions e { TM.event_time; pattern } = failwith "TODO aksdanksd"
 (*   let ev_name = match event_time with                                                             *)
 (*     | TM.Call_time -> [ TN.call_event ]                                                           *)
 (*     | TM.Return_time -> [ TN.return_event ]                                                       *)
@@ -257,7 +257,7 @@ let rec string_guard = function
     | TM.And(gl) -> "And("^(List.fold_left (fun acc g' -> acc^(string_guard g')^",") "" gl)^")"
 
 (* Conditions for e being satisfied by (st,s) and leading to st' *)
-let step_conditions e st st' s = failwith "TODO"
+let step_conditions e st st' s = failwith "TODO doqwinedqiwod"
 (* (* (* debug *) Format.printf "Calling step_conditions for a %s step of length %d\n" (get_type s.TM.observables.TM.event_time) (List.length s.TM.observables.TM.pattern) in*)                     *)
 (*   let gd = s.TM.guard in                                                                                                                                                                         *)
 (*   let ac = s.TM.action in                                                                                                                                                                        *)
@@ -275,14 +275,14 @@ let step_conditions e st st' s = failwith "TODO"
 (* (*   (* debug *) Format.printf " and simplified, of size %d: %a\n" (List.length retn                                                                           ) PS.string_form retn; *)         *)
 (*   (retn, ac_cond)                                                                                                                                                                                *)
 
-let pDeQu n pv el = failwith "TODO"
+let pDeQu n pv el = failwith "TODO ckafdnkada"
   (* let m = Array.length pv.queue in                                       *)
   (* PS.P_EQ(pv.size, PS.mkArgint (m-n)) :: (logical_dequeue pv.queue el n) *)
 
 (* let pDeQu_modifies n pv el =                                  *)
 (*   var_of_term pv.size :: logical_deque_modifies pv.queue el n *)
 
-let trans_pre_and_post pv el l_sr0 j t = failwith "TODO"
+let trans_pre_and_post pv el l_sr0 j t = failwith "TODO sdiwqdjnia"
 (*   let st = t.TM.steps in                                                                                        *)
 (*   let tg = t.TM.target in                                                                                       *)
 (*   let len = List.length st in                                                                                   *)
@@ -308,7 +308,7 @@ let trans_pre_and_post pv el l_sr0 j t = failwith "TODO"
 let select_subset k xs =
   ListH.foldri (fun i x xs -> if IntSet.mem i k then x :: xs else xs) xs []
 
-let get_specs_for_vertex t pv v s = failwith "TODO"
+let get_specs_for_vertex t pv v s = failwith "TODO sdknakd"
 (*   let tl = (try TM.VMap.find v t with Not_found -> [] ) in                                                                                         *)
 (* (*   (* debug *) Format.printf "Here is the vertex: %s\n" v; *)                                                                                    *)
 (*   (* (* debug *) TM.VMap.iter (fun s _ -> Format.printf "Here is a key: %s\n" s) t; *)                                                             *)

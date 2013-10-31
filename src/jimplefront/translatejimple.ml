@@ -15,9 +15,7 @@ open Corestar_std
 open Format
 
 (* TODO(rgrig): Don't open these. *)
-open Jlogic
 open Jimple_global_types
-open Jparsetree
 open Spec_def
 open Support_symex
 open Javaspecs
@@ -25,6 +23,7 @@ open Javaspecs
 module C = Core
 module Expr = Expression
 module J = Jparsetree
+module SS = Support_syntax
 
 (* global variables *)
 let curr_static_methodSpecs: Javaspecs.methodSpecs ref = ref Javaspecs.emptyMSpecs
@@ -49,7 +48,7 @@ let mk_parameter n =
 (* retrieve static spec of a method from table of specs*)
 let get_static_spec si =
   match si with
-  | Method_signature ms ->
+  | J.Method_signature ms ->
       (try
 	      match (MethodMap.find ms !curr_static_methodSpecs) with
   		      | (spec, pos) -> Some spec
@@ -60,7 +59,7 @@ let get_static_spec si =
 (* retrieve dynamic spec of a method from table of specs*)
 let get_dynamic_spec si =
   match si with
-  | Method_signature ms ->
+  | J.Method_signature ms ->
       (try
           match (MethodMap.find ms !curr_dynamic_methodSpecs) with
               | (spec, pos) -> Some spec
@@ -111,13 +110,13 @@ let msig2str cn rt mn ps =
 
 let get_name  (iexp: Jparsetree.invoke_expr) =
   match iexp with
-  | Invoke_nostatic_exp (Virtual_invoke,_,si,il)
-  | Invoke_nostatic_exp (Interface_invoke,_,si,il)
-  | Invoke_nostatic_exp (Special_invoke,_,si,il)
-  | Invoke_static_exp (si,il) ->
+  | J.Invoke_nostatic_exp (J.Virtual_invoke,_,si,il)
+  | J.Invoke_nostatic_exp (J.Interface_invoke,_,si,il)
+  | J.Invoke_nostatic_exp (J.Special_invoke,_,si,il)
+  | J.Invoke_static_exp (si,il) ->
       let n = match si with
-	| Method_signature (cn,rt,mn,ps) -> msig2str cn rt mn ps
-	| Field_signature (cn,_,fn) -> failwith "INTERNAL: cannot invoke a field"
+	| J.Method_signature (cn,rt,mn,ps) -> msig2str cn rt mn ps
+	| J.Field_signature (cn,_,fn) -> failwith "INTERNAL: cannot invoke a field"
       in n,il
 
 
@@ -130,19 +129,19 @@ let mk_array a i j v = failwith "TODO mk_array"
   (* PS.mkSPred ("array", [a; i; j; v]) *)
 
 let mk_zero = function
-  | Base (Boolean, _)
-  | Base (Byte, _)
-  | Base (Char, _)
-  | Base (Short, _)
-  | Base (Int, _)
-  | Base (Long, _)
-  | Base (Float, _)
-  | Base (Double, _)
-      -> Expression.mk_int_const "0"
-  | Base _
-  | Quoted _
-  | Ident_NVT _
-  | Full_ident_NVT _
+  | J.Base (J.Boolean, _)
+  | J.Base (J.Byte, _)
+  | J.Base (J.Char, _)
+  | J.Base (J.Short, _)
+  | J.Base (J.Int, _)
+  | J.Base (J.Long, _)
+  | J.Base (J.Float, _)
+  | J.Base (J.Double, _)
+      -> Expr.mk_int_const "0"
+  | J.Base _
+  | J.Quoted _
+  | J.Ident_NVT _
+  | J.Full_ident_NVT _
       -> Expression.mk_0 "nil"
 
 let mk_succ n = failwith "TODO mk_succ"
@@ -155,84 +154,74 @@ let mk_array_set av i v = failwith "TODO mk_array_set"
 
 (* }}} *)
 
-let mk_asgn rets pre post asgn_args = failwith "TODO mk_asgn"
-  (* let asgn_rets = List.map (fun v -> variable2var (Var_name v)) rets in         *)
-  (* let asgn_spec = (* modifies = [] because jimple exprs have no side-effects *) *)
-  (*   HashSet.singleton { Core.pre; post; modifies = Some [] } in                 *)
-  (* C.Assignment_core { C.asgn_rets; asgn_args; asgn_spec }                       *)
+let var_of_jname = function J.Quoted_name s | J.Identifier_name s -> s
 
-(* TODO: Pattern match separately on [v] and [e], not on [(v, e)], and
-  handle all cases. *)
+(* TODO: the modifies might be wrong. I think it should be [Some vs], where [vs]
+is [rets] without logical variables. *)
+let mk_asgn rets pre post asgn_args =
+  let asgn_rets = List.map var_of_jname rets in
+  let asgn_spec = (* NOTE: jimple exprs have no side-effects *)
+    C.TripleSet.singleton { Core.pre; post; modifies = Some [] } in
+  C.Assignment_core { C.asgn_rets; asgn_args; asgn_spec }
+
 (* TODO(rgrig): The encoding of an assignment x:=e *should* be
   x:={}{$ret1=$arg1}(e) rather than x:={}{$ret1=e}(); low priority, though. *)
-let rec translate_assign_stmt  (v:Jparsetree.variable) (e:Jparsetree.expression)
-  = failwith "TODO translate_assign_stmt"
-  (* match v, e with                                                                                                    *)
-  (* | Var_ref (Field_local_ref (n,si)), Immediate_exp p1  ->                                                           *)
-  (*     let e_var = freshe() in                                                                                        *)
-  (*     let pointed_to_var = Arg_var (e_var) in                                                                        *)
-  (*     (* execute  n.si=e' --> _:={param0.si|->-}{param0.si|->param1 * return=x'}(n,e') *)                            *)
-  (*     let p0 = PS.mkPVar (string_of J.pp_name n) in                                                                  *)
-  (*         (* ddino: should it be a fresh program variable? *)                                                        *)
-  (*     let pre=mk_pointsto p0 (signature2args si) pointed_to_var in                                                   *)
-  (*     let post=mk_pointsto p0 (signature2args si) p1 in                                                              *)
-  (*     mk_asgn [] pre post []                                                                                         *)
-  (* | Var_ref (Array_ref (a,i)), Immediate_exp e' ->                                                                   *)
-  (*     let e_var = Arg_var (freshe ()) in                                                                             *)
-  (*     let a = Arg_var (Vars.concretep_str a) in                                                                      *)
-  (*     let pre = mk_array a i (mk_succ i) e_var in                                                                    *)
-  (*     let new_value = mk_array_set e_var i e' in                                                                     *)
-  (*     let post = mk_array a i (mk_succ i) new_value in                                                               *)
-  (*     mk_asgn [] pre post []                                                                                         *)
-  (* | Var_name v, Immediate_exp e' ->                                                                                  *)
-  (*     (* execute  v=e' --> v:={emp}{return=param0}(e') *)                                                            *)
-  (*     let post= mkEQ(retvar_term,e') in                                                                              *)
-  (*     mk_asgn [v] [] post []                                                                                         *)
-  (* | Var_name v, Reference_exp (Field_local_ref (n,si))  ->                                                           *)
-  (*     (* execute v=n.si --> v:={param0.si|->z}{param0.si|->z * return=z}(n)*)                                        *)
-  (*     let e_var = freshe() in                                                                                        *)
-  (*     let pointed_to_var = Arg_var (e_var) in                                                                        *)
-  (*     let x = PS.mkPVar (string_of J.pp_name n) in                                                                   *)
-  (*     let pre=mk_pointsto x (signature2args si) pointed_to_var in                                                    *)
-  (*     let post=pconjunction (mkEQ(retvar_term,pointed_to_var)) (mk_pointsto x (signature2args si) pointed_to_var) in *)
-  (*     mk_asgn [v] pre post []                                                                                        *)
-  (* | Var_name v, Reference_exp (Array_ref (a, i)) ->                                                                  *)
-  (*     let e_var = Arg_var (freshe ()) in                                                                             *)
-  (*     let a = Arg_var (Vars.concretep_str a) in                                                                      *)
-  (*     let pre = mk_array a i (mk_succ i) e_var in                                                                    *)
-  (*     let post = pconjunction pre (mk_array_get e_var i retvar_term) in                                              *)
-  (*     mk_asgn [v] pre post []                                                                                        *)
-  (* | Var_name v, New_simple_exp ty ->                                                                                 *)
-  (*     (* execute v=new(ty)                                                                                           *)
-	(*  The rest of the job will be performed by the invocation to specialinvoke <init>                                   *)
-  (*     *)                                                                                                             *)
-  (*     let post = mk_type_all retvar_term ty in                                                                       *)
-  (*     mk_asgn [v] [] post []                                                                                         *)
-  (* | Var_name v, Binop_exp(name,x,y)->                                                                                *)
-  (*     let args = Arg_op(Support_syntax.bop_to_prover_arg name, [x;y]) in                                             *)
-  (*     let post= mkEQ(retvar_term,args) in                                                                            *)
-  (*     mk_asgn [v] [] post []                                                                                         *)
-  (* | Var_name v, Cast_exp (_,e') -> (* TODO : needs something for the cast *)                                         *)
-  (*     translate_assign_stmt (Var_name v) (Immediate_exp(e'))                                                         *)
-  (* | Var_name v , Invoke_exp ie ->                                                                                    *)
-  (*     let call_name, call_args = get_name ie in                                                                      *)
-  (*     let call_rets = [variable2var (Var_name v)] in                                                                 *)
-  (*     C.Call_core { C.call_name; call_rets; call_args }                                                              *)
-  (* | Var_name v, New_array_exp (t, sz) ->                                                                             *)
-  (*     let int_zero = mk_zero (Base (Int, [])) in                                                                     *)
-  (*     let t_zero = mk_zero t in                                                                                      *)
-  (*     let post = mk_array retvar_term int_zero sz t_zero in                                                          *)
-  (*     mk_asgn [v] [] post []                                                                                         *)
-  (* | _ ->                                                                                                             *)
-  (*     eprintf "@[<2>@{<b>TODO@}: Translatejimple.translate_assign_stmt.@ \                                           *)
-  (*       Ignoring for now.@.";                                                                                        *)
-  (*     mk_asgn [] [] [] []                                                                                            *)
+let rec translate_assign_stmt v e =
+  let emp = Expr.emp in
+  let ( * ) = Expr.mk_star in
+  let mk_v = Expr.mk_var @@ Expr.freshen in
+  let todo_rhs = ([], mk_v "todo", emp) in (* TODO: replace with proper impl *)
+  let prologue, value, post = match e with
+    | J.Binop_exp (name, x, y) ->
+        ([], Expr.mk_2 (SS.bop_to_prover_arg name) x y, emp)
+    | J.Cast_exp (_,e') (* TODO: do something here, instead of fallthru *)
+    | J.Immediate_exp e' -> ([], e', emp)
+    | J.Instanceof_exp (_, _) -> failwith "TODO Instanceof_exp"
+    | J.Invoke_exp ie ->
+        let call_name, call_args = get_name ie in
+        let w = Expr.freshen "call_ret" in
+        let call_rets = [w] in
+        let call = C.Call_core { C.call_name; call_rets; call_args } in
+        ([call], Expr.mk_var w, emp)
+    | J.New_array_exp (t, sz) ->
+        let int_zero = mk_zero (J.Base (J.Int, [])) in
+        let t_zero = mk_zero t in
+        let wt = mk_v "new_array" in
+        ([], wt, mk_array wt int_zero sz t_zero)
+    | J.New_multiarray_exp (_, _) -> failwith "TODO New_multiarray_exp"
+    | J.New_simple_exp ty ->
+        let wt = mk_v "new_simple" in
+        ([], wt, Jlogic.mk_type_all wt ty)
+    | J.Reference_exp (J.Array_ref (a, i)) ->
+        let wt = mk_v "elem_val" in
+        let pre = mk_array a i (mk_succ i) wt in
+        ([mk_asgn [] pre emp []], wt, pre * mk_array_get a i wt)
+    | J.Reference_exp (J.Field_local_ref (n, si))  ->
+        let wt = mk_v "field_val" in
+        let n = Expr.mk_var (var_of_jname n) in
+        let p = Jlogic.mk_pointsto n (signature2args si) wt in
+        ([mk_asgn [] p emp []], wt, p)
+    | J.Reference_exp (J.Field_sig_ref _) -> todo_rhs
+    | J.Unop_exp (_, _) -> failwith "TODO Unop_exp"
+  in
+  let rt = Expr.mk_var (CoreOps.return 0) in
+  prologue @
+  (match v with
+  | J.Var_name n -> [mk_asgn [n] emp (post * Expr.mk_eq rt value) []]
+  | J.Var_ref (J.Array_ref (_, _)) -> failwith "TODO iasdai9w"
+  | J.Var_ref (J.Field_local_ref (n, si)) ->
+      let wt = mk_v "old_field_val" in
+      let n = Expr.mk_var (var_of_jname n) in
+      let pre = Jlogic.mk_pointsto n (signature2args si) wt in
+      let post = Jlogic.mk_pointsto n (signature2args si) value in
+      [mk_asgn [] pre post []]
+  | J.Var_ref (J.Field_sig_ref _) -> failwith "TODO pcmw9ijef")
 
 let assert_core b =
   match b with
-  | Binop_exp (op,i1,i2) ->
+  | J.Binop_exp (op,i1,i2) ->
       let b_pred = Support_syntax.bop_to_prover_pred op i1 i2 in
-      mk_asgn [] [] b_pred []
+      mk_asgn [] Expr.emp b_pred []
   | _ -> assert false
 
 
@@ -256,9 +245,9 @@ let jimple_statement2core_statement s =
       (* nn := id: LinkedList   ---> nn:={emp}{return=param0}(id) *)
       let id'= Expr.mk_var id in
       let post = Expr.mk_eq retvar_term id' in
-      [mk_asgn [nn] [] post []]
+      [mk_asgn [nn] Expr.emp post []]
   | Assign_stmt(v,e) ->
-      [translate_assign_stmt v e]
+      translate_assign_stmt v e
   | If_stmt(b,l) ->
       let l1 = fresh_label () in
       let l2 = fresh_label () in
@@ -280,7 +269,7 @@ let jimple_statement2core_statement s =
             (* ddino: should [p0] be a fresh program variable? *)
            let p0 = Expr.mk_var (CoreOps.parameter 0) in
            let post= Expr.mk_eq retvar_term p0 in
-         [mk_asgn [] [] post [e']; C.End]
+         [mk_asgn [] Expr.emp post [e']; C.End]
       )
   | Throw_stmt _ ->
       failwith "INTERNAL: At this point catch clauses aren't available anymore."
@@ -458,8 +447,12 @@ let called_procs_from_proc acc proc =
 let remove_proc acc proc =
   HashSet.remove acc proc.C.proc_name
 
-let dummy_proc n = failwith "TODO dummy_proc"
-  (* { C.proc_name = n; proc_spec = (HashSet.create 1); proc_body = None; proc_rules = PS.empty_logic } *)
+let dummy_proc n =
+  { C.proc_name = n
+  ; proc_spec = C.TripleSet.create 0
+  ; proc_ok = true
+  ; proc_body = None
+  ; proc_rules = { C.calculus = []; abstraction = [] } }
 
 let add_dummy_procs xs =
   let h = HashSet.create 1 in

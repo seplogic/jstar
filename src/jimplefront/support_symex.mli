@@ -15,7 +15,6 @@
 val default_for : Jparsetree.j_type -> Jparsetree.name -> Expression.t
 val signature2args : Jparsetree.signature -> Expression.t
 val name2args : Jparsetree.name -> Expression.t
-val variable2var : Jparsetree.variable -> Expression.t
 val var2args : Expression.t -> Expression.t
 val negate : Jparsetree.expression -> Jparsetree.expression
 val this_var_name : string

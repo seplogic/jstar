@@ -92,10 +92,6 @@ let expression2args e =  failwith "TODO"
   (* | Reference_exp r -> reference2args r (* do we need this translation of better to PPred???*) *)
 
 
-let variable2var v =
-  Expression.mk_var (variable2key v )
-
-
 let var2args x =  failwith "TODO"
   (* Arg_var x *)
 
