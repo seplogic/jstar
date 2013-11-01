@@ -17,8 +17,10 @@ type toplPVars =
 let rec range i j = (* [i; i+1; ...; j-1] *)
   if i >= j then [] else i :: range (i + 1) j
 
-let wrap_call_arg a =
- Expr.mk_var (CoreOps.parameter a)
+let mk_pvar x = Expr.mk_var x
+let mk_evar x = Expr.mk_var ("_"^x)
+
+let wrap_call_arg a = mk_pvar (CoreOps.parameter a)
 
 let get_specs_for_enqueue pv =
   let q_sz = Array.length pv.queue in
@@ -64,15 +66,14 @@ let max_arg a =
   let max_arg_vertex _ ts y = max y (map_max max_arg_trans ts) in
   TM.VMap.fold max_arg_vertex a.TM.transitions (-1)
 
-let make_event_queue m n = failwith "TODO diwuhf"
-  (* let mk_name i j = TN.global (Printf.sprintf "queue_event_%d_position_%d" i j) in *)
-  (* Array.init m                                                                     *)
-  (*   (fun i -> Array.init n (fun j ->                                               *)
-  (*     PS.Arg_var (Vars.concretep_str (mk_name i j))))                              *)
+let make_event_queue m n = (* failwith "TODO diwuhf"; *)
+  let mk_name i j = TN.global (Printf.sprintf "queue_event_%d_position_%d" i j) in 
+   Array.init m                                                                  
+     (fun i -> Array.init n (fun j -> mk_pvar (mk_name i j)))
 
-let mk_terms prefix set = failwith "TODO a9wsd8hwq"
-  (* let f s = StringMap.add s (PS.Arg_var (Vars.concretep_str (prefix^s))) in *)
-  (* StringSet.fold f set StringMap.empty                                      *)
+let mk_terms prefix set = (* failwith "TODO a9wsd8hwq"; *)
+  let f s = StringMap.add s (mk_pvar (prefix^s)) in 
+  StringSet.fold f set StringMap.empty
 
 let rec get_regs_from_guard s = function
   | TM.EqReg (_, r) -> StringSet.add r s
@@ -95,15 +96,15 @@ let make_registers a =
 (* Create a set of logical variables corresponding to the store. Each such set is indexed
    with the transition j examined, and the step i inside the transition. The value -1 for j
    means a logical copy common to all transitions from a given vertex. *)
-let make_logical_copy_of_store st i j = failwith "TODO scadindusa"
-  (* let mk_name =                                                    *)
-  (*   let t = if j < 0 then "" else Printf.sprintf "_trans_%d" j in  *)
-  (*   fun r -> Printf.sprintf "log_register_%s_%d%s" r i t in        *)
-  (* let mk_var r = r |> mk_name |> Vars.concretee_str |> PS.mkVar in *)
-  (* TM.RMap.mapi (fun r _ -> mk_var r) st                            *)
+let make_logical_copy_of_store st i j = (* failwith "TODO scadindusa" *)
+  let mk_name =                                                    
+     let t = if j < 0 then "" else Printf.sprintf "_trans_%d" j in  
+     fun r -> Printf.sprintf "log_register_%s_%d%s" r i t in        
+   let f r = r |> mk_name |> mk_evar in 
+   TM.RMap.mapi (fun r _ -> f r) st                            
 
-let store_eq st l_st =  failwith "TODO sd8cayubd"
-  (* TM.RMap.fold (fun r v f -> PS.P_EQ (v, TM.RMap.find r l_st) :: f) st [] *)
+let store_eq st l_st = (* failwith "TODO sd8cayubd" *)
+  TM.RMap.fold (fun r v f -> (Expr.mk_eq v (TM.RMap.find r l_st)) :: f) st [] 
 
 (* let store_eq_modifies st _ =                          *)
 (*   List.map (var_of_term @@ snd) (TM.RMap.bindings st) *)
@@ -128,16 +129,16 @@ let init_TOPL_program_vars a =
   let queue = make_event_queue (max_label_length a) (2 + max_arg a) in
   { state; store; size; queue }
 
-let make_logical_copy_of_queue e = failwith "TODO isdnai"
-  (* let mM = Array.length e in                                                                    *)
-  (* let nN = Array.length e.(0) in                                                                *)
-  (* let el = Array.make_matrix mM nN (PS.mkString("dummy")) in                                    *)
-  (* let ef = ref [] in                                                                            *)
-  (* let set_el i j = el.(i).(j)                                                                   *)
-  (*   <- PS.Arg_var(Vars.concretee_str ("log_queue_"^(string_of_int i)^"_"^(string_of_int j))) in *)
-  (* let set_ef i j x = ef =:: PS.P_EQ(x,el.(i).(j)) in                                            *)
-  (* Array.iteri (fun i x -> Array.iteri (fun j eij -> set_el i j; set_ef i j eij) x) e;           *)
-  (* (el, !ef)                                                                                     *)
+let make_logical_copy_of_queue e = (* failwith "TODO isdnai" *)
+  let mM = Array.length e in
+  let nN = Array.length e.(0) in
+  let el = Array.make_matrix mM nN Expr.nil in
+  let ef = ref [] in
+  let set_el i j = el.(i).(j)
+    <- mk_evar ("log_queue_"^(string_of_int i)^"_"^(string_of_int j)) in
+  let set_ef i j x = ef =:: Expr.mk_eq x el.(i).(j) in
+   Array.iteri (fun i x -> Array.iteri (fun j eij -> set_el i j; set_ef i j eij) x) e;           
+   (el, !ef)
 
 let logical_deque_gen e el n =
   let ef = ref [] in
@@ -148,9 +149,9 @@ let logical_deque_gen e el n =
   done;
   !ef
 
-let logical_dequeue e el n = failwith "TODO dai9uh2w"
-  (* let mkEQ (x, y) = PS.P_EQ (x, y) in      *)
-  (* List.map mkEQ (logical_deque_gen e el n) *)
+let logical_dequeue e el n = (* failwith "TODO dai9uh2w" *)
+  let mkEQ (x, y) = Expr.mk_eq x y in      
+  List.map mkEQ (logical_deque_gen e el n) 
 
 (* let logical_deque_modifies e el n =                        *)
 (*   List.map (var_of_term @@ fst) (logical_deque_gen e el n) *)
@@ -169,22 +170,22 @@ let index_subsets n =
      - then g holds
      Thus, Wand(f,g) simplifies to Wand(f,simplify(g))
   *)
-let rec simplify_pform xs = failwith "TODO dqiwneuiwdd"
-(*   let xs = xs >>= simplify_pform_at in                                             *)
-(*   let retn = if List.mem PS.P_False xs then [PS.P_False] else xs in                *)
-(*   retn                                                                             *)
-(* and simplify_pform_at = function                                                   *)
-(*   | PS.P_Or (x, y) ->                                                              *)
-(*       (match (simplify_pform x, simplify_pform y) with                             *)
-(*         | [], _ | _, [] -> []                                                      *)
-(*         | [PS.P_False], z | z, [PS.P_False] -> z                                   *)
-(*         | x, y -> [PS.P_Or (x, y)])                                                *)
-(*   | PS.P_Wand (x, y) -> [PS.P_Wand (x, simplify_pform y)]                          *)
-(*   | PS.P_EQ _ as x -> [x]                                                          *)
-(*   | PS.P_NEQ _ as x -> [x]                                                         *)
-(*   | PS.P_False as x -> [x] (* NT: Added this part as it was called with P_False *) *)
-(*   | _ -> failwith "Internal: simplification with unexpected case!"                 *)
-
+let rec simplify_pform xs = failwith "TODO dqiwneuiwdd" (*
+   let xs = xs >>= simplify_pform_at in
+   let retn = if List.mem PS.P_False xs then [PS.P_False] else xs in
+   retn
+ and simplify_pform_at = function
+   | PS.P_Or (x, y) ->
+       (match (simplify_pform x, simplify_pform y) with
+         | [], _ | _, [] -> []
+         | [PS.P_False], z | z, [PS.P_False] -> z
+         | x, y -> [PS.P_Or (x, y)])
+   | PS.P_Wand (x, y) -> [PS.P_Wand (x, simplify_pform y)]
+   | PS.P_EQ _ as x -> [x]
+   | PS.P_NEQ _ as x -> [x]
+   | PS.P_False as x -> [x] (* NT: Added this part as it was called with P_False *)
+   | _ -> failwith "Internal: simplification with unexpected case!"
+                                                        *)
  (* (NT) Here a nasty hack is used: Wand (f,g) means:
     - if we set some local variables using f
     - then g holds
