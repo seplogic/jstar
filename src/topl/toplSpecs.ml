@@ -197,7 +197,7 @@ let rec remove_thors f =
   let l2 f = function [x; y] -> f x y | _ -> assert false in
   let app =
     Expr.on_star (Expr.mk_big_star @@ List.map remove_thors)
-    & Expr.on_or (Expr.mk_big_star @@ List.map remove_thors)
+    & Expr.on_or (Expr.mk_big_or @@ List.map remove_thors)
     & Expr.on_op "thor" (l2 Expr.mk_star)
     & Expr.on_eq Expr.mk_eq
     & Expr.on_neq Expr.mk_neq
