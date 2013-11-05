@@ -27,10 +27,10 @@ let get_specs_for_enqueue pv =
   let specs = Core.TripleSet.create 0 in
   for i = 0 to q_sz - 1 do begin
     let e = pv.queue.(i) in
-    let pre = Expr.mk_eq pv.size (Expr.mk_int_const (string_of_int i)) in
+    let pre = Expr.mk_eq pv.size (Expr.mk_string_const (string_of_int i)) in
     let post = Expr.mk_big_star
       (let cp i = Expr.mk_eq e.(i) (wrap_call_arg i) in
-      Expr.mk_eq pv.size (Expr.mk_int_const (string_of_int (i+1)))
+      Expr.mk_eq pv.size (Expr.mk_string_const (string_of_int (i+1)))
       :: List.map cp (range 0 e_sz)) in
     let modifies = pv.size :: List.map (fun i -> e.(i)) (range 0 e_sz) in
     let modifies = Some (List.map Expr.bk_var modifies) in
@@ -66,12 +66,12 @@ let max_arg a =
   TM.VMap.fold max_arg_vertex a.TM.transitions (-1)
 
 let make_event_queue m n = (* failwith "TODO diwuhf"; *)
-  let mk_name i j = TN.global (Printf.sprintf "queue_event_%d_position_%d" i j) in 
-   Array.init m                                                                  
+  let mk_name i j = TN.global (Printf.sprintf "queue_event_%d_position_%d" i j) in
+   Array.init m
      (fun i -> Array.init n (fun j -> mk_pvar (mk_name i j)))
 
 let mk_terms prefix set = (* failwith "TODO a9wsd8hwq"; *)
-  let f s = StringMap.add s (mk_pvar (prefix^s)) in 
+  let f s = StringMap.add s (mk_pvar (prefix^s)) in
   StringSet.fold f set StringMap.empty
 
 let rec get_regs_from_guard s = function
@@ -96,20 +96,20 @@ let make_registers a =
    with the transition j examined, and the step i inside the transition. The value -1 for j
    means a logical copy common to all transitions from a given vertex. *)
 let make_logical_copy_of_store st i j = (* failwith "TODO scadindusa" *)
-  let mk_name =                                                    
-     let t = if j < 0 then "" else Printf.sprintf "_trans_%d" j in  
-     fun r -> Printf.sprintf "log_register_%s_%d%s" r i t in        
-   let f r = r |> mk_name |> mk_evar in 
-   TM.RMap.mapi (fun r _ -> f r) st                            
+  let mk_name =
+     let t = if j < 0 then "" else Printf.sprintf "_trans_%d" j in
+     fun r -> Printf.sprintf "log_register_%s_%d%s" r i t in
+   let f r = r |> mk_name |> mk_evar in
+   TM.RMap.mapi (fun r _ -> f r) st
 
 let store_eq st l_st = (* failwith "TODO sd8cayubd" *)
-  TM.RMap.fold (fun r v f -> (Expr.mk_eq v (TM.RMap.find r l_st)) :: f) st [] 
+  TM.RMap.fold (fun r v f -> (Expr.mk_eq v (TM.RMap.find r l_st)) :: f) st []
 
 let var_of_term = Expr.cases (fun x -> x) (fun _ -> failwith "var is not a var!")
 
 (* NT: What does this do? *)
 let store_eq_modifies st _ = (* failwith "TODO 666" *)
-   List.map (var_of_term @@ snd) (TM.RMap.bindings st) 
+   List.map (var_of_term @@ snd) (TM.RMap.bindings st)
 
 let get_type = function
   | TM.Call_time -> "CALL"
@@ -153,11 +153,11 @@ let logical_deque_gen e el n =
   !ef
 
 let logical_dequeue e el n = (* failwith "TODO dai9uh2w" *)
-  let mkEQ (x, y) = Expr.mk_eq x y in      
-  List.map mkEQ (logical_deque_gen e el n) 
+  let mkEQ (x, y) = Expr.mk_eq x y in
+  List.map mkEQ (logical_deque_gen e el n)
 
-let logical_deque_modifies e el n = 
-  List.map (var_of_term @@ fst) (logical_deque_gen e el n) 
+let logical_deque_modifies e el n =
+  List.map (var_of_term @@ fst) (logical_deque_gen e el n)
 
 (* Returns a list with all non-empty subsets of {0,...,n-1} *)
 let index_subsets n =
@@ -176,29 +176,33 @@ let index_subsets n =
 let mk_thor f g = Expr.mk_2 "thor" f g
 
 let rec negate_formula f =
-  let wrong_op s _ = failwith (Printf.sprintf "Know only how to negate formulas built from
-   = ,!=, *, or and thor, not %s" s) in
-  let wrong_var _ = failwith (Printf.sprintf "Know only how to negate formulas built from
-   = ,!=, *, or and thor, not vars") in 
-  let app op =
-    Expr.on_star (fun xs -> Expr.mk_big_or (List.map negate_formula xs)) (
-      Expr.on_or (fun xs -> Expr.mk_big_star (List.map negate_formula xs)) (
-        Expr.on_op "thor" (fun [f; g] -> Expr.mk_star f (negate_formula g)) (
-          Expr.on_eq Expr.mk_neq (
-            Expr.on_neq Expr.mk_eq wrong_op )))) op
-  in Expr.cases wrong_var app f
+  let wrong s _ = failwith (Printf.sprintf
+    "negate_formula can't handle %s; just = != * or thor" s) in
+  let mk_star_not = function
+    | [f; g] -> Expr.mk_star f (negate_formula g)
+    | _ -> assert false in
+  let app =
+    Expr.on_star (Expr.mk_big_or @@ List.map negate_formula)
+    & Expr.on_or (Expr.mk_big_star @@ List.map negate_formula)
+    & Expr.on_op "thor" mk_star_not
+    & Expr.on_eq Expr.mk_neq
+    & Expr.on_neq Expr.mk_eq
+    & wrong in
+  Expr.cases (wrong "vars") app f
 
 (* Replace thor(x,y) by x*y *)
 let rec remove_thors f =
-  let wrong_op s _ = failwith (Printf.sprintf "Know only how to remove thors from formulas built from = ,!=, *, or and thor, not %s" s) in
-  let wrong_var _ = failwith (Printf.sprintf "Know only how to remove thors from formulas built from = ,!=, *, or and thor, not vars") in 
-  let app op =
-    Expr.on_star (fun xs -> Expr.mk_big_star (List.map remove_thors xs)) (
-      Expr.on_or (fun xs -> Expr.mk_big_star (List.map remove_thors xs)) (
-        Expr.on_op "thor" (fun [f; g] -> Expr.mk_star f g) (
-          Expr.on_eq Expr.mk_eq (
-            Expr.on_neq Expr.mk_neq wrong_op )))) op
-  in Expr.cases wrong_var app f
+  let wrong s _ = failwith (Printf.sprintf
+    "remove_thors can't handle %s; just = != * or thor" s ) in
+  let l2 f = function [x; y] -> f x y | _ -> assert false in
+  let app =
+    Expr.on_star (Expr.mk_big_star @@ List.map remove_thors)
+    & Expr.on_or (Expr.mk_big_star @@ List.map remove_thors)
+    & Expr.on_op "thor" (l2 Expr.mk_star)
+    & Expr.on_eq Expr.mk_eq
+    & Expr.on_neq Expr.mk_neq
+    & wrong in
+  Expr.cases (wrong "vars") app f
 
 (* Returns a formula given guard gd, assuming that value i of each event is stored in
    e.(i+1) in event queue *)
@@ -219,8 +223,8 @@ let obs_conditions e { TM.event_time; pattern } = (* failwith "TODO aksdanksd" *
      | TM.Any_time -> [ TN.call_event; TN.return_event ] in
    let p_cond p = List.map (fun name -> Expr.mk_eq e.(0) (name p)) ev_name in
    Expr.mk_big_or (pattern >>= p_cond)
-(* NT: Here this is an Or because any member of the pattern can potentially 
-   match the transition *)  
+(* NT: Here this is an Or because any member of the pattern can potentially
+   match the transition *)
 
 let rec string_guard = function
     | TM.True -> "True"
@@ -237,26 +241,26 @@ let step_conditions e st st' s = (* failwith "TODO doqwinedqiwod" *)
    let ev_cond = obs_conditions e s.TM.observables in
    let gd_cond = guard_conditions gd e st in
 (* (* debug *) Format.printf "Now, and here is the gd_cond: %a\n" PS.string_form gd_cond; *)
-   let ac_cond = Expr.mk_big_star ( TM.VMap.fold (fun r v f -> 
+   let ac_cond = Expr.mk_big_star ( TM.VMap.fold (fun r v f ->
      if (TM.RMap.mem r ac) then ((Expr.mk_eq v e.(1 + TM.RMap.find r ac))::f)
      (* Added 1+ because at position 0 is the call/ret m *)
      else ((Expr.mk_eq v (TM.VMap.find r st))::f)) st' [] ) in
-(* (* debug *) (Format.printf "Now, and here is the ev_cond of size %d: %a\n" (List.length ev_cond) PS.string_form ev_cond;  Format.printf "Now, and ac_cond: %a\n" PS.string_form ac_cond) in*) 
+(* (* debug *) (Format.printf "Now, and here is the ev_cond of size %d: %a\n" (List.length ev_cond) PS.string_form ev_cond;  Format.printf "Now, and ac_cond: %a\n" PS.string_form ac_cond) in*)
    let big_cond = Expr.mk_star ev_cond gd_cond in
 (* (* debug *) Format.printf "Now, here is the big cond of size %d: %a\n" (List.length
    big_cond) PS.string_form big_cond in *)
    let retn = big_cond in (* NT: here there used to be  a simplification *)
 (* (* debug *) Format.printf " and simplified, of size %d: %a\n" (List.length retn
-   ) PS.string_form retn; *)   
-   (retn, ac_cond) 
+   ) PS.string_form retn; *)
+   (retn, ac_cond)
 
-let pDeQu n pv el = (* failwith "TODO ckafdnkada" *)
+let pDeQu n pv el =
    let m = Array.length pv.queue in
-   (Expr.mk_eq pv.size (Expr.mk_int_const (string_of_int (m-n))))
-   :: (logical_dequeue pv.queue el n) 
+   (Expr.mk_eq pv.size (Expr.mk_string_const (string_of_int (m-n))))
+   :: (logical_dequeue pv.queue el n)
 
-let pDeQu_modifies n pv el = 
-  var_of_term pv.size :: logical_deque_modifies pv.queue el n  
+let pDeQu_modifies n pv el =
+  var_of_term pv.size :: logical_deque_modifies pv.queue el n
 
 let trans_pre_and_post pv el l_sr0 j t = (* failwith "TODO sdiwqdjnia" *)
    let st = t.TM.steps in
@@ -285,40 +289,40 @@ let select_subset k xs =
   ListH.foldri (fun i x xs -> if IntSet.mem i k then x :: xs else xs) xs []
 
 let get_specs_for_vertex t pv v s = (* failwith "TODO sdknakd" *)
-  let tl = (try TM.VMap.find v t with Not_found -> [] ) in 
+  let tl = (try TM.VMap.find v t with Not_found -> [] ) in
 (* (* debug *) Format.printf "Here is the vertex: %s\n" v; *)
 (* (* debug *) TM.VMap.iter (fun s _ -> Format.printf "Here is a key: %s\n" s) t; *)
 (* (* debug *) Format.printf "Here is the length of tl: %d\n" (List.length tl); *)
-  let pAt = Expr.mk_eq pv.state (Expr.mk_string_const v) in 
-  let (el,ef) = make_logical_copy_of_queue pv.queue in 
-  let mM = Array.length pv.queue in 
+  let pAt = Expr.mk_eq pv.state (Expr.mk_string_const v) in
+  let (el,ef) = make_logical_copy_of_queue pv.queue in
+  let mM = Array.length pv.queue in
 (* (* debug *) Format.printf "Here is M: %d\n" mM; *)
-  let pQud = (Expr.mk_eq pv.size (Expr.mk_int_const (string_of_int mM))) :: ef in 
-  let l_sr0 = make_logical_copy_of_store pv.store 0 (-1) in 
-  let pInit = store_eq pv.store l_sr0 in 
+  let pQud = (Expr.mk_eq pv.size (Expr.mk_string_const (string_of_int mM))) :: ef in
+  let l_sr0 = make_logical_copy_of_store pv.store 0 (-1) in
+  let pInit = store_eq pv.store l_sr0 in
 (* (* debug *) Format.printf "Now, here is the pInit for %s: %a\n" v Psyntax.string_form pInit; *)
-  let pAllSats, pAllPosts, allModifies = 
-    ListH.split3 (ListH.mapi (trans_pre_and_post pv el l_sr0) tl) in 
-  let pAllSats_neg = List.map negate_formula pAllSats in 
-  let pAllSats = List.map remove_thors pAllSats in 
+  let pAllSats, pAllPosts, allModifies =
+    ListH.split3 (ListH.mapi (trans_pre_and_post pv el l_sr0) tl) in
+  let pAllSats_neg = List.map negate_formula pAllSats in
+  let pAllSats = List.map remove_thors pAllSats in
 (* (* debug *) ListH.iteri (fun i x -> Format.printf "\n\nNow, here is element %d of pAllSat for %s:\n%a\n" i v PS.string_form x) pAllSats in*)
-(* (* debug *) ListH.iteri (fun i x -> Format.printf "\n\nNow, here is negated element %d of pAllSat:\n%a\n" i PS.string_form x) pAllSats_neg in*) 
+(* (* debug *) ListH.iteri (fun i x -> Format.printf "\n\nNow, here is negated element %d of pAllSat:\n%a\n" i PS.string_form x) pAllSats_neg in*)
 (* (* debug *) ListH.iteri (fun i a -> Format.printf "\nNow, here is element %d of pAllPost:\n%a\n" i PS.string_form a) pAllPosts in*)
-  let s_skip = 
-    let pre = Expr.mk_big_star ( pAt :: pInit @ pQud @ pAllSats_neg ) in 
-    let post = Expr.mk_big_star( pAt :: pInit @ pDeQu 1 pv el ) in 
-    let modifies = Some (pDeQu_modifies 1 pv el) in 
-    [{ Core.pre; post; modifies }] in 
-  let subs = index_subsets (List.length tl) in 
-  let s_regular = List.map 
-    ( fun k -> 
-      let pSats = ListH.mapi (fun i (x,y) -> if IntSet.mem i k then x else y) 
-        (List.combine pAllSats pAllSats_neg) in 
-      let pre = Expr.mk_big_star ( pAt :: pInit @ pQud @ pSats ) in 
-      let post = Expr.mk_big_or (select_subset k pAllPosts) in  
-      let modifies = Some (List.concat (select_subset k allModifies)) in 
-      { Core.pre; post; modifies }) subs in 
-  s_regular @ s_skip @ s 
+  let s_skip =
+    let pre = Expr.mk_big_star ( pAt :: pInit @ pQud @ pAllSats_neg ) in
+    let post = Expr.mk_big_star( pAt :: pInit @ pDeQu 1 pv el ) in
+    let modifies = Some (pDeQu_modifies 1 pv el) in
+    [{ Core.pre; post; modifies }] in
+  let subs = index_subsets (List.length tl) in
+  let s_regular = List.map
+    ( fun k ->
+      let pSats = ListH.mapi (fun i (x,y) -> if IntSet.mem i k then x else y)
+        (List.combine pAllSats pAllSats_neg) in
+      let pre = Expr.mk_big_star ( pAt :: pInit @ pQud @ pSats ) in
+      let post = Expr.mk_big_or (select_subset k pAllPosts) in
+      let modifies = Some (List.concat (select_subset k allModifies)) in
+      { Core.pre; post; modifies }) subs in
+  s_regular @ s_skip @ s
 
 let get_specs_for_step a pv =
   Core.TripleSet.of_list (TM.VSet.fold (get_specs_for_vertex a.TM.transitions pv) a.TM.vertices [])
@@ -345,14 +349,14 @@ let rec simplify_pform xs = failwith "TODO dqiwneuiwdd" (*
 
 let rec negate_specs_it _ =  failwith "TODO adksnad" (*
   (f:PS.pform) : PS.pform_at =
-     match f with                                                                           
-       | [] -> PS.P_False                                                                   
-       | z :: fs ->                                                                        
-         (match z with                                                                      
+     match f with
+       | [] -> PS.P_False
+       | z :: fs ->
+         (match z with
            | PS.P_EQ(x,y) -> PS.P_Or([PS.P_NEQ(x,y)], [negate_specs_it fs])
-           | PS.P_NEQ(x,y) -> PS.P_Or([PS.P_EQ(x,y)], [negate_specs_it fs])                 
+           | PS.P_NEQ(x,y) -> PS.P_Or([PS.P_EQ(x,y)], [negate_specs_it fs])
            | PS.P_PPred(_,_) -> failwith "Negation called for PPred!"
-           | PS.P_SPred(_,_) -> failwith "Negation called for SPred!" 
+           | PS.P_SPred(_,_) -> failwith "Negation called for SPred!"
            | PS.P_Wand(x,y) -> PS.P_Or((negate_specs_it y)::x, [negate_specs_it fs])
            | PS.P_Or(x,y) -> PS.P_Or([(negate_specs_it x); (negate_specs_it y)], [negate_specs_it fs])
            | PS.P_Septract(_,_) -> failwith "Negation called for Septract!"
@@ -361,14 +365,14 @@ let rec negate_specs_it _ =  failwith "TODO adksnad" (*
 (* Performs a rather unsophisticated negation of pforms built out of
    PS.P_EQ,PS.P_NEQ,PS.P_False and PS.P_Or, and a hacky PS.P_Wand *)
 let negate_pforms _ = failwith "TODO ssadoiwdia"
-(*   (f:PS.pform) : PS.pform =                                                       
-   (* (* debug *) Format.printf "Call to negate_pforms: %a\n" PS.string_form f; *) 
-   let f' = simplify_pform f in                                                    
-   let f'' = match f' with                                                         
-       | [PS.P_False] -> []                                                        
-       | _ -> [negate_specs_it f']                                                 
-   in                                                                              
-   let retn = simplify_pform f'' in                                                
-   (* (* debug *) Format.printf "-> and return: %a\n" PS.string_form retn; *)        
+(*   (f:PS.pform) : PS.pform =
+   (* (* debug *) Format.printf "Call to negate_pforms: %a\n" PS.string_form f; *)
+   let f' = simplify_pform f in
+   let f'' = match f' with
+       | [PS.P_False] -> []
+       | _ -> [negate_specs_it f']
+   in
+   let retn = simplify_pform f'' in
+   (* (* debug *) Format.printf "-> and return: %a\n" PS.string_form retn; *)
      retn                                                                            *)
 *)
