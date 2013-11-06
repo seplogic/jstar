@@ -194,11 +194,13 @@ let rec negate_formula f =
 let rec remove_thors f =
   let wrong s _ = failwith (Printf.sprintf
     "remove_thors can't handle %s; just = != * or thor" s ) in
-  let l2 f = function [x; y] -> f x y | _ -> assert false in
+  let mk_star_ton = function 
+    | [x; y] -> Expr.mk_star x (remove_thors y) 
+    | _ -> assert false in
   let app =
     Expr.on_star (Expr.mk_big_star @@ List.map remove_thors)
     & Expr.on_or (Expr.mk_big_or @@ List.map remove_thors)
-    & Expr.on_op "thor" (l2 Expr.mk_star)
+    & Expr.on_op "thor" mk_star_ton
     & Expr.on_eq Expr.mk_eq
     & Expr.on_neq Expr.mk_neq
     & wrong in
@@ -235,23 +237,25 @@ let rec string_guard = function
 
 (* Conditions for e being satisfied by (st,s) and leading to st' *)
 let step_conditions e st st' s = (* failwith "TODO doqwinedqiwod" *)
-(* (* debug *) Format.printf "Calling step_conditions for a %s step of length %d\n" (get_type s.TM.observables.TM.event_time) (List.length s.TM.observables.TM.pattern) in *)
+(* debug *) Format.printf "\nCalling step_conditions for a %s step of length %d\n" (get_type s.TM.observables.TM.event_time) (List.length s.TM.observables.TM.pattern);
    let gd = s.TM.guard in
    let ac = s.TM.action in
    let ev_cond = obs_conditions e s.TM.observables in
    let gd_cond = guard_conditions gd e st in
-(* (* debug *) Format.printf "Now, and here is the gd_cond: %a\n" PS.string_form gd_cond; *)
+(* debug *) Format.printf "\nNow, and here is the gd_cond: "; Expr.pp Format.std_formatter gd_cond; 
    let ac_cond = Expr.mk_big_star ( TM.VMap.fold (fun r v f ->
      if (TM.RMap.mem r ac) then ((Expr.mk_eq v e.(1 + TM.RMap.find r ac))::f)
      (* Added 1+ because at position 0 is the call/ret m *)
      else ((Expr.mk_eq v (TM.VMap.find r st))::f)) st' [] ) in
-(* (* debug *) (Format.printf "Now, and here is the ev_cond of size %d: %a\n" (List.length ev_cond) PS.string_form ev_cond;  Format.printf "Now, and ac_cond: %a\n" PS.string_form ac_cond) in*)
+(* debug *) Format.printf "\nNow, and here is the ev_cond: "; 
+   Expr.pp Format.std_formatter ev_cond;  
+   Format.printf "\nNow, and ac_cond: "; Expr.pp Format.std_formatter ac_cond;
    let big_cond = Expr.mk_star ev_cond gd_cond in
-(* (* debug *) Format.printf "Now, here is the big cond of size %d: %a\n" (List.length
-   big_cond) PS.string_form big_cond in *)
+(* debug *) Format.printf "\nNow, here is the big cond: "; 
+   Expr.pp Format.std_formatter big_cond;
    let retn = big_cond in (* NT: here there used to be  a simplification *)
-(* (* debug *) Format.printf " and simplified, of size %d: %a\n" (List.length retn
-   ) PS.string_form retn; *)
+   (* (* debug *) Format.printf "\n and simplified, of size %d: " (List.length retn) Expr.pp
+      Format.std_formatter retn; *) 
    (retn, ac_cond)
 
 let pDeQu n pv el =
@@ -275,8 +279,8 @@ let trans_pre_and_post pv el l_sr0 j t = (* failwith "TODO sdiwqdjnia" *)
    let pre = List.fold_left (fun acc (x,y) -> Expr.mk_star (mk_thor y acc) x) mk_true (List.rev step_conds) in
    let post = Expr.mk_big_star ( (Expr.mk_eq pv.state (Expr.mk_string_const tg))
                                  :: store_eq sr l_sr.(len) @ pDeQu len pv el ) in
-(* (* debug *) Format.printf "\n==> Pre:\n %a\n ===> Post:\n %a\n" PS.string_form pre
-   PS.string_form post; *)
+ (* debug *) Format.printf "\n==> Pre:\n"; Expr.pp Format.std_formatter pre;
+   Format.printf "\n ===> Post:\n"; Expr.pp Format.std_formatter post;
    let modifies = var_of_term pv.state :: store_eq_modifies sr l_sr.(len) @ pDeQu_modifies len pv el in
    (pre, post, modifies)
 
@@ -305,9 +309,12 @@ let get_specs_for_vertex t pv v s = (* failwith "TODO sdknakd" *)
     ListH.split3 (ListH.mapi (trans_pre_and_post pv el l_sr0) tl) in
   let pAllSats_neg = List.map negate_formula pAllSats in
   let pAllSats = List.map remove_thors pAllSats in
-(* (* debug *) ListH.iteri (fun i x -> Format.printf "\n\nNow, here is element %d of pAllSat for %s:\n%a\n" i v PS.string_form x) pAllSats in*)
-(* (* debug *) ListH.iteri (fun i x -> Format.printf "\n\nNow, here is negated element %d of pAllSat:\n%a\n" i PS.string_form x) pAllSats_neg in*)
-(* (* debug *) ListH.iteri (fun i a -> Format.printf "\nNow, here is element %d of pAllPost:\n%a\n" i PS.string_form a) pAllPosts in*)
+(* debug *) ListH.iteri (fun i x -> Format.printf "\n\nNow, here is element %d of pAllSat
+  for %s:\n" i v; Expr.pp Format.std_formatter x) pAllSats;
+(* debug *) ListH.iteri (fun i x -> Format.printf "\n\nNow, here is negated element %d of
+  pAllSat:\n" i; Expr.pp Format.std_formatter x) pAllSats_neg;
+(* debug *) ListH.iteri (fun i a -> Format.printf "\nNow, here is element %d of pAllPost:\n"
+  i; Expr.pp Format.std_formatter a) pAllPosts;
   let s_skip =
     let pre = Expr.mk_big_star ( pAt :: pInit @ pQud @ pAllSats_neg ) in
     let post = Expr.mk_big_star( pAt :: pInit @ pDeQu 1 pv el ) in
