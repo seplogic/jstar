@@ -12,6 +12,7 @@
  ********************************************************)
 
 
+val uop_to_prover_arg : Jparsetree.unop -> string
 val bop_to_prover_arg : Jparsetree.binop -> string
 val bop_to_prover_pred :
   Jparsetree.binop -> Expression.t -> Expression.t -> Expression.t

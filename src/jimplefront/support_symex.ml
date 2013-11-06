@@ -55,8 +55,8 @@ let default_for ty n = failwith "TODO"
   (* with Assert_failure (e,i,j) -> Printf.printf "Default for failed on type %s.\n" (Pprinter.j_type2str ty); raise (Assert_failure(e,i,j) ) *)
 
 
-let signature2args si = failwith "TODO"
-  (* Arg_string(Pprinter.signature2str si) *)
+let signature2args si = 
+  Expression.mk_string_const (Pprinter.signature2str si) 
 
 
 let name2args n = failwith "TODO"

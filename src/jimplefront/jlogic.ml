@@ -22,12 +22,11 @@ let class2args cl =
   Expr.mk_string_const (class_name2str cl)
 
 (* create n.si|->e *)
-let mk_pointsto n si e = failwith "TODO" 
-  (* PS.mkSPred ("field", [n; si; e]) *)
+let mk_pointsto n si e = 
+  Expr.mk_app "field" [n; si; e]
 
 (* create cl1 <: cl2 *)
-let mk_subtype1 a1 a2 = failwith "TODO"
-  (* PS.mkPPred ("subtype", [a1; a2]) *)
+let mk_subtype1 = Expr.mk_2 "subtype"
 let mk_subtype cl1 cl2 = mk_subtype1 (class2args cl1) (class2args cl2)
 
 
@@ -45,15 +44,13 @@ let objtype receiver classname =
 
 
 (* create var <: cl  (is a subtype of) *)
-let mk_objsubtyp1 a1 a2 = failwith "TODO"
-  (* PS.P_PPred("objsubtype", [a1; a2]) *)
+let mk_objsubtyp1 = Expr.mk_2 "objsubtype" 
 let mk_objsubtyp var cl = mk_objsubtyp1 var (class2args cl)
 
 (* create var </: cl  (is not a subtype of) *)
-let mk_objnotsubtyp var cl = failwith "TODO"
-  (* PS.P_PPred("notobjsubtype", [var; class2args cl]) *)
+let mk_objnotsubtyp var cl = 
+  Expr.mk_2 "notobjsubtype" var (class2args cl)
 
 (* create var statictype cl *)
-let mk_statictyp1 a1 a2 = failwith "TODO"
-  (* PS.mkPPred ("statictype", [a1; a2]) *)
+let mk_statictyp1 = Expr.mk_2 "statictype"
 let mk_statictyp var cl = mk_statictyp1 var (class2args cl)

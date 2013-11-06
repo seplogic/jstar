@@ -15,6 +15,10 @@ open Jparsetree
 (* open Psyntax *)
 open Jimple_global_types
 
+let uop_to_prover_arg = function
+      |	Lengthof -> "builtin_length_of"
+      | Neg -> "builtin_neg"
+
 let bop_to_prover_arg = function
       |	And -> "builtin_and"
       | Or -> "builtin_or"

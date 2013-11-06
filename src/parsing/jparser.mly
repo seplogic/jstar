@@ -39,11 +39,11 @@ let newVar x =
   else if String.get x 0 = '_' then (String.sub x 1 ((String.length x) -1))
   else x
 
-let mkBinOp left op right = failwith "TODO1"
-  (* PS.Arg_op (SS.bop_to_prover_arg op, [left; right]) *)
+let mkBinOp left op right =
+  E.mk_2 (SS.bop_to_prover_arg op) left right
 
-let mkNegNumericConst n = failwith "TODO2"
-  (* mkBinOp (PS.mkNumericConst "0") J.Minus (PS.mkNumericConst n) *)
+let mkNegNumericConst n =
+  mkBinOp (E.mk_int_const "0") J.Minus (E.mk_int_const n) 
 
 (* let check_npv =                                *)
 (*   let rec check_term_npv =  failwith "TODO" in *)
@@ -731,8 +731,8 @@ constant:
   | MINUS INTEGER_CONSTANT { mkNegNumericConst $2 }
   | FLOAT_CONSTANT  {  failwith "TODO6" (*PS.mkNumericConst $1*) }
   | MINUS FLOAT_CONSTANT  { mkNegNumericConst $2 }
-  | STRING_CONSTANT {  failwith "TODO7" (*PS.mkStringConst $1*) }
-  | CLASS STRING_CONSTANT {  failwith "TODO8" (*PS.Arg_op ("class_const", [PS.mkString $2])*) }
+  | STRING_CONSTANT {  E.mk_string_const $1 }
+  | CLASS STRING_CONSTANT {  E.mk_app "class_const" [E.mk_string_const $2]  }
   | NULL { E.nil }
 ;
 binop_no_mult:

@@ -125,8 +125,8 @@ let retvar_term =
   Expression.mk_var CoreOps.name_ret_v1
 
 (* make terms/predicates related to the array representation *) (* {{{ *)
-let mk_array a i j v = failwith "TODO mk_array"
-  (* PS.mkSPred ("array", [a; i; j; v]) *)
+let mk_array a i j v = 
+  Expr.mk_app "array" [a; i; j; v]
 
 let mk_zero = function
   | J.Base (J.Boolean, _)
@@ -144,13 +144,13 @@ let mk_zero = function
   | J.Full_ident_NVT _
       -> Expression.mk_0 "nil"
 
-let mk_succ n = failwith "TODO mk_succ"
-  (* PS.mkFun "builtin_plus" [n; PS.mkNumericConst "1"] *)
+let mk_succ n = 
+  Expr.mk_2 "builtin_plus" n (Expr.mk_int_const "1")
 
-let mk_array_get av i v = failwith "TODO mk_array_get"
-  (* PS.mkPPred ("array_get", [av; i; v]) *)
-let mk_array_set av i v = failwith "TODO mk_array_set"
-  (* PS.mkFun "array_set" [av; i; v] *)
+let mk_array_get av i v = 
+  Expr.mk_app "array_get" [av; i; v]
+let mk_array_set av i v =
+  Expr.mk_app "array_set" [av; i; v] 
 
 (* }}} *)
 
@@ -171,6 +171,7 @@ let rec translate_assign_stmt v e =
   let ( * ) = Expr.mk_star in
   let mk_v = Expr.mk_var @@ Expr.freshen in
   let todo_rhs = ([], mk_v "todo", emp) in (* TODO: replace with proper impl *)
+  let todo_lhs = [] in (* TODO: replace with proper impl *)
   let prologue, value, post = match e with
     | J.Binop_exp (name, x, y) ->
         ([], Expr.mk_2 (SS.bop_to_prover_arg name) x y, emp)
@@ -194,21 +195,23 @@ let rec translate_assign_stmt v e =
         ([], wt, Jlogic.mk_type_all wt ty)
     | J.Reference_exp (J.Array_ref (a, i)) ->
         let wt = mk_v "elem_val" in
-        let pre = mk_array a i (mk_succ i) wt in
-        ([mk_asgn [] pre emp []], wt, pre * mk_array_get a i wt)
+        let at = Expr.mk_var a in
+        let pre = mk_array at i (mk_succ i) wt in
+        ([mk_asgn [] pre emp []], wt, pre * mk_array_get at i wt)
     | J.Reference_exp (J.Field_local_ref (n, si))  ->
         let wt = mk_v "field_val" in
         let n = Expr.mk_var (var_of_jname n) in
         let p = Jlogic.mk_pointsto n (signature2args si) wt in
         ([mk_asgn [] p emp []], wt, p)
     | J.Reference_exp (J.Field_sig_ref _) -> todo_rhs
-    | J.Unop_exp (_, _) -> failwith "TODO Unop_exp"
+    | J.Unop_exp (name, x) -> ([], Expr.mk_1 (SS.uop_to_prover_arg name) x, emp)
+
   in
   let rt = Expr.mk_var (CoreOps.return 0) in
   prologue @
   (match v with
   | J.Var_name n -> [mk_asgn [n] emp (post * Expr.mk_eq rt value) []]
-  | J.Var_ref (J.Array_ref (_, _)) -> failwith "TODO iasdai9w"
+  | J.Var_ref (J.Array_ref (_, _)) -> todo_lhs
   | J.Var_ref (J.Field_local_ref (n, si)) ->
       let wt = mk_v "old_field_val" in
       let n = Expr.mk_var (var_of_jname n) in
