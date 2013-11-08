@@ -122,7 +122,7 @@ let get_name  (iexp: Jparsetree.invoke_expr) =
 
 
 let retvar_term =
-  Expression.mk_var CoreOps.name_ret_v1
+  Expression.mk_var (CoreOps.return 0)
 
 (* make terms/predicates related to the array representation *) (* {{{ *)
 let mk_array a i j v = 
@@ -180,7 +180,7 @@ let rec translate_assign_stmt v e =
     | J.Instanceof_exp (_, _) -> failwith "TODO Instanceof_exp"
     | J.Invoke_exp ie ->
         let call_name, call_args = get_name ie in
-        let w = Expr.freshen "call_ret" in
+        let w = Expr.fresh_pvar "call_ret" in
         let call_rets = [w] in
         let call = C.Call_core { C.call_name; call_rets; call_args } in
         ([call], Expr.mk_var w, emp)
@@ -214,7 +214,7 @@ let rec translate_assign_stmt v e =
   prologue @
   (match v with
   | J.Var_name n -> [mk_asgn [n] emp (post * Expr.mk_eq rt value) []]
-  | J.Var_ref (J.Array_ref (_, _)) -> todo_lhs
+  | J.Var_ref (J.Array_ref (a, i)) -> todo_lhs
   | J.Var_ref (J.Field_local_ref (n, si)) ->
       let wt = mk_v "old_field_val" in
       let n = Expr.mk_var (var_of_jname n) in

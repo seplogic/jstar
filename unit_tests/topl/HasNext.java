@@ -16,6 +16,10 @@ class HasNext {
   }
 
   static void print(Iterator<Integer> i) {
+    if (i.hasNext()) i.next();
+  }
+
+  static void printBad(Iterator<Integer> i) {
     do System.out.println(i.next());    // BUG
     while (i.hasNext());
   }
