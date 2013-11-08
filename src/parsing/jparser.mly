@@ -702,15 +702,15 @@ method_signature_short:
        { $1,$2,$3,$5 }
 ;
 reference:
-   |array_ref  {$1}
-   |field_ref  {$1}
+   | array_ref  {$1}
+   | field_ref  {$1}
 ;
 array_ref:
   identifier fixed_array_descriptor {Array_ref($1,$2)}
 ;
 field_ref:
-   |local_name DOT field_signature     { Field_local_ref($1,$3)}
-   |field_signature {Field_sig_ref($1)}
+   | local_name DOT field_signature     { Field_local_ref($1,$3)}
+   | field_signature {Field_sig_ref($1)}
 ;
 field_signature:
     CMPLT class_name COLON jtype name CMPGT  {Field_signature($2,$4,$5)}

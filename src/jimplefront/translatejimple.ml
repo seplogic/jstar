@@ -203,7 +203,10 @@ let rec translate_assign_stmt v e =
         let n = Expr.mk_var (var_of_jname n) in
         let p = Jlogic.mk_pointsto n (signature2args si) wt in
         ([mk_asgn [] p emp []], wt, p)
-    | J.Reference_exp (J.Field_sig_ref _) -> todo_rhs
+    | J.Reference_exp (J.Field_sig_ref si) ->
+        let wt = mk_v "static_field_val" in
+        let p = Jlogic.mk_static_pointsto (signature2args si) wt in
+        ([mk_asgn [] p emp []], wt, p)
     | J.Unop_exp (name, x) -> ([], Expr.mk_1 (SS.uop_to_prover_arg name) x, emp)
 
   in

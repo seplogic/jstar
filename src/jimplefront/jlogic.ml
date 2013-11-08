@@ -25,6 +25,10 @@ let class2args cl =
 let mk_pointsto n si e = 
   Expr.mk_app "field" [n; si; e]
 
+(* create si|->e *)
+let static_var = Expr.mk_var "static"
+let mk_static_pointsto = mk_pointsto static_var
+
 (* create cl1 <: cl2 *)
 let mk_subtype1 = Expr.mk_2 "subtype"
 let mk_subtype cl1 cl2 = mk_subtype1 (class2args cl1) (class2args cl2)
