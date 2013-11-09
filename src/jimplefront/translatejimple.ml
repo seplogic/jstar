@@ -227,7 +227,8 @@ let assert_core b =
   match b with
   | J.Binop_exp (op,i1,i2) ->
       let b_pred = Support_syntax.bop_to_prover_pred op i1 i2 in
-      mk_asgn [] Expr.emp b_pred []
+      mk_asgn [] b_pred b_pred []
+(*      mk_asgn [] Expr.emp b_pred [] *) (* RLP: this is wrong, right? *)
   | _ -> assert false
 
 
