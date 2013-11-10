@@ -34,7 +34,7 @@ module J = Jparsetree
 module SS = Support_syntax
 module E = Expression
 
-let newVar x = 
+let newVar x =
   if x = "_" then E.freshen "v"
   else if String.get x 0 = '_' then (String.sub x 1 ((String.length x) -1))
   else x
@@ -43,7 +43,7 @@ let mkBinOp left op right =
   E.mk_2 (SS.bop_to_prover_arg op) left right
 
 let mkNegNumericConst n =
-  mkBinOp (E.mk_int_const "0") J.Minus (E.mk_int_const n) 
+  mkBinOp (E.mk_int_const "0") J.Minus (E.mk_int_const n)
 
 (* let check_npv =                                *)
 (*   let rec check_term_npv =  failwith "TODO" in *)
@@ -314,8 +314,8 @@ let field_signature2str fs =
 %start question_file
 %type <Core.ast_question list> question_file
 
-%start spec
-%type <Core.triple> spec
+%start triple
+%type <Core.triple> triple
 
 %start jargument     /* used for parsing topl values */
 %type <Expression.t> jargument
@@ -388,13 +388,21 @@ exportLocal_predicate_def:
 methods_specs:
    | SPEC method_spec methods_specs { $2 :: $3 }
    | /*empty*/ { [] }
+;
 
-spec:
-   | L_BRACE formula R_BRACE L_BRACE formula R_BRACE
-      { {pre=$2;post=$5;modifies=None} }
+modifies:
+  | /* empty */ { [] }
+  | L_PAREN lvariable_list R_PAREN { $2 }
+;
+
+triple:
+  | L_BRACE formula R_BRACE modifies L_BRACE formula R_BRACE
+    { { Core.pre = $2; modifies = $4; post = $6 } }
+;
+
 specs:
-   | spec ANDALSO specs  { $1 :: $3 }
-   | spec  {[$1]}
+   | triple ANDALSO specs  { $1 :: $3 }
+   | triple  {[$1]}
 
 method_spec:
    | method_signature_short COLON specs  SEMICOLON source_pos_tag_option { mkDynamic($1, $3, $5) }
@@ -602,7 +610,7 @@ statement:
   | RETURN immediate_question_mark SEMICOLON  {Return_stmt($2)}
   | THROW immediate SEMICOLON     {Throw_stmt($2)}
   | invoke_expr SEMICOLON     {Invoke_stmt($1)}
-  | L_BRACE lvariable_list R_BRACE COLON spec SEMICOLON
+  | L_BRACE lvariable_list R_BRACE COLON triple SEMICOLON
     { Spec_stmt
       { Core.asgn_rets = $2
       ; asgn_args = []
@@ -832,7 +840,7 @@ paramlist:
 
 
 jargument:
-  | RETURN { E.mk_var CoreOps.name_ret_v1 }
+  | RETURN { E.mk_var (CoreOps.return 0) }
   | lvariable { E.mk_var $1 }
   | identifier L_PAREN jargument_list R_PAREN {  failwith "TODO13" (*Arg_op($1,$3)*) }
   | constant { $1 }

@@ -132,14 +132,12 @@ let ee_encode_label state label =
   let s = JG.Label_stmt label in
   try
     let t = Hashtbl.find state.ee_type label in
-    let mk_assume post =
-      { Core.pre = Expression.emp; post; modifies = Some [] } in
     let type_ok = Jlogic.mk_statictyp ee_excvar_form t in
     let assume_type =
       JG.Spec_stmt
         { Core.asgn_rets = []
         ; asgn_args = []
-        ; asgn_spec = Core.TripleSet.singleton (mk_assume type_ok) } in
+        ; asgn_spec = CoreOps.mk_assume type_ok } in
     [ s; assume_type ]
   with Not_found -> [s]
 

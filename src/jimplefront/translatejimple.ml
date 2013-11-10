@@ -161,7 +161,7 @@ is [rets] without logical variables. *)
 let mk_asgn rets pre post asgn_args =
   let asgn_rets = List.map var_of_jname rets in
   let asgn_spec = (* NOTE: jimple exprs have no side-effects *)
-    C.TripleSet.singleton { Core.pre; post; modifies = Some [] } in
+    C.TripleSet.singleton { Core.pre; post; modifies = [] } in
   C.Assignment_core { C.asgn_rets; asgn_args; asgn_spec }
 
 (* TODO(rgrig): The encoding of an assignment x:=e *should* be

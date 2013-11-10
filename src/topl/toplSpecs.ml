@@ -33,7 +33,7 @@ let get_specs_for_enqueue pv =
       Expr.mk_eq pv.size (Expr.mk_string_const (string_of_int (i+1)))
       :: List.map cp (range 0 e_sz)) in
     let modifies = pv.size :: List.map (fun i -> e.(i)) (range 0 e_sz) in
-    let modifies = Some (List.map Expr.bk_var modifies) in
+    let modifies = List.map Expr.bk_var modifies in
     Core.TripleSet.add specs { Core.pre; post; modifies }
   end done;
   specs
@@ -322,7 +322,7 @@ let get_specs_for_vertex t pv v s =
   let s_skip =
     let pre = Expr.mk_big_star ( pAt :: pInit @ pQud @ pAllSats_neg ) in
     let post = Expr.mk_big_star( pAt :: pInit @ pDeQu 1 pv el ) in
-    let modifies = Some (pDeQu_modifies 1 pv el) in
+    let modifies = pDeQu_modifies 1 pv el in
     [{ Core.pre; post; modifies }] in
   let subs = index_subsets (List.length tl) in
   let s_regular = List.map
@@ -331,7 +331,7 @@ let get_specs_for_vertex t pv v s =
         (List.combine pAllSats pAllSats_neg) in
       let pre = Expr.mk_big_star ( pAt :: pInit @ pQud @ pSats ) in
       let post = Expr.mk_big_or (select_subset k pAllPosts) in
-      let modifies = Some (List.concat (select_subset k allModifies)) in
+      let modifies = List.concat (select_subset k allModifies) in
       { Core.pre; post; modifies }) subs in
   s_regular @ s_skip @ s
 
