@@ -156,72 +156,81 @@ let mk_array_set av i v =
 
 let var_of_jname = function J.Quoted_name s | J.Identifier_name s -> s
 
-(* TODO: the modifies might be wrong. I think it should be [Some vs], where [vs]
-is [rets] without logical variables. *)
-let mk_asgn rets pre post asgn_args =
-  let asgn_rets = List.map var_of_jname rets in
+let mk_asgn asgn_rets pre post asgn_args =
   let asgn_spec = (* NOTE: jimple exprs have no side-effects *)
     C.TripleSet.singleton { Core.pre; post; modifies = [] } in
   C.Assignment_core { C.asgn_rets; asgn_args; asgn_spec }
 
-(* TODO(rgrig): The encoding of an assignment x:=e *should* be
-  x:={}{$ret1=$arg1}(e) rather than x:={}{$ret1=e}(); low priority, though. *)
-let rec translate_assign_stmt v e =
+let mk_asgn_jname rets = mk_asgn (List.map var_of_jname rets)
+
+let rec translate_assign_stmt e f =
+  (* The assignment e:=f is treated as the sequence $temp:=f; e:=$temp. This way,
+  there are fewer types of assignments to consider because $temp is guaranteed
+  to be just a program  variable. *)
   let emp = Expr.emp in
-  let ( * ) = Expr.mk_star in
-  let mk_v = Expr.mk_var @@ Expr.freshen in
-  let todo_rhs = ([], mk_v "todo", emp) in (* TODO: replace with proper impl *)
-  let todo_lhs = [] in (* TODO: replace with proper impl *)
-  let prologue, value, post = match e with
+  let ( @* ) = Expr.mk_star in
+  let ( @= ) = Expr.mk_eq in
+  (* NOTE: If $temp does not occur in f, then { } $temp := f { $temp = f } *)
+  let temp_pvar = "$temp" in
+  let temp_lvar = Expr.freshen temp_pvar in
+  let temp_pt, temp_lt = Expr.mk_var temp_pvar, Expr.mk_var temp_lvar in
+  let check_ft ft =
+    let rec bad e =
+      Expr.equal e temp_pt
+      || Expr.cases (fun _ -> false) (fun _ -> List.exists bad) e in
+    assert (not (bad ft));
+    ft in
+  let skip = mk_asgn [] emp emp [] in
+  [ begin match f with
     | J.Binop_exp (name, x, y) ->
-        ([], Expr.mk_2 (SS.bop_to_prover_arg name) x y, emp)
-    | J.Cast_exp (_,e') (* TODO: do something here, instead of fallthru *)
-    | J.Immediate_exp e' -> ([], e', emp)
-    | J.Instanceof_exp (_, _) -> failwith "TODO Instanceof_exp"
+        let ft = check_ft (Expr.mk_2 (SS.bop_to_prover_arg name) x y) in
+        mk_asgn [temp_pvar] emp (temp_pt @= ft) []
+    | J.Cast_exp (_,t) (* fallthru *)
+    | J.Immediate_exp t ->
+        mk_asgn [temp_pvar] emp (temp_pt @= check_ft t) []
+    | J.Instanceof_exp (_, _) -> failwith "TODO sd9qa8dj"
     | J.Invoke_exp ie ->
         let call_name, call_args = get_name ie in
-        let w = Expr.fresh_pvar "call_ret" in
-        let call_rets = [w] in
-        let call = C.Call_core { C.call_name; call_rets; call_args } in
-        ([call], Expr.mk_var w, emp)
-    | J.New_array_exp (t, sz) ->
+        let call_rets = [ temp_pvar ] in
+        C.Call_core { C.call_name; call_rets; call_args }
+    | J.New_array_exp (t, sz) -> skip (* failwith "XXX  aoifnas98" *)
+        (* XXX
         let int_zero = mk_zero (J.Base (J.Int, [])) in
         let t_zero = mk_zero t in
         let wt = mk_v "new_array" in
-        ([], wt, mk_array wt int_zero sz t_zero)
-    | J.New_multiarray_exp (_, _) -> failwith "TODO New_multiarray_exp"
+        ([], wt, mk_array wt int_zero sz t_zero) *)
+    | J.New_multiarray_exp (_, _) -> failwith "TODO d2mwoi98j"
     | J.New_simple_exp ty ->
-        let wt = mk_v "new_simple" in
-        ([], wt, Jlogic.mk_type_all wt ty)
-    | J.Reference_exp (J.Array_ref (a, i)) ->
+        mk_asgn [] emp (Jlogic.mk_type_all temp_pt ty) []
+    | J.Reference_exp (J.Array_ref (a, i)) -> skip
+        (* XXX failwith "TODO dai9dsuna9" *)
+        (* XXX
         let wt = mk_v "elem_val" in
         let at = Expr.mk_var a in
         let pre = mk_array at i (mk_succ i) wt in
-        ([mk_asgn [] pre emp []], wt, pre * mk_array_get at i wt)
+        ([mk_asgn [] pre emp []], wt, pre * mk_array_get at i wt) *)
     | J.Reference_exp (J.Field_local_ref (n, si))  ->
-        let wt = mk_v "field_val" in
         let n = Expr.mk_var (var_of_jname n) in
-        let p = Jlogic.mk_pointsto n (signature2args si) wt in
-        ([mk_asgn [] p emp []], wt, p)
+        let p = Jlogic.mk_pointsto n (signature2args si) temp_lt in
+        mk_asgn [temp_pvar] p (p @* (temp_pt @= temp_lt)) []
     | J.Reference_exp (J.Field_sig_ref si) ->
-        let wt = mk_v "static_field_val" in
-        let p = Jlogic.mk_static_pointsto (signature2args si) wt in
-        ([mk_asgn [] p emp []], wt, p)
-    | J.Unop_exp (name, x) -> ([], Expr.mk_1 (SS.uop_to_prover_arg name) x, emp)
-
-  in
-  let rt = Expr.mk_var (CoreOps.return 0) in
-  prologue @
-  (match v with
-  | J.Var_name n -> [mk_asgn [n] emp (post * Expr.mk_eq rt value) []]
-  | J.Var_ref (J.Array_ref (a, i)) -> todo_lhs
-  | J.Var_ref (J.Field_local_ref (n, si)) ->
-      let wt = mk_v "old_field_val" in
-      let n = Expr.mk_var (var_of_jname n) in
-      let pre = Jlogic.mk_pointsto n (signature2args si) wt in
-      let post = Jlogic.mk_pointsto n (signature2args si) value in
-      [mk_asgn [] pre post []]
-  | J.Var_ref (J.Field_sig_ref _) -> failwith "TODO pcmw9ijef")
+        let p = Jlogic.mk_static_pointsto (signature2args si) temp_lt in
+        mk_asgn [temp_pvar] p (p @* (temp_pt @= temp_lt)) []
+    | J.Unop_exp (name, x) ->
+        let ft = check_ft (Expr.mk_1 (SS.uop_to_prover_arg name) x) in
+        mk_asgn [temp_pvar] emp (temp_pt @= ft) []
+  end ]
+  @ [ let rt = retvar_term in
+    begin match e with
+    | J.Var_name n -> mk_asgn_jname [n] emp (rt @= temp_pt) []
+    | J.Var_ref (J.Array_ref (a, i)) -> skip (* XXX failwith "TODO 9adm908edf"*)
+    | J.Var_ref (J.Field_local_ref (n, si)) ->
+        let n = Expr.mk_var (var_of_jname n) in
+        let pre = Jlogic.mk_pointsto n (signature2args si) temp_lt in
+        let post = Jlogic.mk_pointsto n (signature2args si) temp_pt in
+        mk_asgn [] pre post []
+    | J.Var_ref (J.Field_sig_ref _) -> failwith "TODO pcmw9ijef"
+  end ]
 
 let assert_core b =
   match b with
@@ -252,7 +261,7 @@ let jimple_statement2core_statement s =
       (* nn := id: LinkedList   ---> nn:={emp}{return=param0}(id) *)
       let id'= Expr.mk_var id in
       let post = Expr.mk_eq retvar_term id' in
-      [mk_asgn [nn] Expr.emp post []]
+      [mk_asgn_jname [nn] Expr.emp post []]
   | Assign_stmt(v,e) ->
       translate_assign_stmt v e
   | If_stmt(b,l) ->
