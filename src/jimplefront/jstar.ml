@@ -153,8 +153,6 @@ let main () =
       fprintf logf "@[<4>Creating empty specs template for class@.@.";
     List.iter Mkspecs.print_specs_template programs
   end else (
-    (* if !Config.smt_run then Smt.smt_init(); *)
-
     let parse x fn = System.parse_file Parser.file Lexer.token fn x in
     let add_calc_rule logic = function
       | PA.CalculusRule r -> r::logic
@@ -188,7 +186,7 @@ let main () =
     let topl_monitor = ToplPreprocessor.compile programs topls in
     let question =
       { Core.q_procs = topl_monitor @ cores
-      ; q_rules = { Core.calculus = logic ; Core.abstraction = abs_rules }
+      ; q_rules = { Core.calculus = logic ; abstraction = abs_rules }
       ; q_globals = [] (* TODO is this right? NG *)
       ; q_infer = !Config.use_abduction
       ; q_name = "jstar_question_for_corestar" } in

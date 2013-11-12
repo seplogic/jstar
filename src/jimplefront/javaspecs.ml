@@ -710,7 +710,6 @@ let add_subtype_and_objsubtype_rules spec_list logic = logic
         (* append_rules logic [objsubtype_rule;subtype_rule]                                                                                *)
 
 
-
 (* ====================== Refinement type stuff ================================= *)
 
 let refines logic spec1 spec2 =

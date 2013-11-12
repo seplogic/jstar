@@ -11,6 +11,8 @@
       LICENSE.txt
  ********************************************************)
 
+open Corestar_std
+
 type fldlist = (string * Expression.t) list
 
 type methodspec =
@@ -36,4 +38,4 @@ type class_spec = {
   axioms : axioms_clause;
   methodspecs : methodspecs;
 }
-val pp_class_spec : Format.formatter -> class_spec -> unit
+val pp_class_spec : class_spec pretty_printer

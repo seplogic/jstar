@@ -38,8 +38,9 @@ val msig2str
     -> Jparsetree.name
     -> Jparsetree.nonvoid_type list
     -> string
-val compile :
-  Jimple_global_types.jimple_file list
-    -> Javaspecs.methodSpecs
-    -> Javaspecs.methodSpecs
-    -> Core.ast_procedure list
+val compile
+  : (Jparsetree.class_name -> Jimple_global_types.jimple_file)
+  -> Jimple_global_types.jimple_file list
+  -> Javaspecs.methodSpecs (* static *)
+  -> Javaspecs.methodSpecs (* dynamic *)
+  -> Core.ast_procedure list

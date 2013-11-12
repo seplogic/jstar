@@ -48,11 +48,11 @@ let get_list_member f =
   match f with
   | JG.JFile (_,_,_,_,_, meml) -> meml
 
-let get_list_fields f =
-  match f with
-  | JG.JFile (_,_,_,_,_, meml) -> List.filter (fun a -> match a with
-					    |JG.Field _ -> true
-					    |JG.Method _ -> false) meml
+let get_list_fields (JG.JFile (_,_,_,_,_, ms)) =
+  let f = function
+    | JG.Field (modifier, ty, name) -> [(modifier, ty, name)]
+    | _ -> [] in
+  ms >>= f
 
 let get_class_name f =
   match f with

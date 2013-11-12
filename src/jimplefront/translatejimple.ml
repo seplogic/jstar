@@ -163,14 +163,36 @@ let mk_asgn asgn_rets pre post asgn_args =
 
 let mk_asgn_jname rets = mk_asgn (List.map var_of_jname rets)
 
-let rec translate_assign_stmt e f =
+let mk_alloc j_of_name v = function
+  | J.Class_name c ->
+      let fs =
+        try Methdec.get_list_fields (j_of_name c)
+        with Not_found -> begin
+          if !Config.verbosity >= 4 then
+            eprintf "@{<b>WARNING@}: Class %s is undefined."
+              (Pprinter.class_name2str c);
+          []
+        end in
+      let keep_nonvoid (_, ty, n) = match ty with
+        | J.Void -> eprintf "@{<b>WARNING:@} Weird jimple (a8uydb8)"; []
+        | J.Non_void ty -> [(ty, n)] in
+      let fs = fs >>= keep_nonvoid in
+      let pto (ty, n) =
+        let fn = signature2args (J.Field_signature (c, (J.Non_void ty), n)) in
+        Jlogic.mk_pointsto v fn (mk_zero ty) in
+      Expr.mk_big_star (List.map pto fs)
+  | _ -> Expr.emp
+
+let rec translate_assign_stmt j_of_name e f =
   (* The assignment e:=f is treated as the sequence $temp:=f; e:=$temp. This way,
   there are fewer types of assignments to consider because $temp is guaranteed
-  to be just a program  variable. *)
+  to be a program variable. Yes, $temp holds values of any type, and gets
+  overwritten often. *)
   let emp = Expr.emp in
   let ( @* ) = Expr.mk_star in
   let ( @= ) = Expr.mk_eq in
-  (* NOTE: If $temp does not occur in f, then { } $temp := f { $temp = f } *)
+  (* NOTE: If $temp does not occur in expression f,
+    then { } $temp := f { $temp = f } *)
   let temp_pvar = "$temp" in
   let temp_lvar = Expr.freshen temp_pvar in
   let temp_pt, temp_lt = Expr.mk_var temp_pvar, Expr.mk_var temp_lvar in
@@ -201,7 +223,9 @@ let rec translate_assign_stmt e f =
         ([], wt, mk_array wt int_zero sz t_zero) *)
     | J.New_multiarray_exp (_, _) -> failwith "TODO d2mwoi98j"
     | J.New_simple_exp ty ->
-        mk_asgn [] emp (Jlogic.mk_type_all temp_pt ty) []
+        let post =
+          Jlogic.mk_type_all temp_pt ty @* mk_alloc j_of_name temp_pt ty in
+        mk_asgn [] emp post []
     | J.Reference_exp (J.Array_ref (a, i)) -> skip
         (* XXX failwith "TODO dai9dsuna9" *)
         (* XXX
@@ -241,7 +265,7 @@ let assert_core b =
   | _ -> assert false
 
 
-let jimple_statement2core_statement s =
+let jimple_statement2core_statement j_of_name s =
   if !Config.verbosity >= 4 then begin
     printf "@[<2>Translating jimple statement@\n%s@\n@]"
       (Pprinter.statement2str s)
@@ -263,7 +287,7 @@ let jimple_statement2core_statement s =
       let post = Expr.mk_eq retvar_term id' in
       [mk_asgn_jname [nn] Expr.emp post []]
   | Assign_stmt(v,e) ->
-      translate_assign_stmt v e
+      translate_assign_stmt j_of_name v e
   | If_stmt(b,l) ->
       let l1 = fresh_label () in
       let l2 = fresh_label () in
@@ -310,9 +334,9 @@ let methdec2signature_str dec =
   msig2str dec.class_name dec.ret_type dec.name_m dec.params
 
 
-let jimple_stmts2core stms =
+let jimple_stmts2core j_of_name stms =
   let do_one_stmt (stmt_jimple, source_pos) =
-    let s = jimple_statement2core_statement stmt_jimple in
+    let s = jimple_statement2core_statement j_of_name stmt_jimple in
     if !Config.verbosity >= 4 then
       printf "@[<2>@\ninto the core statement:@\n%a@\n@]"
       (pp_list_sep "; " CoreOps.pp_statement) s;
@@ -476,11 +500,11 @@ let add_dummy_procs xs =
   List.iter (remove_proc h) xs;
   xs@(HashSet.fold (fun x y -> dummy_proc x :: y) h [])
 
-let compile_method cname fields m =
+let compile_method j_of_name cname fields m =
   let proc_name = methdec2signature_str m in
   let proc_body =
     if Methdec.has_body m
-    then Some (jimple_stmts2core m.bstmts)
+    then Some (jimple_stmts2core j_of_name m.bstmts)
     else None in
   let proc_spec = Core.TripleSet.of_list (get_spec_for m fields cname) in
   let proc_rules =
@@ -488,7 +512,7 @@ let compile_method cname fields m =
     ; abstraction = [] } in
   { C.proc_name; proc_spec; proc_body; proc_rules; proc_ok = true }
 
-let compile_class jimple =
+let compile_class j_of_name jimple =
   let cname = Methdec.get_class_name jimple in
   (* get the method declarations - See make_methdec in methdec.ml *)
   let mdl = Methdec.make_methdecs_of_list cname (Methdec.get_list_methods jimple) in
@@ -514,11 +538,11 @@ let compile_class jimple =
                                    ) m.bstmts in
                  m.bstmts <- mb
             ) mdl;
-  List.map (compile_method cname fields) mdl
+  List.map (compile_method j_of_name cname fields) mdl
 
 (* NOTE(rgrig): I don't handle the code-based requires/ensures. To be
 deprecated, IMO. *)
-let compile js sspecs dspecs =
+let compile j_of_name js sspecs dspecs =
   curr_static_methodSpecs := sspecs;
   curr_dynamic_methodSpecs := dspecs;
-  add_dummy_procs (js >>= compile_class)
+  add_dummy_procs (js >>= compile_class j_of_name)

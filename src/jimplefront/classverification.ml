@@ -183,4 +183,4 @@ let compile_jimple js specs logic abs =
     logic
     abs;
   prof_phase "actual compile jimple -> core";
-  Translatejimple.compile js sspecs dspecs
+  Translatejimple.compile (Hashtbl.find j_by_name) js sspecs dspecs
