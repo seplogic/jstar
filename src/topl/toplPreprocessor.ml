@@ -250,7 +250,7 @@ let compute_arg_counts ps =
 
 let iter_wrap w n =
   let rec f acc i =
-    if i<0 then List.rev acc
+    if i<0 then acc
     else f (w i :: acc) (i-1)
   in f [] (n-1)
 

@@ -279,7 +279,7 @@ let trans_pre_and_post pv el l_sr0 v j t =
      if i=0 then l_sr0 else make_logical_copy_of_store sr i j ) in
    let step_conds = ListH.mapi (fun i s ->
      step_conditions pv.queue.(i) l_sr.(i) l_sr.(i+1) s) st in
-   let pre = List.fold_left (fun acc (x,y) -> Expr.mk_star (mk_thor y acc) x) mk_true (List.rev step_conds) in
+   let pre = List.fold_left (fun acc (x,y) -> Expr.mk_star (mk_thor y acc) x) mk_true step_conds in
    let post = Expr.mk_big_star ( (Expr.mk_eq pv.state (Expr.mk_string_const tg))
                                  :: store_eq sr l_sr.(len) @ pDeQu len pv el ) in
  (* debug *) Format.printf "\n==> Pre:\n"; Expr.pp Format.std_formatter pre;
