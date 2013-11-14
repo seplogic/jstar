@@ -320,8 +320,8 @@ let get_specs_for_vertex t pv v s =
 (* debug *) ListH.iteri (fun i a -> Format.printf "\nNow, here is element %d of pAllPost:\n"
   i; Expr.pp Format.std_formatter a) pAllPosts;
   let s_skip =
-    let pre = Expr.mk_big_star ( pAt :: pInit @ pQud @ pAllSats_neg ) in
-    let post = Expr.mk_big_star( pAt :: pInit @ pDeQu 1 pv el ) in
+    let pre = Expr.mk_big_star ( pAt :: pInit @ pQud @ pAllSats_neg ) |> Prover.normalize in
+    let post = Expr.mk_big_star( pAt :: pInit @ pDeQu 1 pv el ) |> Prover.normalize in
     let modifies = pDeQu_modifies 1 pv el in
     [{ Core.pre; post; modifies }] in
   let subs = index_subsets (List.length tl) in
@@ -329,8 +329,8 @@ let get_specs_for_vertex t pv v s =
     ( fun k ->
       let pSats = ListH.mapi (fun i (x,y) -> if IntSet.mem i k then x else y)
         (List.combine pAllSats pAllSats_neg) in
-      let pre = Expr.mk_big_star ( pAt :: pInit @ pQud @ pSats ) in
-      let post = Expr.mk_big_or (select_subset k pAllPosts) in
+      let pre = Expr.mk_big_star ( pAt :: pInit @ pQud @ pSats ) |> Prover.normalize in
+      let post = Expr.mk_big_or (select_subset k pAllPosts) |> Prover.normalize in
       let modifies = List.concat (select_subset k allModifies) in
       { Core.pre; post; modifies }) subs in
   s_regular @ s_skip @ s
