@@ -267,7 +267,7 @@ let pDeQu n pv el =
 let pDeQu_modifies n pv el =
   var_of_term pv.size :: logical_deque_modifies pv.queue el n
 
-(* The last argument is the previous vertex. It is used in irder to decide whether the
+(* The last argument is the previous vertex. It is used in order to decide whether the
    transition modifies pv.state *)
 let trans_pre_and_post pv el l_sr0 v j t =
    let st = t.TM.steps in
@@ -329,7 +329,10 @@ let get_specs_for_vertex t pv v s =
     ( fun k ->
       let pSats = ListH.mapi (fun i (x,y) -> if IntSet.mem i k then x else y)
         (List.combine pAllSats pAllSats_neg) in
-      let pre = Expr.mk_big_star ( pAt :: pInit @ pQud @ pSats ) |> Prover.normalize in
+      let pre = Expr.mk_big_star ( pAt :: pInit @ pQud @ pSats ) in
+(*      (* debug *) Format.printf "@\npre for {%a} before normalization:@,%a" (pp_list (fun f -> Format.fprintf f "%d")) (IntSet.elements k) Expr.pp pre; *)
+      let pre = Prover.normalize pre in
+(*      (* debug *) Format.printf "@\npre after normalization:@,%a" Expr.pp pre; *)
       let post = Expr.mk_big_or (select_subset k pAllPosts) |> Prover.normalize in
       let modifies = List.concat (select_subset k allModifies) in
       { Core.pre; post; modifies }) subs in

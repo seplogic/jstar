@@ -136,14 +136,12 @@ let make_logic_for_one_program spec_list logic program =
        (*let _ = Prover.pprint_sequent_rules logic in*)
        (* End of axioms clause treatment *)
 
-
 let main () =
   let usage_msg =
     Printf.sprintf "usage: %s [options] <jimple_programs>" Sys.argv.(0) in
   Arg.parse arg_list set_file usage_msg;
   if !Config.verbosity >= 2 then
     printf "@[Files to analyze: %a@." (pp_list_sep " " pp_string) !jimple_files;
-
   prof_phase "parse_program jimple";
   let programs = List.map parse_program !jimple_files in
   prof_phase "preprocess_jimple";
