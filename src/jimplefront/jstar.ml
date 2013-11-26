@@ -196,16 +196,11 @@ let main () =
 
 let () =
   System.set_signal_handlers ();
-  let mf = {
-    mark_open_tag = (function
-      | "b" -> System.terminal_red (* bad *)
-      | "g" -> System.terminal_green (* good *)
-      | _ -> assert false);
-    mark_close_tag = (fun _ -> System.terminal_white);
-    print_open_tag = (fun _ -> ());
-    print_close_tag = (fun _ -> ())} in
-  set_formatter_tag_functions mf;
-  pp_set_formatter_tag_functions err_formatter mf;
+  let tags = (* bad/good *)
+    [ "b", System.terminal_red, System.terminal_white
+    ; "g", System.terminal_green, System.terminal_white ] in
+  List.iter (add_formatter_tag std_formatter) tags;
+  List.iter (add_formatter_tag err_formatter) tags;
   set_tags true; pp_set_tags err_formatter true;
   (*try*) main ()
   (*with Failure s -> eprintf "@{<b>FAILED:@} %s@." s*)
