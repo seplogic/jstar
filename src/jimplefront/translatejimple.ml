@@ -256,12 +256,11 @@ let rec translate_assign_stmt j_of_name e f =
     | J.Var_ref (J.Field_sig_ref _) -> failwith "TODO pcmw9ijef"
   end ]
 
-let assert_core b =
+let assume_core b =
   match b with
   | J.Binop_exp (op,i1,i2) ->
       let b_pred = Support_syntax.bop_to_prover_pred op i1 i2 in
-      mk_asgn [] b_pred b_pred []
-(*      mk_asgn [] Expr.emp b_pred [] *) (* RLP: this is wrong, right? *)
+      mk_asgn [] Expr.emp b_pred []
   | _ -> assert false
 
 
@@ -293,10 +292,10 @@ let jimple_statement2core_statement j_of_name s =
       let l2 = fresh_label () in
       [ C.Goto_stmt_core [l1; l2]
       ; C.Label_stmt_core l1
-      ; assert_core b
+      ; assume_core b
       ; C.Goto_stmt_core [l]
       ; C.Label_stmt_core l2
-      ; assert_core (negate b) ]
+      ; assume_core (negate b) ]
   | Goto_stmt ls ->
       [C.Goto_stmt_core ls]
   | Nop_stmt ->
