@@ -180,7 +180,8 @@ let main () =
     prof_phase "topl preprocessing";
     let cores = ToplPreprocessor.instrument_procedures cores in
     let topls = ToplPreprocessor.read_properties !topl_files in
-    let topls = List.map ToplPreprocessor.parse_values topls in
+    (*  Remove this as it messes up true/false
+        let topls = List.map ToplPreprocessor.parse_values topls in *)
     let topl_monitor = ToplPreprocessor.compile programs topls in
     let question =
       { Core.q_procs = topl_monitor @ cores
