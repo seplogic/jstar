@@ -136,7 +136,7 @@ let init_TOPL_program_vars a =
 let make_logical_copy_of_queue e =
   let mM = Array.length e in
   let nN = Array.length e.(0) in
-  let el = Array.make_matrix mM nN Expr.nil in
+  let el = Array.make_matrix mM nN Expr.emp in
   let ef = ref [] in
   let set_el i j = el.(i).(j)
     <- mk_evar ("log_queue_"^(string_of_int i)^"_"^(string_of_int j)) in

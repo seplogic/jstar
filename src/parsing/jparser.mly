@@ -741,7 +741,7 @@ constant:
   | MINUS FLOAT_CONSTANT  { mkNegNumericConst $2 }
   | STRING_CONSTANT {  E.mk_string_const $1 }
   | CLASS STRING_CONSTANT {  E.mk_app "class_const" [E.mk_string_const $2]  }
-  | NULL { E.nil }
+  | NULL { E.mk_app "nil" [] }
 ;
 binop_no_mult:
    | AND {And}
