@@ -19,6 +19,13 @@ let mk_pvar x = Expr.mk_var x
 let mk_evar x = Expr.mk_var ("_"^x)
 let mk_true = Expr.mk_big_star []
 
+(* This function correctly encodes conditions x = true/false. 
+   Ideally, in the future it should also handle integers. *)
+let mk_eq_to x = function
+(*| "true" -> Expr.mk_neq x (Expr.mk_int_const "0")
+  | "false" -> Expr.mk_eq x (Expr.mk_int_const "0") *)
+  | y -> Expr.mk_eq x y
+
 let wrap_call_arg a = mk_pvar (CoreOps.parameter a)
 
 let get_specs_for_enqueue pv =
@@ -27,10 +34,10 @@ let get_specs_for_enqueue pv =
   let specs = Core.TripleSet.create 0 in
   for i = 0 to q_sz - 1 do begin
     let e = pv.queue.(i) in
-    let pre = Expr.mk_eq pv.size (Expr.mk_string_const (string_of_int i)) in
+    let pre = Expr.mk_eq pv.size (Expr.mk_int_const (string_of_int i)) in
     let post = Expr.mk_big_star
       (let cp i = Expr.mk_eq e.(i) (wrap_call_arg i) in
-      Expr.mk_eq pv.size (Expr.mk_string_const (string_of_int (i+1)))
+      Expr.mk_eq pv.size (Expr.mk_int_const (string_of_int (i+1)))
       :: List.map cp (range 0 e_sz)) in
     let modifies = pv.size :: List.map (fun i -> e.(i)) (range 0 e_sz) in
     let modifies = List.map Expr.bk_var modifies in
@@ -209,15 +216,16 @@ let rec remove_thors f =
 
 (* Returns a formula given guard gd, assuming that value i of each event is stored in
    e.(i+1) in event queue *)
+(* NT: The EqCt case has been slightly hacked to address equality with booleans *)
 let rec guard_conditions gd e st =
   match gd with
      | TM.True -> mk_true
-     | TM.EqCt (i,v) -> Expr.mk_eq e.(i+1) v
+     | TM.EqCt (i,v) -> mk_eq_to e.(i+1) v
      | TM.EqReg (i,r) -> Expr.mk_eq e.(i+1) (TM.RMap.find r st)
      | TM.Not g -> negate_formula (guard_conditions g e st)
      | TM.And gs -> Expr.mk_big_star (List.map (fun g -> guard_conditions g e st) gs)
 
-let obs_conditions e { TM.event_time; pattern } = (* failwith "TODO aksdanksd" *)
+let obs_conditions e { TM.event_time; pattern } =
 (* (* debug *) Format.printf "\nNow, the pattern has length: %d\n" (List.length pattern); *)
 (* (* debug *) List.iter (fun s -> Format.printf "- here is a pattern elt: %s\n" s) pattern;*)
    let ev_name = match event_time with
@@ -261,7 +269,7 @@ let step_conditions e st st' s =
 
 let pDeQu n pv el =
    let m = Array.length pv.queue in
-   (Expr.mk_eq pv.size (Expr.mk_string_const (string_of_int (m-n))))
+   (Expr.mk_eq pv.size (Expr.mk_int_const (string_of_int (m-n))))
    :: (logical_dequeue pv.queue el n)
 
 let pDeQu_modifies n pv el =
@@ -305,7 +313,7 @@ let get_specs_for_vertex t pv v s =
   let (el,ef) = make_logical_copy_of_queue pv.queue in
   let mM = Array.length pv.queue in
 (* (* debug *) Format.printf "Here is M: %d\n" mM; *)
-  let pQud = (Expr.mk_eq pv.size (Expr.mk_string_const (string_of_int mM))) :: ef in
+  let pQud = (Expr.mk_eq pv.size (Expr.mk_int_const (string_of_int mM))) :: ef in
   let l_sr0 = make_logical_copy_of_store pv.store 0 (-1) in
   let pInit = store_eq pv.store l_sr0 in
 (* (* debug *) Format.printf "Now, here is the pInit for %s: %a\n" v Psyntax.string_form pInit; *)

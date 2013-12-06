@@ -49,12 +49,21 @@ let get_vertices p =
   let f acc t = t.A.source :: t.A.target :: acc in
   "start" :: "error" :: List.fold_left f [] p.A.transitions
 
+let int_match x = Str.string_match (Str.regexp "[0-9]+$") x 0
+let str_match x = Str.string_match (Str.regexp "\".*\"$") x 0
+
 (* }}} *)
 (* conversion to ToplMonitor representation *) (* {{{ *)
 let convert_guard guard =
   let convert = function
     | A.Variable (vr, i) -> TM.EqReg (i, vr)
-    | A.Constant (vl, i) -> TM.EqCt (i, vl) in
+    | A.Constant (vl, i) -> match vl with
+        | "true" -> TM.Not (TM.EqCt (i, E.mk_int_const "0"))
+        | "false" -> TM.EqCt (i, E.mk_int_const "0")
+        | x -> if int_match x then TM.EqCt (i, E.mk_int_const x) 
+          else if str_match x then TM.EqCt (i, E.mk_string_const x) 
+          else failwith ("Asked to convert an invalid constant ("^x^")")
+  in
   TM.And (List.map convert guard.A.value_guards)
 
 let convert_action = List.fold_left (fun m (k, v) -> TM.VMap.add k v m) TM.VMap.empty
@@ -131,6 +140,7 @@ let construct_monitor ts =
 
 (* }}} *)
 (* parse values *) (* {{{ *)
+(* Remover this as it messes up true/false 
 let parse_values topl =
   let pv_v v = Jparser.jargument Jlexer.token & Lexing.from_string v in
   let pv_vg = function
@@ -141,6 +151,7 @@ let parse_values topl =
   let pv_label l = { l with A.guard = pv_guard l.A.guard } in
   let pv_transition t = { t with A.labels = List.map pv_label t.A.labels } in
   { topl with A.transitions = List.map pv_transition topl.A.transitions }
+*)
 
 (* }}} *)
 (* specialize monitor *) (* {{{ *)
