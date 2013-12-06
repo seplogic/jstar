@@ -1,0 +1,5 @@
+property NextCalled
+  observe <java.util.Iterator.next>
+  prefix <java.util.Iterator>
+  start -> start: *
+  start -> error: *.next()
