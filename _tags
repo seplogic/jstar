@@ -1,7 +1,8 @@
-true: package(dynlink)
+#true: package(dynlink)
 true: package(str)
 true: package(unix)
 true: package(topl)
+true: package(z3)
 true: debug
 # true: profile
 <lib/**>: precious
