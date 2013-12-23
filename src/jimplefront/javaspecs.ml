@@ -681,7 +681,7 @@ or
 |
 *)
 let add_subtype_and_objsubtype_rules spec_list logic = logic
-(* XXX: IMPORTANT: reimplement. *)
+(* TODO: reimplement. *)
         (* let pr = parent_relation spec_list in                                                                                            *)
         (* let tc = transitive_closure pr in                                                                                                *)
         (* let x = Arg_var (Vars.fresha ()) in                                                                                              *)

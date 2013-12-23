@@ -128,14 +128,6 @@ let negate e =
   | Binop_exp (Cmple,i1,i2) -> Binop_exp (Cmpgt,i1,i2)
   | _ -> assert false (* ddino: many other cases should be filled in *)
 
-let expression2pure e =
-  match e with
-  | Binop_exp (op,i1,i2) -> bop_to_prover_pred op i1 i2
-  | _ -> Printf.printf "\n\n Expression %s not supported. Abort!" (Pprinter.expression2str e);
-      assert false (* ddino: many other cases should be filled in *)
-
-
-
 (* ================= misc functions =============== *)
 
 
@@ -160,20 +152,6 @@ let invoke_exp_get_signature ie =
   match ie with
   | Invoke_nostatic_exp(_, _, si, _) -> si
   | Invoke_static_exp(si,_) -> si
-
-
-
-let this_var_name = Support_syntax.this_var_name
-
-let parameter n = "@parameter"^(string_of_int n)^":"
-
-(* create the "this" *)
-let mk_this  =
-  Expression.mk_var this_var_name
-
-(* create the "res" used for the result of traditional assertions *)
-let mk_res =
-  Expression.mk_var res_var_name
 
 let make_field_signature  cname ty n =
   Field_signature(cname,ty,n)

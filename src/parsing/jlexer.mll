@@ -32,7 +32,43 @@ let unnest x =
   nest_depth := !nest_depth - 1; (!nest_depth)!=0
 
 let convert_base src tgt n =
-  failwith "XXX"
+  assert (2 <= src);
+  assert (2 <= tgt);
+  let module I = Big_int in
+  let src = I.big_int_of_int src in
+  let tgt = I.big_int_of_int tgt in
+  let (!) = Char.code in
+  let int_of_char c =
+    I.big_int_of_int
+    (if '0' <= c && c <= '9' then !c - !'0'
+    else if 'a' <= c && c <= 'z' then !c - !'a' + 10
+    else if 'A' <= c && c <= 'Z' then !c - !'A' + 10
+    else invalid_arg "convert_base int_of_char") in
+  let char_of_int x =
+    let x = I.int_of_big_int x in
+    Char.chr
+    (if 0 <= x && x <= 9 then !'0' + x else
+    let r = !'a'+x-10 in
+    if r > !'z' then invalid_arg "convert_base char_of_int" else r) in
+  let ( * ) = I.mult_big_int in
+  let ( + ) = I.add_big_int in
+  let rec to_big_int acc i =
+    if i < String.length n
+    then to_big_int (src * acc + int_of_char n.[i]) (succ i)
+    else acc in
+  let ( / ) = I.div_big_int in
+  let ( % ) = I.mod_big_int in
+  let rec from_big_int ds x =
+    if I.sign_big_int x = 0
+    then ds
+    else from_big_int (char_of_int (x % tgt) :: ds) (x / tgt) in
+  let from_big_int x =
+    if I.sign_big_int x = 0 then ['0'] else from_big_int [] x in
+  let ds = from_big_int (to_big_int I.zero_big_int 0) in
+  let b = Buffer.create 0 in
+  let pp_c = Printf.bprintf b "%c" in
+  List.iter pp_c ds;
+  Buffer.contents b
 
 let error_message e lb =
   match e with

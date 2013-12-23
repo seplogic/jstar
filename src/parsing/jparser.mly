@@ -39,12 +39,6 @@ let newVar x =
   else if String.get x 0 = '_' then (String.sub x 1 ((String.length x) -1))
   else x
 
-let mkBinOp left op right =
-  E.mk_2 (SS.bop_to_prover_arg op) left right
-
-let mkNegNumericConst n =
-  mkBinOp (E.mk_int_const "0") J.Minus (E.mk_int_const n)
-
 (* let check_npv =                                *)
 (*   let rec check_term_npv =  failwith "TODO" in *)
     (* function                                                                   *)
@@ -736,9 +730,9 @@ immediate:
 ;
 constant:
   | INTEGER_CONSTANT { E.mk_int_const $1 }
-  | MINUS INTEGER_CONSTANT { mkNegNumericConst $2 }
+  | MINUS INTEGER_CONSTANT { SS.mk_1 J.Neg (E.mk_int_const $2) }
   | FLOAT_CONSTANT  {  failwith "TODO6" (*PS.mkNumericConst $1*) }
-  | MINUS FLOAT_CONSTANT  { mkNegNumericConst $2 }
+  | MINUS FLOAT_CONSTANT  { SS.mk_1 J.Neg (E.mk_int_const $2) }
   | STRING_CONSTANT {  E.mk_string_const $1 }
   | CLASS STRING_CONSTANT {  E.mk_app "class_const" [E.mk_string_const $2]  }
   | NULL { E.mk_app "nil" [] }
@@ -877,8 +871,8 @@ formula:
    | formula OROR formula { E.mk_or $1 $3 }
    | lvariable COLON identifier
      { failwith "TODO22" (*[P_PPred("type", [Arg_var($1);Arg_string($3)])]*) }
-   | jargument binop_cmp jargument { Support_syntax.bop_to_prover_pred $2 $1 $3 }
-   | jargument EQUALS jargument { Support_syntax.bop_to_prover_pred (Cmpeq) $1 $3 }
+   | jargument binop_cmp jargument { SS.mk_2 $2 $1 $3 }
+   | jargument EQUALS jargument { SS.mk_2 J.Cmpeq $1 $3 }
    | L_PAREN formula R_PAREN { $2 }
 
 /* TODO(rgrig): This goes away, unless somebody wants to maintain unnecessary bits.*/

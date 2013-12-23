@@ -36,15 +36,6 @@ let fresh_label =
     label_ref := !label_ref + 1;
     Printf.sprintf "gen_%i" !label_ref
 
-
-
-
-(* create the variable for a  parameter *)
-let mk_parameter n =
-  let p=parameter n in
-  let v=Expression.mk_var p in
-  v
-
 (* retrieve static spec of a method from table of specs*)
 let get_static_spec si =
   match si with
@@ -144,9 +135,6 @@ let mk_zero = function
   | J.Full_ident_NVT _
       -> Expression.mk_0 "nil"
 
-let mk_succ n = 
-  Expr.mk_2 "builtin_plus" n (Expr.mk_int_const "1")
-
 let mk_array_get av i v = 
   Expr.mk_app "array_get" [av; i; v]
 let mk_array_set av i v =
@@ -205,7 +193,7 @@ let rec translate_assign_stmt j_of_name e f =
   let skip = mk_asgn [] emp emp [] in
   [ begin match f with
     | J.Binop_exp (name, x, y) ->
-        let ft = check_ft (Expr.mk_2 (SS.bop_to_prover_arg name) x y) in
+        let ft = check_ft (SS.mk_2 name x y) in
         mk_asgn [temp_pvar] emp (temp_pt @= ft) []
     | J.Cast_exp (_,t) (* fallthru *)
     | J.Immediate_exp t ->
@@ -215,8 +203,8 @@ let rec translate_assign_stmt j_of_name e f =
         let call_name, call_args = get_name ie in
         let call_rets = [ temp_pvar ] in
         C.Call_core { C.call_name; call_rets; call_args }
-    | J.New_array_exp (t, sz) -> skip (* failwith "XXX  aoifnas98" *)
-        (* XXX
+    | J.New_array_exp (t, sz) -> skip
+        (* TODO: Fix array implementation.
         let int_zero = mk_zero (J.Base (J.Int, [])) in
         let t_zero = mk_zero t in
         let wt = mk_v "new_array" in
@@ -227,11 +215,10 @@ let rec translate_assign_stmt j_of_name e f =
           Jlogic.mk_type_all temp_pt ty @* mk_alloc j_of_name temp_pt ty in
         mk_asgn [] emp post []
     | J.Reference_exp (J.Array_ref (a, i)) -> skip
-        (* XXX failwith "TODO dai9dsuna9" *)
-        (* XXX
+        (* TODO Fix array implementation.
         let wt = mk_v "elem_val" in
         let at = Expr.mk_var a in
-        let pre = mk_array at i (mk_succ i) wt in
+        let pre = mk_array at i (SS.mk_succ i) wt in
         ([mk_asgn [] pre emp []], wt, pre * mk_array_get at i wt) *)
     | J.Reference_exp (J.Field_local_ref (n, si))  ->
         let n = Expr.mk_var (var_of_jname n) in
@@ -241,13 +228,14 @@ let rec translate_assign_stmt j_of_name e f =
         let p = Jlogic.mk_static_pointsto (signature2args si) temp_lt in
         mk_asgn [temp_pvar] p (p @* (temp_pt @= temp_lt)) []
     | J.Unop_exp (name, x) ->
-        let ft = check_ft (Expr.mk_1 (SS.uop_to_prover_arg name) x) in
+        let ft = check_ft (SS.mk_1 name x) in
         mk_asgn [temp_pvar] emp (temp_pt @= ft) []
   end ]
   @ [ let rt = retvar_term in
     begin match e with
     | J.Var_name n -> mk_asgn_jname [n] emp (rt @= temp_pt) []
-    | J.Var_ref (J.Array_ref (a, i)) -> skip (* XXX failwith "TODO 9adm908edf"*)
+    | J.Var_ref (J.Array_ref (a, i)) -> skip
+        (* TODO: Fix array implementation. *)
     | J.Var_ref (J.Field_local_ref (n, si)) ->
         let n = Expr.mk_var (var_of_jname n) in
         let pre = Jlogic.mk_pointsto n (signature2args si) temp_lt in
@@ -258,9 +246,7 @@ let rec translate_assign_stmt j_of_name e f =
 
 let assume_core b =
   match b with
-  | J.Binop_exp (op,i1,i2) ->
-      let b_pred = Support_syntax.bop_to_prover_pred op i1 i2 in
-      mk_asgn [] Expr.emp b_pred []
+  | J.Binop_exp (op,i1,i2) -> mk_asgn [] Expr.emp (SS.mk_2 op i1 i2) []
   | _ -> assert false
 
 
@@ -374,32 +360,9 @@ let get_spec_for m fields cname = []
   (* List.map f spec                                                                         *)
 
 
-let resvar_term =
-   Support_syntax.res_var
-
 let conjoin_with_res_true (assertion : Expression.t) : Expression.t =
   failwith "TODO conjoin_with_res_true"
 	 (* pconjunction assertion (mkEQ(resvar_term, PS.mkNumericConst "1")) *)
-
-(* XXX remove
-let get_requires_clause_spec_for m fields cname =
-        let msi = Methdec.get_msig m cname in
-        (* First the the method's dynamic spec *)
-        let dynspec =
-                try
-                  	match (MethodMap.find msi !curr_dynamic_methodSpecs) with
-                        | (spec, pos) -> spec
-                with Not_found ->
-                        failwith ("Cannot find spec for method " ^ methdec2signature_str m)
-        in
-        let dynspec = logical_vars_to_prog dynspec in
-        (* Now construct the desired spec *)
-        {
-                Core.pre=dynspec.Core.pre;
-                post=conjoin_with_res_true (dynspec.Core.pre);
-                modifies = []
-        }
-*)
 
 let get_dyn_spec_for m fields cname = failwith "TODO get_dyn_spec_for"
         (* let msi = Methdec.get_msig m cname in                                    *)
