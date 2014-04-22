@@ -48,7 +48,7 @@ type class_name =
     Quoted_clname of string
   | Identifier_clname of string
   | Full_identifier_clname of string
-type immediate = Expression.t
+type immediate = Z3.Expr.expr
 type fixed_array_descriptor = immediate
 type array_descriptor = immediate option
 type j_file_type = ClassFile | InterfaceFile

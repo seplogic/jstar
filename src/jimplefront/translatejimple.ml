@@ -21,9 +21,10 @@ open Support_symex
 open Javaspecs
 
 module C = Core
-module Expr = Expression
 module J = Jparsetree
+module JG = Jimple_global_types
 module SS = Support_syntax
+module U = Untyped
 
 (* global variables *)
 let curr_static_methodSpecs: Javaspecs.methodSpecs ref = ref Javaspecs.emptyMSpecs
@@ -98,7 +99,6 @@ let msig2str cn rt mn ps =
   ^ "$$"
   ^ Pprinter.j_type2str rt
 
-
 let get_name  (iexp: Jparsetree.invoke_expr) =
   match iexp with
   | J.Invoke_nostatic_exp (J.Virtual_invoke,_,si,il)
@@ -110,14 +110,12 @@ let get_name  (iexp: Jparsetree.invoke_expr) =
 	| J.Field_signature (cn,_,fn) -> failwith "INTERNAL: cannot invoke a field"
       in n,il
 
-
-
 let retvar_term =
-  Expression.mk_var (CoreOps.return 0)
+  U.mk_plvar "$r"
 
 (* make terms/predicates related to the array representation *) (* {{{ *)
 let mk_array a i j v = 
-  Expr.mk_app "array" [a; i; j; v]
+  U.mk_app "array" [a; i; j; v]
 
 let mk_zero = function
   | J.Base (J.Boolean, _)
@@ -128,17 +126,17 @@ let mk_zero = function
   | J.Base (J.Long, _)
   | J.Base (J.Float, _)
   | J.Base (J.Double, _)
-      -> Expr.mk_int_const "0"
+      -> Syntax.mk_int_const "0"
   | J.Base _
   | J.Quoted _
   | J.Ident_NVT _
   | J.Full_ident_NVT _
-      -> Expression.mk_0 "nil"
+      -> Syntax.mk_0 "nil"
 
 let mk_array_get av i v = 
-  Expr.mk_app "array_get" [av; i; v]
+  U.mk_app "array_get" [av; i; v]
 let mk_array_set av i v =
-  Expr.mk_app "array_set" [av; i; v] 
+  U.mk_app "array_set" [av; i; v] 
 
 (* }}} *)
 
@@ -146,10 +144,12 @@ let var_of_jname = function J.Quoted_name s | J.Identifier_name s -> s
 
 let mk_asgn asgn_rets pre post asgn_args =
   let asgn_spec = (* NOTE: jimple exprs have no side-effects *)
-    C.TripleSet.singleton { Core.pre; post; modifies = [] } in
+    C.TripleSet.singleton
+      { Core.pre; post; modifies = []; in_vars = []; out_vars = [] } in
   C.Assignment_core { C.asgn_rets; asgn_args; asgn_spec }
 
-let mk_asgn_jname rets = mk_asgn (List.map var_of_jname rets)
+let mk_asgn_jname rets =
+  mk_asgn (List.map (U.mk_plvar @@ var_of_jname) rets)
 
 let mk_alloc j_of_name v = function
   | J.Class_name c ->
@@ -168,36 +168,35 @@ let mk_alloc j_of_name v = function
       let pto (ty, n) =
         let fn = signature2args (J.Field_signature (c, (J.Non_void ty), n)) in
         Jlogic.mk_pointsto v fn (mk_zero ty) in
-      Expr.mk_big_star (List.map pto fs)
-  | _ -> Expr.emp
+      Syntax.mk_big_star (List.map pto fs)
+  | _ -> Syntax.mk_emp
 
 let rec translate_assign_stmt j_of_name e f =
   (* The assignment e:=f is treated as the sequence $temp:=f; e:=$temp. This way,
   there are fewer types of assignments to consider because $temp is guaranteed
   to be a program variable. Yes, $temp holds values of any type, and gets
   overwritten often. *)
-  let emp = Expr.emp in
-  let ( @* ) = Expr.mk_star in
-  let ( @= ) = Expr.mk_eq in
+  let emp = Syntax.mk_emp in
+  let ( @* ) = Syntax.mk_star in
+  let ( @= ) = Syntax.mk_eq in
   (* NOTE: If $temp does not occur in expression f,
     then { } $temp := f { $temp = f } *)
-  let temp_pvar = "$temp" in
-  let temp_lvar = Expr.freshen temp_pvar in
-  let temp_pt, temp_lt = Expr.mk_var temp_pvar, Expr.mk_var temp_lvar in
+  let temp_pvar = U.mk_plvar "$temp" in
+  let temp_lvar = Syntax.freshen temp_pvar in
   let check_ft ft =
     let rec bad e =
-      Expr.equal e temp_pt
-      || Expr.cases (fun _ -> false) (fun _ -> List.exists bad) e in
+      Syntax.expr_equal e temp_pvar
+      || Syntax.on_app (c1 (List.exists bad)) e in
     assert (not (bad ft));
     ft in
   let skip = mk_asgn [] emp emp [] in
   [ begin match f with
     | J.Binop_exp (name, x, y) ->
         let ft = check_ft (SS.mk_2 name x y) in
-        mk_asgn [temp_pvar] emp (temp_pt @= ft) []
+        mk_asgn [temp_pvar] emp (temp_pvar @= ft) []
     | J.Cast_exp (_,t) (* fallthru *)
     | J.Immediate_exp t ->
-        mk_asgn [temp_pvar] emp (temp_pt @= check_ft t) []
+        mk_asgn [temp_pvar] emp (temp_pvar @= check_ft t) []
     | J.Instanceof_exp (_, _) -> failwith "TODO sd9qa8dj"
     | J.Invoke_exp ie ->
         let call_name, call_args = get_name ie in
@@ -212,41 +211,41 @@ let rec translate_assign_stmt j_of_name e f =
     | J.New_multiarray_exp (_, _) -> failwith "TODO d2mwoi98j"
     | J.New_simple_exp ty ->
         let post =
-          Jlogic.mk_type_all temp_pt ty @* mk_alloc j_of_name temp_pt ty in
+          Jlogic.mk_type_all temp_pvar ty @* mk_alloc j_of_name temp_pvar ty in
         mk_asgn [] emp post []
     | J.Reference_exp (J.Array_ref (a, i)) -> skip
         (* TODO Fix array implementation.
         let wt = mk_v "elem_val" in
-        let at = Expr.mk_var a in
+        let at = Syntax.mk_var a in
         let pre = mk_array at i (SS.mk_succ i) wt in
         ([mk_asgn [] pre emp []], wt, pre * mk_array_get at i wt) *)
     | J.Reference_exp (J.Field_local_ref (n, si))  ->
-        let n = Expr.mk_var (var_of_jname n) in
-        let p = Jlogic.mk_pointsto n (signature2args si) temp_lt in
-        mk_asgn [temp_pvar] p (p @* (temp_pt @= temp_lt)) []
+        let n = U.mk_pgvar (var_of_jname n) in
+        let p = Jlogic.mk_pointsto n (signature2args si) temp_lvar in
+        mk_asgn [temp_pvar] p (p @* (temp_pvar @= temp_lvar)) []
     | J.Reference_exp (J.Field_sig_ref si) ->
-        let p = Jlogic.mk_static_pointsto (signature2args si) temp_lt in
-        mk_asgn [temp_pvar] p (p @* (temp_pt @= temp_lt)) []
+        let p = Jlogic.mk_static_pointsto (signature2args si) temp_lvar in
+        mk_asgn [temp_pvar] p (p @* (temp_pvar @= temp_lvar)) []
     | J.Unop_exp (name, x) ->
         let ft = check_ft (SS.mk_1 name x) in
-        mk_asgn [temp_pvar] emp (temp_pt @= ft) []
+        mk_asgn [temp_pvar] emp (temp_pvar @= ft) []
   end ]
   @ [ let rt = retvar_term in
     begin match e with
-    | J.Var_name n -> mk_asgn_jname [n] emp (rt @= temp_pt) []
+    | J.Var_name n -> mk_asgn_jname [n] emp (rt @= temp_pvar) []
     | J.Var_ref (J.Array_ref (a, i)) -> skip
         (* TODO: Fix array implementation. *)
     | J.Var_ref (J.Field_local_ref (n, si)) ->
-        let n = Expr.mk_var (var_of_jname n) in
-        let pre = Jlogic.mk_pointsto n (signature2args si) temp_lt in
-        let post = Jlogic.mk_pointsto n (signature2args si) temp_pt in
+        let n = U.mk_pgvar (var_of_jname n) in
+        let pre = Jlogic.mk_pointsto n (signature2args si) temp_lvar in
+        let post = Jlogic.mk_pointsto n (signature2args si) temp_pvar in
         mk_asgn [] pre post []
     | J.Var_ref (J.Field_sig_ref _) -> failwith "TODO pcmw9ijef"
   end ]
 
 let assume_core b =
   match b with
-  | J.Binop_exp (op,i1,i2) -> mk_asgn [] Expr.emp (SS.mk_2 op i1 i2) []
+  | J.Binop_exp (op,i1,i2) -> mk_asgn [] Syntax.mk_emp (SS.mk_2 op i1 i2) []
   | _ -> assert false
 
 
@@ -268,9 +267,9 @@ let jimple_statement2core_statement j_of_name s =
   | Identity_stmt(nn,id,_)  (* TODO(rgrig): use type, don't ignore. *)
   | Identity_no_type_stmt(nn,id) ->
       (* nn := id: LinkedList   ---> nn:={emp}{return=param0}(id) *)
-      let id'= Expr.mk_var id in
-      let post = Expr.mk_eq retvar_term id' in
-      [mk_asgn_jname [nn] Expr.emp post []]
+      let id'= U.mk_plvar id in
+      let post = Syntax.mk_eq retvar_term id' in
+      [mk_asgn_jname [nn] Syntax.mk_emp post []]
   | Assign_stmt(v,e) ->
       translate_assign_stmt j_of_name v e
   | If_stmt(b,l) ->
@@ -289,12 +288,12 @@ let jimple_statement2core_statement j_of_name s =
   | Ret_stmt(i)  (* return i ---->  ret_var:=i  or as nop operation if it does not return anything*)
   | Return_stmt(i) ->
       (match i with
-       | None -> [C.Nop_stmt_core]
+       | None -> [C.End]
        | Some e' ->
             (* ddino: should [p0] be a fresh program variable? *)
-           let p0 = Expr.mk_var (CoreOps.parameter 0) in
-           let post= Expr.mk_eq retvar_term p0 in
-         [mk_asgn [] Expr.emp post [e']; C.End]
+           let p0 = U.mk_plvar (U.parameter 0) in
+           let post= Syntax.mk_eq retvar_term p0 in
+         [mk_asgn [] Syntax.mk_emp post [e']; C.End]
       )
   | Throw_stmt _ ->
       failwith "INTERNAL: At this point catch clauses aren't available anymore."
@@ -318,6 +317,13 @@ let is_init_method md = Pprinter.name2str md.name_m ="<init>"
 let methdec2signature_str dec =
   msig2str dec.class_name dec.ret_type dec.name_m dec.params
 
+let params_of_methdec m =
+  let f i _ ps = U.parameter (i + 1) :: ps in (* TODO: handle type/sort *)
+  let ps = ListH.foldri f m.JG.params [] in
+  List.map U.mk_plvar ps
+
+let rets_of_methdec _ =
+  [ U.mk_plvar U.return ] (* TODO: handle type/sort. *)
 
 let jimple_stmts2core j_of_name stms =
   let do_one_stmt (stmt_jimple, source_pos) =
@@ -360,7 +366,7 @@ let get_spec_for m fields cname = []
   (* List.map f spec                                                                         *)
 
 
-let conjoin_with_res_true (assertion : Expression.t) : Expression.t =
+let conjoin_with_res_true (assertion : Z3.Expr.expr) : Z3.Expr.expr =
   failwith "TODO conjoin_with_res_true"
 	 (* pconjunction assertion (mkEQ(resvar_term, PS.mkNumericConst "1")) *)
 
@@ -385,7 +391,7 @@ let get_dyn_spec_for m fields cname = failwith "TODO get_dyn_spec_for"
 (* 	end)                    *)
 
 (* type local_map = Psyntax.args list AxiomMap.t *)
-(* type local_map = Expression.t (* Psyntax.args *) list Javaspecs.AxiomMap.t *)
+(* type local_map = Z3.Expr.expr (* Psyntax.args *) list Javaspecs.AxiomMap.t *)
 
 (*
 A jimple method body contains a list of local variable declarations.
@@ -454,7 +460,9 @@ let dummy_proc n =
   ; proc_spec = C.TripleSet.create 0
   ; proc_ok = true
   ; proc_body = None
-  ; proc_rules = { C.calculus = []; abstraction = [] } }
+  ; proc_rules = { C.calculus = []; abstraction = [] }
+  ; proc_params = []
+  ; proc_rets = [] }
 
 let add_dummy_procs xs =
   let h = HashSet.create 1 in
@@ -472,7 +480,15 @@ let compile_method j_of_name cname fields m =
   let proc_rules =
     { Core.calculus = jimple_locals2stattype_rules m.locals
     ; abstraction = [] } in
-  { C.proc_name; proc_spec; proc_body; proc_rules; proc_ok = true }
+  let proc_params = params_of_methdec m in
+  let proc_rets = rets_of_methdec m in
+  { C.proc_name
+  ; proc_spec
+  ; proc_body
+  ; proc_rules
+  ; proc_ok = true
+  ; proc_params
+  ; proc_rets }
 
 let compile_class j_of_name jimple =
   let cname = Methdec.get_class_name jimple in

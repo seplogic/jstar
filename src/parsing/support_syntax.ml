@@ -11,40 +11,41 @@
       LICENSE.txt
  ********************************************************)
 
-module Expr = Expression
 module J = Jparsetree
 module JG = Jimple_global_types
+module U = Untyped
 
+(* TODO: Replace these by Z3 counterparts. *)
 let mk_2 = function
-  | J.And -> Expr.mk_2 "!jstar_and" (* TODO: Perhaps add [Prover.mk_and] *)
-  | J.Or -> Expr.mk_or
-  | J.Xor -> Expr.mk_2 "!jstar_xor"
-  | J.Mod -> Expr.mk_2 "!jstar_mod"
-  | J.Cmp -> Expr.mk_2 "!jstar_cmp"
-  | J.Cmpg -> Expr.mk_2 "!jstar_cmpg"
-  | J.Cmpl -> Expr.mk_2 "!jstar_cmpl"
-  | J.Cmpeq -> Expr.mk_eq
-  | J.Cmpne -> Expr.mk_neq
-  | J.Cmpgt -> Expr.mk_2 "!corestar_gt"
-  | J.Cmpge -> Expr.mk_2 "!corestar_ge"
-  | J.Cmplt -> Expr.mk_2 "!corestar_lt"
-  | J.Cmple -> Expr.mk_2 "!corestar_le"
-  | J.Shl -> Expr.mk_2 "!jstar_shiftl"
-  | J.Shr -> Expr.mk_2 "!jstar_shiftr"
-  | J.Ushr -> Expr.mk_2 "!jstar_ushiftr"
-  | J.Plus -> Expr.mk_2 "!corestar_plus"
-  | J.Minus -> Expr.mk_2 "!corestar_minus"
-  | J.Mult -> Expr.mk_2 "!jstar_mult"
-  | J.Div -> Expr.mk_2 "!corestar_div"
-  (* TODO: It's weird that corestar has corestar_div but not corestar_mult *)
+  | J.And -> U.mk_2 "!jstar_and"
+  | J.Or -> U.mk_2 "!jstar_or"
+  | J.Xor -> U.mk_2 "!jstar_xor"
+  | J.Mod -> U.mk_2 "!jstar_mod"
+  | J.Cmp -> U.mk_2 "!jstar_cmp"
+  | J.Cmpg -> U.mk_2 "!jstar_cmpg"
+  | J.Cmpl -> U.mk_2 "!jstar_cmpl"
+  | J.Cmpeq -> Syntax.mk_eq
+  | J.Cmpne -> (fun a b -> Syntax.mk_distinct [a; b])
+  | J.Cmpgt -> U.mk_2 "!jstar_gt"
+  | J.Cmpge -> U.mk_2 "!jstar_ge"
+  | J.Cmplt -> U.mk_2 "!jstar_lt"
+  | J.Cmple -> U.mk_2 "!jstar_le"
+  | J.Shl -> U.mk_2 "!jstar_shiftl"
+  | J.Shr -> U.mk_2 "!jstar_shiftr"
+  | J.Ushr -> U.mk_2 "!jstar_ushiftr"
+  | J.Plus -> U.mk_2 "!jstar_plus"
+  | J.Minus -> U.mk_2 "!jstar_minus"
+  | J.Mult -> U.mk_2 "!jstar_mult"
+  | J.Div -> U.mk_2 "!jstar_div"
 
 let mk_1 = function
-  | J.Lengthof -> Expr.mk_1 "!jstar_length_of"
-  | J.Neg -> mk_2 J.Minus (Expr.mk_int_const "0")
+  | J.Lengthof -> U.mk_1 "!jstar_length_of"
+  | J.Neg -> mk_2 J.Minus (Syntax.mk_int_const "0")
 
 let mk_succ e =
-  mk_2 J.Plus e (Expr.mk_int_const "1")
+  mk_2 J.Plus e (Syntax.mk_int_const "1")
 
 (* constant name for "this" object *)
 let this_var_name  = "@this:"
-let this_var = Expression.mk_var this_var_name
+let this_var = Syntax.mk_int_plvar this_var_name
+

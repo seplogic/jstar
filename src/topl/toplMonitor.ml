@@ -22,7 +22,7 @@ type 'pattern event =
   information.  In the second phase, the pattern is a list of [Core] procedure
   names, which are strings. *)
 
-type value = Expression.t
+type value = Z3.Expr.expr
 
 type register = string
 

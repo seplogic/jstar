@@ -2,7 +2,7 @@ true: package(num)
 true: package(str)
 true: package(topl)
 true: package(unix)
-true: package(z3)
+true: package(Z3)
 true: debug
 # true: profile
 <lib/**>: precious

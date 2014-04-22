@@ -12,10 +12,10 @@
  ********************************************************)
 
 
-val default_for : Jparsetree.j_type -> Jparsetree.name -> Expression.t
-val signature2args : Jparsetree.signature -> Expression.t
-val name2args : Jparsetree.name -> Expression.t
-val var2args : Expression.t -> Expression.t
+val default_for : Jparsetree.j_type -> Jparsetree.name -> Z3.Expr.expr
+val signature2args : Jparsetree.signature -> Z3.Expr.expr
+val name2args : Jparsetree.name -> Z3.Expr.expr
+val var2args : Z3.Expr.expr -> Z3.Expr.expr
 val negate : Jparsetree.expression -> Jparsetree.expression
 val make_field_signature :
   Jparsetree.class_name ->

@@ -12,16 +12,16 @@
  ********************************************************)
 
 
-val class2args : Jparsetree.class_name -> Expression.t 
-val mk_pointsto : Expression.t -> Expression.t -> Expression.t -> Expression.t
-val mk_static_pointsto : Expression.t -> Expression.t -> Expression.t
-val mk_subtype1 : Expression.t -> Expression.t -> Expression.t
+val class2args : Jparsetree.class_name -> Z3.Expr.expr 
+val mk_pointsto : Z3.Expr.expr -> Z3.Expr.expr -> Z3.Expr.expr -> Z3.Expr.expr
+val mk_static_pointsto : Z3.Expr.expr -> Z3.Expr.expr -> Z3.Expr.expr
+val mk_subtype1 : Z3.Expr.expr -> Z3.Expr.expr -> Z3.Expr.expr
 val objtype_name : string
-val mk_type1 : Expression.t -> Expression.t -> Expression.t
-val mk_type : Expression.t -> Jparsetree.class_name -> Expression.t
-val mk_type_all : Expression.t -> Jparsetree.j_base_type -> Expression.t
-val objtype : Expression.t -> string -> Expression.t
-val mk_objsubtyp1 : Expression.t -> Expression.t -> Expression.t
-val mk_objsubtyp : Expression.t -> Jparsetree.class_name -> Expression.t
-val mk_statictyp1 : Expression.t -> Expression.t -> Expression.t
-val mk_statictyp : Expression.t -> Jparsetree.class_name -> Expression.t
+val mk_type1 : Z3.Expr.expr -> Z3.Expr.expr -> Z3.Expr.expr
+val mk_type : Z3.Expr.expr -> Jparsetree.class_name -> Z3.Expr.expr
+val mk_type_all : Z3.Expr.expr -> Jparsetree.j_base_type -> Z3.Expr.expr
+val objtype : Z3.Expr.expr -> string -> Z3.Expr.expr
+val mk_objsubtyp1 : Z3.Expr.expr -> Z3.Expr.expr -> Z3.Expr.expr
+val mk_objsubtyp : Z3.Expr.expr -> Jparsetree.class_name -> Z3.Expr.expr
+val mk_statictyp1 : Z3.Expr.expr -> Z3.Expr.expr -> Z3.Expr.expr
+val mk_statictyp : Z3.Expr.expr -> Jparsetree.class_name -> Z3.Expr.expr

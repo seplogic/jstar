@@ -184,8 +184,8 @@ let rules_for_implication _ _ =  failwith "TODO"
   (*       let free_vars = Psyntax.fv_form (Psyntax.pconjunction prov (Psyntax.pconjunction antecedent consequent)) in                                                 *)
   (*       let free_prog_vars = VarSet.filter is_pvar free_vars in                                                                                                     *)
   (*       let sub = VarSet.fold (fun var sub -> add var (Arg_var (Vars.fresha ())) sub) free_prog_vars empty in                                                       *)
-  (*       let proviso : Expression.t = subst_pform sub prov in                                                                                                        *)
-  (*       let antecedent : Expression.t = subst_pform sub antecedent in                                                                                               *)
+  (*       let proviso : Z3.Expr.expr = subst_pform sub prov in                                                                                                        *)
+  (*       let antecedent : Z3.Expr.expr = subst_pform sub antecedent in                                                                                               *)
   (*       let consequent = subst_pform sub consequent in                                                                                                              *)
   (*       (* General idea: for Prov => (P ==> (Q1 * Q2 * ... * Qn)), we build n rules of the form *)                                                                  *)
   (*       (*  | P |- Qi *)                                                                                                                                            *)
@@ -200,7 +200,7 @@ let rules_for_implication _ _ =  failwith "TODO"
   (*                               | x :: xs -> (x, xs@others) :: split_inner xs (x::others)                                                                           *)
   (*               in                                                                                                                                                  *)
   (*               split_inner conjuncts [] in                                                                                                                         *)
-  (*       let rules = List.map (fun ((conjunct : Expression.t),(others : Expression.t)) ->                                                                            *)
+  (*       let rules = List.map (fun ((conjunct : Z3.Expr.expr),(others : Z3.Expr.expr)) ->                                                                            *)
   (*                       let qi,eqs = match conjunct with                                                                                                            *)
   (*                               | P_SPred (pred_name,first_arg :: other_args) ->                                                                                    *)
   (*                                               let freevars = fv_args_list other_args VarSet.empty in                                                              *)
@@ -208,7 +208,7 @@ let rules_for_implication _ _ =  failwith "TODO"
   (*                                               let var_newvar_pairs = VarSet.fold (fun var pairs -> (var,Vars.fresha ()) :: pairs) free_anyvars [] in              *)
   (*                                               let sub = List.fold_left (fun sub (var,newvar) -> add var (Arg_var newvar) sub) empty var_newvar_pairs in           *)
   (*                                               let new_other_args = List.map (subst_args sub) other_args in                                                        *)
-  (*                                               let equalities : Expression.t = List.map (fun (var,newvar) -> P_EQ(Arg_var var,Arg_var newvar)) var_newvar_pairs in *)
+  (*                                               let equalities : Z3.Expr.expr = List.map (fun (var,newvar) -> P_EQ(Arg_var var,Arg_var newvar)) var_newvar_pairs in *)
   (*                                               (P_SPred(pred_name,first_arg :: new_other_args),equalities)                                                         *)
   (*                               | _ -> (conjunct,[])                                                                                                                *)
   (*                       in                                                                                                                                          *)
@@ -291,7 +291,7 @@ module AxiomMap =
                 let compare = compare
         end)
 
-type axiom_map = (Expression.t * Expression.t) AxiomMap.t
+type axiom_map = (Z3.Expr.expr * Z3.Expr.expr) AxiomMap.t
 
 let filtermap filterfun mapfun list =
         List.map mapfun (List.filter filterfun list)
@@ -458,8 +458,8 @@ let remove_this_type_info e = e
   (*   | _ -> true                                                                                                                *)
   (* in List.filter is_this_type prepure                                                                                          *)
 
-let static_to_dynamic { Core.pre; post; modifies } =
-  { Core.pre = remove_this_type_info pre; post; modifies }
+let static_to_dynamic t =
+  { t with Core.pre = remove_this_type_info t.Core.pre }
 
 let rec filtertype_spat classname spat =  failwith "TODO"
 (*   match spat with                                                                                  *)
@@ -499,11 +499,11 @@ let rec filterdollar_at spat =  failwith "TODO"
 and filterdollar x =  failwith "TODO"
   (* List.map (filterdollar_at) x *)
 
-let dynamic_to_static cn { Core.pre; post; modifies } =
-  { Core.pre = filtertype cn pre; post = filtertype cn post; modifies }
+let map_prepost f t =
+  { t with Core.pre = f t.Core.pre; post = f t.Core.post }
 
-let filter_dollar_spec { Core.pre; post; modifies } =
-  { Core.pre = filterdollar pre; post = filterdollar post; modifies }
+let dynamic_to_static cn = map_prepost (filtertype cn)
+let filter_dollar_spec = map_prepost filterdollar
 
 let fix_spec_inheritance_gaps classes mmap spec_file exclude_function spec_type =
   let mmapr = ref mmap in
@@ -716,7 +716,7 @@ let refines logic spec1 spec2 =
   CoreOps.refines_spec logic spec1 spec2
 
 let refines_this cname logic spec1 spec2 =
-  let ( * ) = Expression.mk_star in
+  let ( * ) = Syntax.mk_star in
   let cname = Pprinter.class_name2str cname in
   let p = Jlogic.objtype SS.this_var cname in
   let star_pre t = { t with Core.pre = t.Core.pre * p } in

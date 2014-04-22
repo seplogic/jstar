@@ -13,7 +13,7 @@
 
 
 exception Contained
-val conjoin_with_res_true : Expression.t -> Expression.t
+val conjoin_with_res_true : Z3.Expr.expr -> Z3.Expr.expr
 (* module LocalMap :                                          *)
 (*   sig                                                      *)
 (*     type key = string                                      *)
@@ -31,7 +31,7 @@ val conjoin_with_res_true : Expression.t -> Expression.t
 (*     val compare : ('a -> 'a -> int) -> 'a t -> 'a t -> int *)
 (*     val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool *)
 (*   end                                                      *)
-(* type local_map = Expression.t list Javaspecs.AxiomMap.t *)
+(* type local_map = Z3.Expr.expr list Javaspecs.AxiomMap.t *)
 val msig2str
   : Jparsetree.class_name
     -> Jparsetree.j_type

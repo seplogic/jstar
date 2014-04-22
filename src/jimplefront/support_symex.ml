@@ -56,7 +56,7 @@ let default_for ty n = failwith "TODO"
 
 
 let signature2args si = 
-  Expression.mk_string_const (Pprinter.signature2str si) 
+  Syntax.mk_string_const (Pprinter.signature2str si) 
 
 
 let name2args n = failwith "TODO"
@@ -104,7 +104,7 @@ let immediate2var e =  failwith "TODO"
 
 (* ==============  printing facilities  ======================= *)
 let form2str f =
-	Corestar_std.string_of Expression.pp f
+	Corestar_std.string_of Syntax.pp_expr f
 
 (* this is not used or exported from the module, thus commented out (nikos g) *)
 (* let print_formset s fs=  *)

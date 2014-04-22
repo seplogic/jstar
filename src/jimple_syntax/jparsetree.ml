@@ -57,7 +57,7 @@ type class_name =
 type class_file_name =
   | Cfname of string
 *)
-type immediate = Expression.t (*Psyntax.args *) (* a term *)
+type immediate = Z3.Expr.expr (* a term *)
 
 type fixed_array_descriptor =  immediate
 

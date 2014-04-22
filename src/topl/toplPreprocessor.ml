@@ -9,7 +9,6 @@ module J = Jparsetree
 module JG = Jimple_global_types
 module TM = ToplMonitor
 module TN = ToplNames
-module E = Expression
 
 (* }}} *)
 (* used to communicate between conversion and instrumentation *) (* {{{ *)
@@ -58,10 +57,10 @@ let convert_guard guard =
   let convert = function
     | A.Variable (vr, i) -> TM.EqReg (i, vr)
     | A.Constant (vl, i) -> match vl with
-        | "true" -> TM.Not (TM.EqCt (i, E.mk_int_const "0"))
-        | "false" -> TM.EqCt (i, E.mk_int_const "0")
-        | x -> if int_match x then TM.EqCt (i, E.mk_int_const x) 
-          else if str_match x then TM.EqCt (i, E.mk_string_const x) 
+        | "true" -> TM.Not (TM.EqCt (i, Syntax.mk_int_const "0"))
+        | "false" -> TM.EqCt (i, Syntax.mk_int_const "0")
+        | x -> if int_match x then TM.EqCt (i, Syntax.mk_int_const x) 
+          else if str_match x then TM.EqCt (i, Syntax.mk_string_const x) 
           else failwith ("Asked to convert an invalid constant ("^x^")")
   in
   TM.And (List.map convert guard.A.value_guards)
@@ -266,7 +265,7 @@ let iter_wrap w n =
   in f [] (n-1)
 
 let wrap_ret_arg a = CoreOps.return a
-let wrap_call_arg a = Expression.mk_var (CoreOps.parameter a)
+let wrap_call_arg a = Syntax.mk_var (CoreOps.parameter a)
 
 let make_instrumented_proc_pair (get_arg_cnt, get_ret_cnt) p =
   let proc' = 
@@ -310,8 +309,8 @@ let emit_proc a pv =
   let call_step = {C.call_name = "step_$$"; C.call_rets=[]; C.call_args=[]} in
   let errors = TM.VMap.fold (fun k _ acc -> k :: acc) a.TM.error_messages [] in
   let l = 
-    List.map (fun e -> E.mk_neq pv.ToplSpecs.state (E.mk_string_const e)) errors in
-  let f = E.mk_big_star l in
+    List.map (fun e -> Syntax.mk_neq pv.ToplSpecs.state (Syntax.mk_string_const e)) errors in
+  let f = Syntax.mk_big_star l in
   let asgn_assert =
     { C.asgn_rets = []
     ; asgn_args = []

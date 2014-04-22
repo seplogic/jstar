@@ -18,7 +18,7 @@ open Jparsetree
 open Printing
 
 
-type fldlist = (string * Expression.t) list
+type fldlist = (string * Z3.Expr.expr) list
 
 type methodspec =
       Dynamic of method_signature_short * (Core.triple list) * source_location option
@@ -27,13 +27,13 @@ type methodspec =
 type methodspecs =
     methodspec list
 
-type apf_define = (string * Expression.t * fldlist * Expression.t * bool)
+type apf_define = (string * Z3.Expr.expr * fldlist * Z3.Expr.expr * bool)
 
 type apf_defines = apf_define list
 
-type named_implication = (string * Expression.t * Expression.t)
+type named_implication = (string * Z3.Expr.expr * Z3.Expr.expr)
 
-type exportLocal_predicate = (string * Expression.t list * Expression.t)
+type exportLocal_predicate = (string * Z3.Expr.expr list * Z3.Expr.expr)
 
 type exports_clause = (named_implication list * exportLocal_predicate list) option
 

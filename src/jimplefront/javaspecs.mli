@@ -15,7 +15,7 @@
 val append_rules :
   Calculus.t -> Calculus.t -> Calculus.t
 val apf :
-  string -> Expression.t -> (string * Expression.t) list -> Expression.t
+  string -> Z3.Expr.expr -> (string * Z3.Expr.expr) list -> Z3.Expr.expr
 val augmented_logic_for_class :
   Jparsetree.class_name ->
   Spec_def.class_spec list -> Calculus.t -> Calculus.t
@@ -24,7 +24,7 @@ val parent_classes_and_interfaces :
   Jparsetree.class_name ->
   Spec_def.class_spec list -> Jparsetree.class_name list
 val logic_with_where_pred_defs :
-  (string * Corestar_std.StringMap.key list * Expression.t) list ->
+  (string * Corestar_std.StringMap.key list * Z3.Expr.expr) list ->
   Calculus.t -> Calculus.t
 val logic_and_implications_for_exports_verification :
   Jparsetree.class_name ->
@@ -33,12 +33,12 @@ val logic_and_implications_for_exports_verification :
 val add_exported_implications_to_logic :
   Spec_def.class_spec list -> Calculus.t -> Calculus.t
 module AxiomMap : Map.S with type key = Jparsetree.class_name * string
-type axiom_map = (Expression.t * Expression.t) AxiomMap.t
+type axiom_map = (Z3.Expr.expr * Z3.Expr.expr) AxiomMap.t
 val spec_file_to_axiom_map :
-  Spec_def.class_spec list -> (Expression.t * Expression.t) AxiomMap.t
+  Spec_def.class_spec list -> (Z3.Expr.expr * Z3.Expr.expr) AxiomMap.t
 val implications_for_axioms_verification :
   Jparsetree.class_name ->
-  (Expression.t * Expression.t) AxiomMap.t ->
+  (Z3.Expr.expr * Z3.Expr.expr) AxiomMap.t ->
   Spec_def.named_implication list
 module AxiomMap2 : Map.S with type key = Jparsetree.class_name
 type axiom_map2 = Spec_def.named_implication list AxiomMap2.t

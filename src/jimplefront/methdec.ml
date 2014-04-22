@@ -20,6 +20,7 @@ open Format
 
 module J = Jparsetree
 module JG = Jimple_global_types
+module U = Untyped
 
 let make_methdec mos cname ty n pars tc (rlocs,rstms) ostmss (elocs,estms) (locs,b)  =
 {
@@ -126,7 +127,7 @@ let ee_update_in_scope state label =
 let ee_excvar_name = "@caughtexception"
 let ee_excvar_jimp = J.Var_name (J.Identifier_name ee_excvar_name)
 let ee_excvar_form =  
-  Expression.mk_var ee_excvar_name
+  U.mk_plvar ee_excvar_name
 
 let ee_encode_label state label =  
   let s = JG.Label_stmt label in

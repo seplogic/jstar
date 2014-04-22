@@ -11,10 +11,10 @@
       LICENSE.txt
  ********************************************************)
 
-val mk_1 : Jparsetree.unop -> Expression.t -> Expression.t
-val mk_2 : Jparsetree.binop -> Expression.t -> Expression.t -> Expression.t
+val mk_1 : Jparsetree.unop -> Z3.Expr.expr -> Z3.Expr.expr
+val mk_2 : Jparsetree.binop -> Z3.Expr.expr -> Z3.Expr.expr -> Z3.Expr.expr
 
-val mk_succ : Expression.t -> Expression.t
+val mk_succ : Z3.Expr.expr -> Z3.Expr.expr
 
 val this_var_name : string
-val this_var : Expression.t
+val this_var : Z3.Expr.expr

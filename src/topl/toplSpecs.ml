@@ -1,32 +1,32 @@
 open Corestar_std
 
-(* module PS = Psyntax *)
 module TM = ToplMonitor
 module TN = ToplNames
-module Expr = Expression
+module U = Untyped
 
 type toplPVars =
-  { state : Expr.t
-  ; store : Expr.t TM.RMap.t
-  ; size : Expr.t
-  ; queue : Expr.t array array }
-  (* INV: Each [Expr.t] above should be [Arg_var _]. *)
+  { state : Z3.Expr.expr
+  ; store : Z3.Expr.expr TM.RMap.t
+  ; size : Z3.Expr.expr
+  ; queue : Z3.Expr.expr array array }
+  (* INV: Each [Z3.Expr.expr] above should be a variable. *)
 
 let rec range i j = (* [i; i+1; ...; j-1] *)
   if i >= j then [] else i :: range (i + 1) j
 
-let mk_pvar x = Expr.mk_var x
-let mk_evar x = Expr.mk_var ("_"^x)
-let mk_true = Expr.mk_big_star []
+let mk_pvar = U.mk_pgvar
+let mk_evar = U.mk_lvar
+let mk_true = Syntax.mk_emp
+
 
 (* This function correctly encodes conditions x = true/false. 
    Ideally, in the future it should also handle integers. *)
 let mk_eq_to x = function
-(*| "true" -> Expr.mk_neq x (Expr.mk_int_const "0")
-  | "false" -> Expr.mk_eq x (Expr.mk_int_const "0") *)
-  | y -> Expr.mk_eq x y
+(*| "true" -> Syntax.mk_neq x (Syntax.mk_int_const "0")
+  | "false" -> Syntax.mk_eq x (Syntax.mk_int_const "0") *)
+  | y -> Syntax.mk_eq x y
 
-let wrap_call_arg a = mk_pvar (CoreOps.parameter a)
+let wrap_call_arg a = U.mk_plvar (U.parameter a)
 
 let get_specs_for_enqueue pv =
   let q_sz = Array.length pv.queue in
@@ -34,14 +34,15 @@ let get_specs_for_enqueue pv =
   let specs = Core.TripleSet.create 0 in
   for i = 0 to q_sz - 1 do begin
     let e = pv.queue.(i) in
-    let pre = Expr.mk_eq pv.size (Expr.mk_int_const (string_of_int i)) in
-    let post = Expr.mk_big_star
-      (let cp i = Expr.mk_eq e.(i) (wrap_call_arg i) in
-      Expr.mk_eq pv.size (Expr.mk_int_const (string_of_int (i+1)))
+    let pre = Syntax.mk_eq pv.size (Syntax.mk_int_const (string_of_int i)) in
+    let post = Syntax.mk_big_star
+      (let cp i = Syntax.mk_eq e.(i) (wrap_call_arg i) in
+      Syntax.mk_eq pv.size (Syntax.mk_int_const (string_of_int (i+1)))
       :: List.map cp (range 0 e_sz)) in
     let modifies = pv.size :: List.map (fun i -> e.(i)) (range 0 e_sz) in
-    let modifies = List.map Expr.bk_var modifies in
-    Core.TripleSet.add specs { Core.pre; post; modifies }
+    let in_vars = failwith "d92j8nd" in
+    let out_vars = failwith "dw298dj" in
+    Core.TripleSet.add specs { Core.pre; post; modifies; in_vars; out_vars }
   end done;
   specs
 
@@ -73,12 +74,12 @@ let max_arg a =
   TM.VMap.fold max_arg_vertex a.TM.transitions (-1)
 
 let make_event_queue m n =
-  let mk_name i j = TN.global (Printf.sprintf "queue_event_%d_position_%d" i j) in
+  let mk_name i j = Printf.sprintf "queue_event_%d_position_%d" i j in
    Array.init m
-     (fun i -> Array.init n (fun j -> mk_pvar (mk_name i j)))
+     (fun i -> Array.init n (fun j -> U.mk_pgvar (mk_name i j)))
 
-let mk_terms prefix set =
-  let f s = StringMap.add s (mk_pvar (prefix^s)) in
+let mk_terms mk prefix set =
+  let f s = StringMap.add s (mk (prefix^s)) in
   StringSet.fold f set StringMap.empty
 
 let rec get_regs_from_guard s = function
@@ -91,7 +92,7 @@ let get_regs_from_action =
   TM.RMap.fold (fun r _ s -> StringSet.add r s)
 
 let make_registers a =
-  mk_terms (TN.global "register_")
+  mk_terms U.mk_pgvar "register_"
   (TM.VMap.fold (fun _ tl m ->
     List.fold_left (fun m1 tr ->
       List.fold_left (fun m2 st ->
@@ -110,15 +111,15 @@ let make_logical_copy_of_store st i j =
    TM.RMap.mapi (fun r _ -> f r) st
 
 let store_eq st l_st =
-  TM.RMap.fold (fun r v f -> (Expr.mk_eq v (TM.RMap.find r l_st)) :: f) st []
+  TM.RMap.fold (fun r v f -> (Syntax.mk_eq v (TM.RMap.find r l_st)) :: f) st []
 
-let var_of_term = Expr.cases (fun x -> x) (fun _ -> failwith "var is not a var!")
+let as_var = Syntax.on_var id (fun _ -> failwith "invalid cast (idur3249)")
 
 (* This marks what is modified from the store in a transition -- basically, we assume
    pv.store is modified, while we do not need to track modification of logical variables
    which is why the second argument is discarded *)
 let store_eq_modifies st _ =
-   List.map (var_of_term @@ snd) (TM.RMap.bindings st)
+   List.map (as_var @@ snd) (TM.RMap.bindings st)
 
 let get_type = function
   | TM.Call_time -> "CALL"
@@ -134,20 +135,20 @@ let print_automaton a =
 
 let init_TOPL_program_vars a =
 (*   (* debug *) print_automaton a; *)
-  let state = Expr.mk_var (TN.global "current_automaton_state") in
+  let state = U.mk_pgvar "current_automaton_state" in
   let store = make_registers a in
-  let size = Expr.mk_var (TN.global "current_queue_list_size") in
+  let size = U.mk_pgvar "current_queue_list_size" in
   let queue = make_event_queue (max_label_length a) (2 + max_arg a) in
   { state; store; size; queue }
 
 let make_logical_copy_of_queue e =
   let mM = Array.length e in
   let nN = Array.length e.(0) in
-  let el = Array.make_matrix mM nN Expr.emp in
+  let el = Array.make_matrix mM nN Syntax.mk_emp in
   let ef = ref [] in
   let set_el i j = el.(i).(j)
     <- mk_evar ("log_queue_"^(string_of_int i)^"_"^(string_of_int j)) in
-  let set_ef i j x = ef =:: Expr.mk_eq x el.(i).(j) in
+  let set_ef i j x = ef =:: Syntax.mk_eq x el.(i).(j) in
    Array.iteri (fun i x -> Array.iteri (fun j eij -> set_el i j; set_ef i j eij) x) e;
   (el, !ef) (* el contains the logical vars, ef the formulas stating that these are copies of e *)
 
@@ -161,11 +162,11 @@ let logical_deque_gen e el n =
   !ef
 
 let logical_dequeue e el n =
-  let mkEQ (x, y) = Expr.mk_eq x y in
+  let mkEQ (x, y) = Syntax.mk_eq x y in
   List.map mkEQ (logical_deque_gen e el n)
 
 let logical_deque_modifies e el n =
-  List.map (var_of_term @@ fst) (logical_deque_gen e el n)
+  List.map (as_var @@ fst) (logical_deque_gen e el n)
 
 (* Returns a list with all non-empty subsets of {0,...,n-1} *)
 let index_subsets n =
@@ -181,38 +182,35 @@ let index_subsets n =
    - the state is f but g is not possible.
  *)
 
-let mk_thor f g = Expr.mk_2 "thor" f g
+let thor =
+  let bs = Syntax.bool_sort in
+  Z3.FuncDecl.mk_func_decl_s Syntax.z3_ctx "thor" [bs; bs] bs
+let mk_thor f g = Syntax.mk_2 thor f g
 
 let rec negate_formula f =
   let wrong s _ = failwith (Printf.sprintf
     "negate_formula can't handle %s; just = != * or thor" s) in
   let mk_star_not = function
-    | [f; g] -> Expr.mk_star f (negate_formula g)
+    | [f; g] -> Syntax.mk_star f (negate_formula g)
     | _ -> assert false in
-  let app =
-    Expr.on_star (Expr.mk_big_or @@ List.map negate_formula)
-    & Expr.on_or (Expr.mk_big_star @@ List.map negate_formula)
-    & Expr.on_op "thor" mk_star_not
-    & Expr.on_eq Expr.mk_neq
-    & Expr.on_neq Expr.mk_eq
-    & wrong in
-  Expr.cases (wrong "vars") app f
+  let mk_not_distinct es =
+    Prover.mk_big_or (Misc.map_all_pairs Syntax.mk_eq es) in
+  ( Syntax.on_star (fun a b -> Syntax.mk_or (negate_formula a) (negate_formula b))
+  & Syntax.on_or (Syntax.mk_big_star @@ List.map negate_formula)
+  & Syntax.on_op thor mk_star_not
+  & Syntax.on_eq (fun e f -> Syntax.mk_distinct [e; f])
+  & Syntax.on_distinct mk_not_distinct
+  & wrong "d29dnwdfw" ) f
 
 (* Replace thor(x,y) by x*y *)
 let rec remove_thors f =
   let wrong s _ = failwith (Printf.sprintf
     "remove_thors can't handle %s; just = != * or thor" s ) in
   let mk_star_ton = function 
-    | [x; y] -> Expr.mk_star x (remove_thors y) 
+    | [x; y] -> Syntax.mk_star x (remove_thors y) 
     | _ -> assert false in
-  let app =
-    Expr.on_star (Expr.mk_big_star @@ List.map remove_thors)
-    & Expr.on_or (Expr.mk_big_or @@ List.map remove_thors)
-    & Expr.on_op "thor" mk_star_ton
-    & Expr.on_eq Expr.mk_eq
-    & Expr.on_neq Expr.mk_neq
-    & wrong in
-  Expr.cases (wrong "vars") app f
+  ( Syntax.on_op thor mk_star_ton
+  & Syntax.recurse remove_thors ) f
 
 (* Returns a formula given guard gd, assuming that value i of each event is stored in
    e.(i+1) in event queue *)
@@ -221,9 +219,9 @@ let rec guard_conditions gd e st =
   match gd with
      | TM.True -> mk_true
      | TM.EqCt (i,v) -> mk_eq_to e.(i+1) v
-     | TM.EqReg (i,r) -> Expr.mk_eq e.(i+1) (TM.RMap.find r st)
+     | TM.EqReg (i,r) -> Syntax.mk_eq e.(i+1) (TM.RMap.find r st)
      | TM.Not g -> negate_formula (guard_conditions g e st)
-     | TM.And gs -> Expr.mk_big_star (List.map (fun g -> guard_conditions g e st) gs)
+     | TM.And gs -> Syntax.mk_big_star (List.map (fun g -> guard_conditions g e st) gs)
 
 let obs_conditions e { TM.event_time; pattern } =
 (* (* debug *) Format.printf "\nNow, the pattern has length: %d\n" (List.length pattern); *)
@@ -232,8 +230,8 @@ let obs_conditions e { TM.event_time; pattern } =
      | TM.Call_time -> [ TN.call_event ]
      | TM.Return_time -> [ TN.return_event ]
      | TM.Any_time -> [ TN.call_event; TN.return_event ] in
-   let p_cond p = List.map (fun name -> Expr.mk_eq e.(0) (name p)) ev_name in
-   Expr.mk_big_or (pattern >>= p_cond)
+   let p_cond p = List.map (fun name -> Syntax.mk_eq e.(0) (name p)) ev_name in
+   Prover.mk_big_or (pattern >>= p_cond)
 (* NT: Here this is an Or because any member of the pattern can potentially
    match the transition *)
 
@@ -251,29 +249,29 @@ let step_conditions e st st' s =
    let ac = s.TM.action in
    let ev_cond = obs_conditions e s.TM.observables in
    let gd_cond = guard_conditions gd e st in
-(* debug *) Format.printf "\nNow, and here is the gd_cond: "; Expr.pp Format.std_formatter gd_cond; 
-   let ac_cond = Expr.mk_big_star ( TM.VMap.fold (fun r v f ->
-     if (TM.RMap.mem r ac) then ((Expr.mk_eq v e.(1 + TM.RMap.find r ac))::f)
+(* debug *) Format.printf "\nNow, and here is the gd_cond: "; Syntax.pp_expr Format.std_formatter gd_cond; 
+   let ac_cond = Syntax.mk_big_star ( TM.VMap.fold (fun r v f ->
+     if (TM.RMap.mem r ac) then ((Syntax.mk_eq v e.(1 + TM.RMap.find r ac))::f)
      (* Added 1+ because at position 0 is the call/ret m *)
-     else ((Expr.mk_eq v (TM.VMap.find r st))::f)) st' [] ) in
+     else ((Syntax.mk_eq v (TM.VMap.find r st))::f)) st' [] ) in
 (* debug *) Format.printf "\nNow, and here is the ev_cond: "; 
-   Expr.pp Format.std_formatter ev_cond;  
-   Format.printf "\nNow, and ac_cond: "; Expr.pp Format.std_formatter ac_cond;
-   let big_cond = Expr.mk_star ev_cond gd_cond in
+   Syntax.pp_expr Format.std_formatter ev_cond;  
+   Format.printf "\nNow, and ac_cond: "; Syntax.pp_expr Format.std_formatter ac_cond;
+   let big_cond = Syntax.mk_star ev_cond gd_cond in
 (* debug *) Format.printf "\nNow, here is the big cond: "; 
-   Expr.pp Format.std_formatter big_cond;
+   Syntax.pp_expr Format.std_formatter big_cond;
    let retn = big_cond in (* NT: here there used to be  a simplification *)
-   (* (* debug *) Format.printf "\n and simplified, of size %d: " (List.length retn) Expr.pp
+   (* (* debug *) Format.printf "\n and simplified, of size %d: " (List.length retn) Syntax.pp_expr
       Format.std_formatter retn; *) 
    (retn, ac_cond)
 
 let pDeQu n pv el =
    let m = Array.length pv.queue in
-   (Expr.mk_eq pv.size (Expr.mk_int_const (string_of_int (m-n))))
+   (Syntax.mk_eq pv.size (Syntax.mk_int_const (string_of_int (m-n))))
    :: (logical_dequeue pv.queue el n)
 
 let pDeQu_modifies n pv el =
-  var_of_term pv.size :: logical_deque_modifies pv.queue el n
+  as_var pv.size :: logical_deque_modifies pv.queue el n
 
 (* The last argument is the previous vertex. It is used in order to decide whether the
    transition modifies pv.state *)
@@ -287,13 +285,13 @@ let trans_pre_and_post pv el l_sr0 v j t =
      if i=0 then l_sr0 else make_logical_copy_of_store sr i j ) in
    let step_conds = ListH.mapi (fun i s ->
      step_conditions pv.queue.(i) l_sr.(i) l_sr.(i+1) s) st in
-   let pre = List.fold_left (fun acc (x,y) -> Expr.mk_star (mk_thor y acc) x) mk_true step_conds in
-   let post = Expr.mk_big_star ( (Expr.mk_eq pv.state (Expr.mk_string_const tg))
+   let pre = List.fold_left (fun acc (x,y) -> Syntax.mk_star (mk_thor y acc) x) mk_true step_conds in
+   let post = Syntax.mk_big_star ( (Syntax.mk_eq pv.state (Syntax.mk_string_const tg))
                                  :: store_eq sr l_sr.(len) @ pDeQu len pv el ) in
- (* debug *) Format.printf "\n==> Pre:\n"; Expr.pp Format.std_formatter pre;
-   Format.printf "\n ===> Post:\n"; Expr.pp Format.std_formatter post;
-   let mod_state = if tg = v then [] else [var_of_term pv.state] in
-   let modifies = var_of_term pv.size :: mod_state @ store_eq_modifies sr l_sr.(len) @ pDeQu_modifies len pv el in
+ (* debug *) Format.printf "\n==> Pre:\n"; Syntax.pp_expr Format.std_formatter pre;
+   Format.printf "\n ===> Post:\n"; Syntax.pp_expr Format.std_formatter post;
+   let mod_state = if tg = v then [] else [as_var pv.state] in
+   let modifies = as_var pv.size :: mod_state @ store_eq_modifies sr l_sr.(len) @ pDeQu_modifies len pv el in
    (pre, post, modifies)
 
 (* Given a set of indices k, negate all formulas in l whose index appears in k,
@@ -309,11 +307,11 @@ let get_specs_for_vertex t pv v s =
 (* (* debug *) Format.printf "Here is the vertex: %s\n" v; *)
 (* (* debug *) TM.VMap.iter (fun s _ -> Format.printf "Here is a key: %s\n" s) t; *)
 (* (* debug *) Format.printf "Here is the length of tl: %d\n" (List.length tl); *)
-  let pAt = Expr.mk_eq pv.state (Expr.mk_string_const v) in
+  let pAt = Syntax.mk_eq pv.state (Syntax.mk_string_const v) in
   let (el,ef) = make_logical_copy_of_queue pv.queue in
   let mM = Array.length pv.queue in
 (* (* debug *) Format.printf "Here is M: %d\n" mM; *)
-  let pQud = (Expr.mk_eq pv.size (Expr.mk_int_const (string_of_int mM))) :: ef in
+  let pQud = (Syntax.mk_eq pv.size (Syntax.mk_int_const (string_of_int mM))) :: ef in
   let l_sr0 = make_logical_copy_of_store pv.store 0 (-1) in
   let pInit = store_eq pv.store l_sr0 in
 (* (* debug *) Format.printf "Now, here is the pInit for %s: %a\n" v Psyntax.string_form pInit; *)
@@ -322,14 +320,14 @@ let get_specs_for_vertex t pv v s =
   let pAllSats_neg = List.map negate_formula pAllSats in
   let pAllSats = List.map remove_thors pAllSats in
 (* debug *) ListH.iteri (fun i x -> Format.printf "\n\nNow, here is element %d of pAllSat
-  for %s:\n" i v; Expr.pp Format.std_formatter x) pAllSats;
+  for %s:\n" i v; Syntax.pp_expr Format.std_formatter x) pAllSats;
 (* debug *) ListH.iteri (fun i x -> Format.printf "\n\nNow, here is negated element %d of
-  pAllSat:\n" i; Expr.pp Format.std_formatter x) pAllSats_neg;
+  pAllSat:\n" i; Syntax.pp_expr Format.std_formatter x) pAllSats_neg;
 (* debug *) ListH.iteri (fun i a -> Format.printf "\nNow, here is element %d of pAllPost:\n"
-  i; Expr.pp Format.std_formatter a) pAllPosts;
+  i; Syntax.pp_expr Format.std_formatter a) pAllPosts;
   let s_skip =
-    let pre = Expr.mk_big_star ( pAt :: pInit @ pQud @ pAllSats_neg ) |> Prover.normalize in
-    let post = Expr.mk_big_star( pAt :: pInit @ pDeQu 1 pv el ) |> Prover.normalize in
+    let pre = Syntax.mk_big_star ( pAt :: pInit @ pQud @ pAllSats_neg ) |> Prover.normalize in
+    let post = Syntax.mk_big_star( pAt :: pInit @ pDeQu 1 pv el ) |> Prover.normalize in
     let modifies = pDeQu_modifies 1 pv el in
     [{ Core.pre; post; modifies }] in
   let subs = index_subsets (List.length tl) in
@@ -337,11 +335,11 @@ let get_specs_for_vertex t pv v s =
     ( fun k ->
       let pSats = ListH.mapi (fun i (x,y) -> if IntSet.mem i k then x else y)
         (List.combine pAllSats pAllSats_neg) in
-      let pre = Expr.mk_big_star ( pAt :: pInit @ pQud @ pSats ) in
-(*      (* debug *) Format.printf "@\npre for {%a} before normalization:@,%a" (pp_list (fun f -> Format.fprintf f "%d")) (IntSet.elements k) Expr.pp pre; *)
+      let pre = Syntax.mk_big_star ( pAt :: pInit @ pQud @ pSats ) in
+(*      (* debug *) Format.printf "@\npre for {%a} before normalization:@,%a" (pp_list (fun f -> Format.fprintf f "%d")) (IntSet.elements k) Syntax.pp_expr pre; *)
       let pre = Prover.normalize pre in
-(*      (* debug *) Format.printf "@\npre after normalization:@,%a" Expr.pp pre; *)
-      let post = Expr.mk_big_or (select_subset k pAllPosts) |> Prover.normalize in
+(*      (* debug *) Format.printf "@\npre after normalization:@,%a" Syntax.pp_expr pre; *)
+      let post = Prover.mk_big_or (select_subset k pAllPosts) |> Prover.normalize in
       let modifies = List.concat (select_subset k allModifies) in
       { Core.pre; post; modifies }) subs in
   s_regular @ s_skip @ s

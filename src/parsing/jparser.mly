@@ -32,12 +32,15 @@ open Spec_def
 (* TODO(rgrig): Keep these instead of the above. *)
 module J = Jparsetree
 module SS = Support_syntax
-module E = Expression
+module U = Untyped
 
 let newVar x =
-  if x = "_" then E.freshen "v"
-  else if String.get x 0 = '_' then (String.sub x 1 ((String.length x) -1))
-  else x
+  if x = "_" then
+    Syntax.freshen (U.mk_lvar "v")
+  else if String.get x 0 = '_' then
+    U.mk_lvar (String.sub x 1 (String.length x -1 ))
+  else
+    U.mk_plvar x
 
 (* let check_npv =                                *)
 (*   let rec check_term_npv =  failwith "TODO" in *)
@@ -305,14 +308,11 @@ let field_signature2str fs =
 %start spec_file
 %type <Spec_def.class_spec Load.entry list> spec_file
 
-%start question_file
-%type <Core.ast_question list> question_file
-
 %start triple
 %type <Core.triple> triple
 
 %start jargument     /* used for parsing topl values */
-%type <Expression.t> jargument
+%type <Z3.Expr.expr> jargument
 
 %% /* rules */
 
@@ -351,9 +351,9 @@ apf_defines:
 
 apf_define:
    | EXPORT identifier L_PAREN lvariable paramlist_question_mark R_PAREN AS formula SEMICOLON
-       { let a=match $5 with | Some b -> b | None -> [] in ($2,E.mk_var $4,a,$8,true) }
+       { let a=match $5 with | Some b -> b | None -> [] in ($2,$4,a,$8,true) }
    | DEFINE identifier L_PAREN lvariable paramlist_question_mark R_PAREN AS formula SEMICOLON
-       { let a=match $5 with | Some b -> b | None -> [] in ($2,E.mk_var $4,a,$8,false) }
+       { let a=match $5 with | Some b -> b | None -> [] in ($2,$4,a,$8,false) }
 
 exports_clause:
   | EXPORTS L_BRACE named_implication_star R_BRACE WHERE L_BRACE exportLocal_predicate_def_star R_BRACE { Some ($3,$7) }
@@ -377,7 +377,7 @@ exportLocal_predicate_def_star:
 
 exportLocal_predicate_def:
    | identifier L_PAREN lvariable_list_ne R_PAREN AS formula SEMICOLON
-      { ($1,List.map E.mk_var $3,$6) }
+      { ($1,$3,$6) }
 
 methods_specs:
    | SPEC method_spec methods_specs { $2 :: $3 }
@@ -391,7 +391,11 @@ modifies:
 
 triple:
   | L_BRACE formula R_BRACE modifies L_BRACE formula R_BRACE
-    { { Core.pre = $2; modifies = $4; post = $6 } }
+    { { Core.pre = $2
+      ; modifies = $4
+      ; post = $6
+      ; in_vars = failwith "92unf923"
+      ; out_vars = failwith "d92wnb39" } }
 ;
 
 specs:
@@ -725,17 +729,17 @@ arg_list:
    | immediate COMMA arg_list { $1 :: $3 }
 ;
 immediate:
-  | local_name { E.mk_var (string_of J.pp_name $1) }
+  | local_name { U.mk_plvar (string_of J.pp_name $1) }
   | constant { $1 }
 ;
 constant:
-  | INTEGER_CONSTANT { E.mk_int_const $1 }
-  | MINUS INTEGER_CONSTANT { SS.mk_1 J.Neg (E.mk_int_const $2) }
+  | INTEGER_CONSTANT { Syntax.mk_int_const $1 }
+  | MINUS INTEGER_CONSTANT { SS.mk_1 J.Neg (Syntax.mk_int_const $2) }
   | FLOAT_CONSTANT  {  failwith "TODO6" (*PS.mkNumericConst $1*) }
-  | MINUS FLOAT_CONSTANT  { SS.mk_1 J.Neg (E.mk_int_const $2) }
-  | STRING_CONSTANT {  E.mk_string_const $1 }
-  | CLASS STRING_CONSTANT {  E.mk_app "class_const" [E.mk_string_const $2]  }
-  | NULL { E.mk_app "nil" [] }
+  | MINUS FLOAT_CONSTANT  { SS.mk_1 J.Neg (Syntax.mk_int_const $2) }
+  | STRING_CONSTANT {  Syntax.mk_string_const $1 }
+  | CLASS STRING_CONSTANT {  U.mk_app "class_const" [Syntax.mk_string_const $2]  }
+  | NULL { U.mk_app "nil" [] }
 ;
 binop_no_mult:
    | AND {And}
@@ -799,16 +803,16 @@ name:
 ;
 
 
-
 lvariable:
-   | at_identifier { $1 }
+   | at_identifier { U.mk_plvar $1 }
    | identifier { newVar $1 }
-   | QUESTIONMARK identifier { $2 }
+   | QUESTIONMARK identifier { U.mk_tpat $2 }
 ;
 
 lvariable_list_ne:
    |  lvariable    { [$1] }
    |  lvariable COMMA lvariable_list_ne  { $1 :: $3 }
+;
 
 lvariable_list:
    |  {[]}
@@ -834,11 +838,11 @@ paramlist:
 
 
 jargument:
-  | RETURN { E.mk_var (CoreOps.return 0) }
-  | lvariable { E.mk_var $1 }
+  | RETURN { U.mk_plvar U.return }
+  | lvariable { $1 }
   | identifier L_PAREN jargument_list R_PAREN {  failwith "TODO13" (*Arg_op($1,$3)*) }
   | constant { $1 }
-  | field_signature { E.mk_string_const (field_signature2str $1) }
+  | field_signature { Syntax.mk_string_const (field_signature2str $1) }
   | L_BRACE fldlist R_BRACE {  failwith "TODO15" (*mkArgRecord $2*) }
   | L_PAREN jargument binop_val_no_multor jargument R_PAREN {  failwith "TODO16" (*Arg_op(Support_syntax.bop_to_prover_arg $3, [$2;$4])*) }
   /* TODO(rgrig): Last branch is weird. */
@@ -851,11 +855,11 @@ jargument_list:
    | jargument_list_ne {$1}
 ;
 formula:
-     /*empty*/  { Expression.emp }
-   | EMP  { Expression.emp }
-   | FALSE { Expression.fls }
+     /*empty*/  { Syntax.mk_emp }
+   | EMP  { Syntax.mk_emp }
+   | FALSE { Syntax.mk_false }
    | lvariable DOT jargument MAPSTO  jargument
-     { E.mk_app "field" [ E.mk_var $1; $3; $5] }
+     { U.mk_app "field" [$1; $3; $5] }
    | BANG identifier L_PAREN jargument_list R_PAREN
      { failwith "TODO18" (*[P_PPred($2, $4)]*) }
    | identifier L_PAREN jargument_list R_PAREN
@@ -864,34 +868,15 @@ formula:
    | full_identifier L_PAREN jargument_list R_PAREN
      { failwith "TODO20"
       (*if List.length $3 =1 then [P_SPred($1,$3 @ [mkArgRecord []])] else [P_SPred($1,$3)]*) }
-   | formula MULT formula { E.mk_star $1 $3 }
+   | formula MULT formula { Syntax.mk_star $1 $3 }
    | formula OR formula
      {  failwith "TODO21"
        (*if Config.parse_debug() then parse_warning "deprecated use of |"  ; pconjunction (purify $1) $3*) }
-   | formula OROR formula { E.mk_or $1 $3 }
+   | formula OROR formula { Syntax.mk_or $1 $3 }
    | lvariable COLON identifier
      { failwith "TODO22" (*[P_PPred("type", [Arg_var($1);Arg_string($3)])]*) }
    | jargument binop_cmp jargument { SS.mk_2 $2 $1 $3 }
    | jargument EQUALS jargument { SS.mk_2 J.Cmpeq $1 $3 }
    | L_PAREN formula R_PAREN { $2 }
-
-/* TODO(rgrig): This goes away, unless somebody wants to maintain unnecessary bits.*/
-question:
-   | IMPLICATION COLON formula VDASH formula
-      {  failwith "TODO23" (*check_npv $3; check_npv $5; Implication ($3,$5)*) }
-   | INCONSISTENCY COLON formula
-      {  failwith "TODO24" (*check_npv $3; Inconsistency $3*) }
-   | FRAME COLON formula VDASH formula
-      {  failwith "TODO25" (*check_npv $3; check_npv $5; Frame ($3,$5)*) }
-   | ABS COLON formula
-      {  failwith "TODO26" (*check_npv $3; Abs $3*) }
-   | ABDUCTION COLON formula VDASH formula
-      {  failwith "TODO27" (*check_npv $3; check_npv $5; Abduction ($3,$5)*) }
-;
-
-question_file:
-   | EOF  { [] }
-   | question question_file  {$1 :: $2}
-;
 
 %% (* trailer *)

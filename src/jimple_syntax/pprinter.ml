@@ -72,7 +72,7 @@ let name2str = string_of J.pp_name
 
 let class_name2str = string_of J.pp_class_name
 
-let immediate2str = string_of Expression.pp
+let immediate2str = string_of Syntax.pp_expr
 
 let fixed_array_descriptor2str s = "["^immediate2str s^"]"
 
