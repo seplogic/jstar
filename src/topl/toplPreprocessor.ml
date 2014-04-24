@@ -9,6 +9,8 @@ module J = Jparsetree
 module JG = Jimple_global_types
 module TM = ToplMonitor
 module TN = ToplNames
+module TS = ToplSpecs
+module U = Untyped
 
 (* }}} *)
 (* used to communicate between conversion and instrumentation *) (* {{{ *)
@@ -59,8 +61,8 @@ let convert_guard guard =
     | A.Constant (vl, i) -> match vl with
         | "true" -> TM.Not (TM.EqCt (i, Syntax.mk_int_const "0"))
         | "false" -> TM.EqCt (i, Syntax.mk_int_const "0")
-        | x -> if int_match x then TM.EqCt (i, Syntax.mk_int_const x) 
-          else if str_match x then TM.EqCt (i, Syntax.mk_string_const x) 
+        | x -> if int_match x then TM.EqCt (i, Syntax.mk_int_const x)
+          else if str_match x then TM.EqCt (i, Syntax.mk_string_const x)
           else failwith ("Asked to convert an invalid constant ("^x^")")
   in
   TM.And (List.map convert guard.A.value_guards)
@@ -73,7 +75,7 @@ let convert_event_time = function
   | None -> TM.Any_time
 
 let print_pro_transition t s =
-  let print_l l = 
+  let print_l l =
     let tg = l.A.guard.A.tag_guard in
     let event_type = match tg.A.event_type with
       | Some A.Call -> "call "
@@ -101,7 +103,7 @@ let convert_transition p t : (A.pattern list * int option) TM.transition =
   let retn = { TM.steps = List.map convert_label t.A.labels
              ; TM.target = prefix_vertex p t.A.target } in
 (*   (* debug *) Format.printf "-> After conversion: %d steps\n" (List.length retn.TM.steps); *)
-  retn 
+  retn
 
 let construct_monitor ts =
   let convert_prop p =
@@ -115,7 +117,7 @@ let construct_monitor ts =
     let collect_transition (vs, ts, starts, errors) t =
       let new_vs, new_starts, new_errors = (vs,starts,errors) |> add_v t.A.source |> add_v t.A.target in
       let transition = convert_transition p t in
-      let new_source = prefix_vertex p t.A.source in 
+      let new_source = prefix_vertex p t.A.source in
       let outgoing = try TM.VMap.find new_source ts with Not_found -> [] in
       let new_ts = TM.VMap.add new_source (transition::outgoing) ts in
       new_vs, new_ts, new_starts, new_errors in
@@ -139,7 +141,7 @@ let construct_monitor ts =
 
 (* }}} *)
 (* parse values *) (* {{{ *)
-(* Remover this as it messes up true/false 
+(* Remover this as it messes up true/false
 let parse_values topl =
   let pv_v v = Jparser.jargument Jlexer.token & Lexing.from_string v in
   let pv_vg = function
@@ -226,11 +228,11 @@ let specialize_monitor js m =
         let name_matches mn = List.for_all (flip log_pattern_match mn) p_rs in
 (*         (* debug *) Format.printf "-> Doing an arity check: %d and %d for hl_name: %s\n" (option (-1) (fun x->x) p_arity) arity hl_name; *)
         let resolve_none = match p_arity with
-          | Some x -> (arity = x) 
+          | Some x -> (arity = x)
           | None -> true in
-        if resolve_none && List.exists name_matches overrides 
+        if resolve_none && List.exists name_matches overrides
         then (p, ll_mns @ old_ll_mns) :: acc
-        else acc in 
+        else acc in
       let updates = Hashtbl.fold process_pattern patterns [] in
       List.iter (fun (p, vs) -> Hashtbl.replace patterns p vs) updates in
     Hashtbl.iter process_method ms_index in
@@ -264,16 +266,11 @@ let iter_wrap w n =
     else f (w i :: acc) (i-1)
   in f [] (n-1)
 
-let wrap_ret_arg a = CoreOps.return a
-let wrap_call_arg a = Syntax.mk_var (CoreOps.parameter a)
+let wrap_ret_arg a = U.mk_plvar (U.return a)
+let wrap_call_arg a = U.mk_plvar (U.parameter a)
 
 let make_instrumented_proc_pair (get_arg_cnt, get_ret_cnt) p =
-  let proc' = 
-    { C.proc_name=p.C.proc_name^"_I"
-    ; proc_spec=p.C.proc_spec
-    ; proc_body=p.C.proc_body
-    ; proc_rules=p.C.proc_rules 
-    ; proc_ok = true } in
+  let proc' = { p with C.proc_name = sprintf "%s_I" p.C.proc_name } in
   let call_args = iter_wrap wrap_call_arg (get_arg_cnt p.C.proc_name) in
   let call_rets = iter_wrap wrap_ret_arg (get_ret_cnt p.C.proc_name) in
   let emit_call =
@@ -286,12 +283,16 @@ let make_instrumented_proc_pair (get_arg_cnt, get_ret_cnt) p =
     ; call_rets = []
     ; call_args = [ TN.return_event p.C.proc_name ] } in (* TODO(rgrig): return values *)
   let proc_body = Some ([C.Call_core emit_call; C.Call_core call_p' ; C.Call_core emit_ret])  in
-  let proc = 
+  let proc_params = failwith "d9wqnf" in
+  let proc_rets = failwith "dqa09djwq" in
+  let proc =
     { C.proc_name=p.C.proc_name
     ; proc_spec=C.TripleSet.create 0
     ; proc_body
-    ; proc_rules= {C.calculus = [] ; C.abstraction = [] }
-    ; proc_ok = true } in
+    ; proc_rules= { C.calculus = [] ; C.abstraction = [] }
+    ; proc_ok = true
+    ; proc_params
+    ; proc_rets } in
   [proc; proc']
 
 let instrument_procedures ps =
@@ -303,37 +304,49 @@ let instrument_procedures ps =
 
 (* this procedure expects the event to be emitted, and the condition for the assert statement *)
 let emit_proc a pv =
-  let e_sz = Array.length pv.ToplSpecs.queue.(0) in
+  let e_sz = Array.length pv.TS.queue.(0) in
   let call_args = iter_wrap wrap_call_arg e_sz in
   let call_enqueue = {C.call_name = "enqueue_$$"; C.call_rets=[]; call_args} in
   let call_step = {C.call_name = "step_$$"; C.call_rets=[]; C.call_args=[]} in
   let errors = TM.VMap.fold (fun k _ acc -> k :: acc) a.TM.error_messages [] in
-  let l = 
-    List.map (fun e -> Syntax.mk_neq pv.ToplSpecs.state (Syntax.mk_string_const e)) errors in
-  let f = Syntax.mk_big_star l in
+  let es = List.map Syntax.mk_string_const errors in
+  let es = List.map (fun e -> Syntax.mk_distinct [pv.TS.state; e]) es in
+  let f = Syntax.mk_big_star es in
   let asgn_assert =
     { C.asgn_rets = []
     ; asgn_args = []
     ; asgn_spec = CoreOps.mk_assert f } in
-  let emit_body =Some ([C.Call_core call_enqueue; C.Call_core call_step; C.Assignment_core asgn_assert]) in
+  let emit_body = Some ([C.Call_core call_enqueue; C.Call_core call_step; C.Assignment_core asgn_assert]) in
     { C.proc_name = "emit_$$"
-    ; C.proc_spec = C.TripleSet.create 0
-    ; C.proc_body = emit_body
-    ; C.proc_rules = { C.calculus=[]; C.abstraction=[] }
+    ; proc_spec = C.TripleSet.create 0
+    ; proc_body = emit_body
+    ; proc_rules = { C.calculus=[]; C.abstraction=[] }
+    ; proc_params = failwith "afsa0fj"
+    ; proc_rets = failwith "daf9amfc"
     ; proc_ok = true }
 
 let step_proc a pv =
-  let proc_spec = ToplSpecs.get_specs_for_step a pv in
-  { C.proc_name = "step_$$"; proc_spec; proc_body=None; C.proc_rules= { C.calculus=[]; C.abstraction=[] }
-    ; proc_ok = true }
+  let proc_spec = TS.get_specs_for_step a pv in
+  { C.proc_name = "step_$$"
+  ; proc_spec
+  ; proc_body = None
+  ; C.proc_rules = { C.calculus=[]; C.abstraction=[] }
+  ; proc_params = failwith "opmdasondf"
+  ; proc_rets  = failwith "da09fdjma"
+  ; proc_ok = true }
 
 let enqueue_proc pv =
-  let proc_spec = ToplSpecs.get_specs_for_enqueue pv in
-  { C.proc_name = "enqueue_$$"; proc_spec; proc_body=None; C.proc_rules={ C.calculus=[]; C.abstraction=[] }
-    ; proc_ok = true }
+  let proc_spec = TS.get_specs_for_enqueue pv in
+  { C.proc_name = "enqueue_$$"
+  ; proc_spec
+  ; proc_body = None
+  ; proc_rules= { C.calculus=[]; C.abstraction=[] }
+  ; proc_params = failwith "dad3eq3"
+  ; proc_rets = failwith "dao9dija"
+  ; proc_ok = true }
 
 let build_core_monitor m =
-   let pv = ToplSpecs.init_TOPL_program_vars m in
+   let pv = TS.init_TOPL_program_vars m in
    [ emit_proc m pv; step_proc m pv; enqueue_proc pv ]
 
 (* End emit and friends *) (* }}} *)

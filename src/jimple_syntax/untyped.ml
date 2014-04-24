@@ -28,4 +28,4 @@ let mk_tpat = S.mk_int_tpat
 let parameter = sprintf "@parameter%d:"
   (* NOTE:
   Must correspond to how jimple names parameters in the body of methods. *)
-let return = "$r"
+let return = sprintf "$r%d"

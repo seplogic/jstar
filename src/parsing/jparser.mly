@@ -838,7 +838,7 @@ paramlist:
 
 
 jargument:
-  | RETURN { U.mk_plvar U.return }
+  | RETURN { U.mk_plvar (U.return 0) }
   | lvariable { $1 }
   | identifier L_PAREN jargument_list R_PAREN {  failwith "TODO13" (*Arg_op($1,$3)*) }
   | constant { $1 }

@@ -323,7 +323,7 @@ let params_of_methdec m =
   List.map U.mk_plvar ps
 
 let rets_of_methdec _ =
-  [ U.mk_plvar U.return ] (* TODO: handle type/sort. *)
+  [ U.mk_plvar (U.return 0) ] (* TODO: handle type/sort. *)
 
 let jimple_stmts2core j_of_name stms =
   let do_one_stmt (stmt_jimple, source_pos) =

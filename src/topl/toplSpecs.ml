@@ -19,7 +19,7 @@ let mk_evar = U.mk_lvar
 let mk_true = Syntax.mk_emp
 
 
-(* This function correctly encodes conditions x = true/false. 
+(* This function correctly encodes conditions x = true/false.
    Ideally, in the future it should also handle integers. *)
 let mk_eq_to x = function
 (*| "true" -> Syntax.mk_neq x (Syntax.mk_int_const "0")
@@ -204,10 +204,8 @@ let rec negate_formula f =
 
 (* Replace thor(x,y) by x*y *)
 let rec remove_thors f =
-  let wrong s _ = failwith (Printf.sprintf
-    "remove_thors can't handle %s; just = != * or thor" s ) in
-  let mk_star_ton = function 
-    | [x; y] -> Syntax.mk_star x (remove_thors y) 
+  let mk_star_ton = function
+    | [x; y] -> Syntax.mk_star x (remove_thors y)
     | _ -> assert false in
   ( Syntax.on_op thor mk_star_ton
   & Syntax.recurse remove_thors ) f
@@ -249,20 +247,20 @@ let step_conditions e st st' s =
    let ac = s.TM.action in
    let ev_cond = obs_conditions e s.TM.observables in
    let gd_cond = guard_conditions gd e st in
-(* debug *) Format.printf "\nNow, and here is the gd_cond: "; Syntax.pp_expr Format.std_formatter gd_cond; 
+(* debug *) Format.printf "\nNow, and here is the gd_cond: "; Syntax.pp_expr Format.std_formatter gd_cond;
    let ac_cond = Syntax.mk_big_star ( TM.VMap.fold (fun r v f ->
      if (TM.RMap.mem r ac) then ((Syntax.mk_eq v e.(1 + TM.RMap.find r ac))::f)
      (* Added 1+ because at position 0 is the call/ret m *)
      else ((Syntax.mk_eq v (TM.VMap.find r st))::f)) st' [] ) in
-(* debug *) Format.printf "\nNow, and here is the ev_cond: "; 
-   Syntax.pp_expr Format.std_formatter ev_cond;  
+(* debug *) Format.printf "\nNow, and here is the ev_cond: ";
+   Syntax.pp_expr Format.std_formatter ev_cond;
    Format.printf "\nNow, and ac_cond: "; Syntax.pp_expr Format.std_formatter ac_cond;
    let big_cond = Syntax.mk_star ev_cond gd_cond in
-(* debug *) Format.printf "\nNow, here is the big cond: "; 
+(* debug *) Format.printf "\nNow, here is the big cond: ";
    Syntax.pp_expr Format.std_formatter big_cond;
    let retn = big_cond in (* NT: here there used to be  a simplification *)
    (* (* debug *) Format.printf "\n and simplified, of size %d: " (List.length retn) Syntax.pp_expr
-      Format.std_formatter retn; *) 
+      Format.std_formatter retn; *)
    (retn, ac_cond)
 
 let pDeQu n pv el =
@@ -329,7 +327,9 @@ let get_specs_for_vertex t pv v s =
     let pre = Syntax.mk_big_star ( pAt :: pInit @ pQud @ pAllSats_neg ) |> Prover.normalize in
     let post = Syntax.mk_big_star( pAt :: pInit @ pDeQu 1 pv el ) |> Prover.normalize in
     let modifies = pDeQu_modifies 1 pv el in
-    [{ Core.pre; post; modifies }] in
+    let in_vars = failwith "dwnfwasd" in
+    let out_vars = failwith "dwq28de3" in
+    [{ Core.pre; post; modifies; in_vars; out_vars }] in
   let subs = index_subsets (List.length tl) in
   let s_regular = List.map
     ( fun k ->
@@ -341,58 +341,11 @@ let get_specs_for_vertex t pv v s =
 (*      (* debug *) Format.printf "@\npre after normalization:@,%a" Syntax.pp_expr pre; *)
       let post = Prover.mk_big_or (select_subset k pAllPosts) |> Prover.normalize in
       let modifies = List.concat (select_subset k allModifies) in
-      { Core.pre; post; modifies }) subs in
+      let in_vars = failwith "sadfdaf" in
+      let out_vars = failwith "w9f8hhn2r" in
+      { Core.pre; post; modifies; in_vars; out_vars }) subs in
   s_regular @ s_skip @ s
 
 let get_specs_for_step a pv =
   Core.TripleSet.of_list (TM.VSet.fold (get_specs_for_vertex a.TM.transitions pv) a.TM.vertices [])
 
-
-(* NT: Obsolete:
-
-let rec simplify_pform xs = failwith "TODO dqiwneuiwdd" (*
-   let xs = xs >>= simplify_pform_at in
-   let retn = if List.mem PS.P_False xs then [PS.P_False] else xs in
-   retn
- and simplify_pform_at = function
-   | PS.P_Or (x, y) ->
-       (match (simplify_pform x, simplify_pform y) with
-         | [], _ | _, [] -> []
-         | [PS.P_False], z | z, [PS.P_False] -> z
-         | x, y -> [PS.P_Or (x, y)])
-   | PS.P_Wand (x, y) -> [PS.P_Wand (x, simplify_pform y)]
-   | PS.P_EQ _ as x -> [x]
-   | PS.P_NEQ _ as x -> [x]
-   | PS.P_False as x -> [x] (* NT: Added this part as it was called with P_False *)
-   | _ -> failwith "Internal: simplification with unexpected case!"
-    *)
-
-let rec negate_specs_it _ =  failwith "TODO adksnad" (*
-  (f:PS.pform) : PS.pform_at =
-     match f with
-       | [] -> PS.P_False
-       | z :: fs ->
-         (match z with
-           | PS.P_EQ(x,y) -> PS.P_Or([PS.P_NEQ(x,y)], [negate_specs_it fs])
-           | PS.P_NEQ(x,y) -> PS.P_Or([PS.P_EQ(x,y)], [negate_specs_it fs])
-           | PS.P_PPred(_,_) -> failwith "Negation called for PPred!"
-           | PS.P_SPred(_,_) -> failwith "Negation called for SPred!"
-           | PS.P_Wand(x,y) -> PS.P_Or((negate_specs_it y)::x, [negate_specs_it fs])
-           | PS.P_Or(x,y) -> PS.P_Or([(negate_specs_it x); (negate_specs_it y)], [negate_specs_it fs])
-           | PS.P_Septract(_,_) -> failwith "Negation called for Septract!"
-           | PS.P_False -> failwith "Internal negation loop reached False!")
-                                                     *)
-(* Performs a rather unsophisticated negation of pforms built out of
-   PS.P_EQ,PS.P_NEQ,PS.P_False and PS.P_Or, and a hacky PS.P_Wand *)
-let negate_pforms _ = failwith "TODO ssadoiwdia"
-(*   (f:PS.pform) : PS.pform =
-   (* (* debug *) Format.printf "Call to negate_pforms: %a\n" PS.string_form f; *)
-   let f' = simplify_pform f in
-   let f'' = match f' with
-       | [PS.P_False] -> []
-       | _ -> [negate_specs_it f']
-   in
-   let retn = simplify_pform f'' in
-   (* (* debug *) Format.printf "-> and return: %a\n" PS.string_form retn; *)
-     retn                                                                            *)
-*)
