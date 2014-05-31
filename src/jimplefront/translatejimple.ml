@@ -145,8 +145,13 @@ let var_of_jname = function J.Quoted_name s | J.Identifier_name s -> s
 let mk_asgn asgn_rets pre post asgn_args =
   let asgn_spec = (* NOTE: jimple exprs have no side-effects *)
     C.TripleSet.singleton
-      { Core.pre; post; modifies = []; in_vars = []; out_vars = [] } in
-  C.Assignment_core { C.asgn_rets; asgn_args; asgn_spec }
+      { Core.pre; post; modifies = [] } in
+  C.Assignment_core
+    { C.asgn_rets
+    ; asgn_rets_formal = []
+    ; asgn_args
+    ; asgn_args_formal = []
+    ; asgn_spec }
 
 let mk_asgn_jname rets =
   mk_asgn (List.map (U.mk_plvar @@ var_of_jname) rets)
@@ -461,7 +466,7 @@ let dummy_proc n =
   ; proc_ok = true
   ; proc_body = None
   ; proc_rules = { C.calculus = []; abstraction = [] }
-  ; proc_params = []
+  ; proc_args = []
   ; proc_rets = [] }
 
 let add_dummy_procs xs =
@@ -480,14 +485,14 @@ let compile_method j_of_name cname fields m =
   let proc_rules =
     { Core.calculus = jimple_locals2stattype_rules m.locals
     ; abstraction = [] } in
-  let proc_params = params_of_methdec m in
+  let proc_args = params_of_methdec m in
   let proc_rets = rets_of_methdec m in
   { C.proc_name
   ; proc_spec
   ; proc_body
   ; proc_rules
   ; proc_ok = true
-  ; proc_params
+  ; proc_args
   ; proc_rets }
 
 let compile_class j_of_name jimple =

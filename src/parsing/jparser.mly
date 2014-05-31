@@ -393,9 +393,7 @@ triple:
   | L_BRACE formula R_BRACE modifies L_BRACE formula R_BRACE
     { { Core.pre = $2
       ; modifies = $4
-      ; post = $6
-      ; in_vars = failwith "92unf923"
-      ; out_vars = failwith "d92wnb39" } }
+      ; post = $6 } }
 ;
 
 specs:
@@ -608,12 +606,14 @@ statement:
   | RETURN immediate_question_mark SEMICOLON  {Return_stmt($2)}
   | THROW immediate SEMICOLON     {Throw_stmt($2)}
   | invoke_expr SEMICOLON     {Invoke_stmt($1)}
-  | L_BRACE lvariable_list R_BRACE COLON triple SEMICOLON
+/* XXX
+  | SPEC spec spec_subst spec_subst_ret
     { Spec_stmt
-      { Core.asgn_rets = $2
-      ; asgn_args = []
-      (* TODO: change spec -> specs in grammar?*)
-      ; asgn_spec = Core.TripleSet.singleton $5 } }
+      { C.asgn_rets = snd $4
+      ; asgn_rets_formal = fst $4
+      ; asgn_args = snd $3
+      ; asgn_args_formal = fst $3
+      ; asgn_spec = $2 } } */
 ;
 immediate_question_mark:
    | immediate {Some $1}

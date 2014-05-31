@@ -40,9 +40,7 @@ let get_specs_for_enqueue pv =
       Syntax.mk_eq pv.size (Syntax.mk_int_const (string_of_int (i+1)))
       :: List.map cp (range 0 e_sz)) in
     let modifies = pv.size :: List.map (fun i -> e.(i)) (range 0 e_sz) in
-    let in_vars = failwith "d92j8nd" in
-    let out_vars = failwith "dw298dj" in
-    Core.TripleSet.add specs { Core.pre; post; modifies; in_vars; out_vars }
+    Core.TripleSet.add specs { Core.pre; post; modifies }
   end done;
   specs
 
@@ -327,9 +325,7 @@ let get_specs_for_vertex t pv v s =
     let pre = Syntax.mk_big_star ( pAt :: pInit @ pQud @ pAllSats_neg ) |> Prover.normalize in
     let post = Syntax.mk_big_star( pAt :: pInit @ pDeQu 1 pv el ) |> Prover.normalize in
     let modifies = pDeQu_modifies 1 pv el in
-    let in_vars = failwith "dwnfwasd" in
-    let out_vars = failwith "dwq28de3" in
-    [{ Core.pre; post; modifies; in_vars; out_vars }] in
+    [{ Core.pre; post; modifies }] in
   let subs = index_subsets (List.length tl) in
   let s_regular = List.map
     ( fun k ->
@@ -341,9 +337,7 @@ let get_specs_for_vertex t pv v s =
 (*      (* debug *) Format.printf "@\npre after normalization:@,%a" Syntax.pp_expr pre; *)
       let post = Prover.mk_big_or (select_subset k pAllPosts) |> Prover.normalize in
       let modifies = List.concat (select_subset k allModifies) in
-      let in_vars = failwith "sadfdaf" in
-      let out_vars = failwith "w9f8hhn2r" in
-      { Core.pre; post; modifies; in_vars; out_vars }) subs in
+      { Core.pre; post; modifies }) subs in
   s_regular @ s_skip @ s
 
 let get_specs_for_step a pv =

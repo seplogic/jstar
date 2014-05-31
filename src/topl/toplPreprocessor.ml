@@ -283,7 +283,7 @@ let make_instrumented_proc_pair (get_arg_cnt, get_ret_cnt) p =
     ; call_rets = []
     ; call_args = [ TN.return_event p.C.proc_name ] } in (* TODO(rgrig): return values *)
   let proc_body = Some ([C.Call_core emit_call; C.Call_core call_p' ; C.Call_core emit_ret])  in
-  let proc_params = failwith "d9wqnf" in
+  let proc_args = failwith "d9wqnf" in
   let proc_rets = failwith "dqa09djwq" in
   let proc =
     { C.proc_name=p.C.proc_name
@@ -291,7 +291,7 @@ let make_instrumented_proc_pair (get_arg_cnt, get_ret_cnt) p =
     ; proc_body
     ; proc_rules= { C.calculus = [] ; C.abstraction = [] }
     ; proc_ok = true
-    ; proc_params
+    ; proc_args
     ; proc_rets } in
   [proc; proc']
 
@@ -314,14 +314,16 @@ let emit_proc a pv =
   let f = Syntax.mk_big_star es in
   let asgn_assert =
     { C.asgn_rets = []
+    ; asgn_rets_formal = []
     ; asgn_args = []
+    ; asgn_args_formal = []
     ; asgn_spec = CoreOps.mk_assert f } in
   let emit_body = Some ([C.Call_core call_enqueue; C.Call_core call_step; C.Assignment_core asgn_assert]) in
     { C.proc_name = "emit_$$"
     ; proc_spec = C.TripleSet.create 0
     ; proc_body = emit_body
     ; proc_rules = { C.calculus=[]; C.abstraction=[] }
-    ; proc_params = failwith "afsa0fj"
+    ; proc_args = failwith "afsa0fj"
     ; proc_rets = failwith "daf9amfc"
     ; proc_ok = true }
 
@@ -331,7 +333,7 @@ let step_proc a pv =
   ; proc_spec
   ; proc_body = None
   ; C.proc_rules = { C.calculus=[]; C.abstraction=[] }
-  ; proc_params = failwith "opmdasondf"
+  ; proc_args = failwith "opmdasondf"
   ; proc_rets  = failwith "da09fdjma"
   ; proc_ok = true }
 
@@ -341,7 +343,7 @@ let enqueue_proc pv =
   ; proc_spec
   ; proc_body = None
   ; proc_rules= { C.calculus=[]; C.abstraction=[] }
-  ; proc_params = failwith "dad3eq3"
+  ; proc_args = failwith "dad3eq3"
   ; proc_rets = failwith "dao9dija"
   ; proc_ok = true }
 

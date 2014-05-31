@@ -126,10 +126,10 @@ let ee_update_in_scope state label =
 (* NOTE: This name is used by the error handlers in jimple. Don't change. *)
 let ee_excvar_name = "@caughtexception"
 let ee_excvar_jimp = J.Var_name (J.Identifier_name ee_excvar_name)
-let ee_excvar_form =  
+let ee_excvar_form =
   U.mk_plvar ee_excvar_name
 
-let ee_encode_label state label =  
+let ee_encode_label state label =
   let s = JG.Label_stmt label in
   try
     let t = Hashtbl.find state.ee_type label in
@@ -137,7 +137,9 @@ let ee_encode_label state label =
     let assume_type =
       JG.Spec_stmt
         { Core.asgn_rets = []
+        ; asgn_rets_formal = []
         ; asgn_args = []
+        ; asgn_args_formal = []
         ; asgn_spec = CoreOps.mk_assume type_ok } in
     [ s; assume_type ]
   with Not_found -> [s]

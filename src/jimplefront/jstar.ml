@@ -136,7 +136,7 @@ let make_logic_for_one_program spec_list logic program =
        (*let _ = Prover.pprint_sequent_rules logic in*)
        (* End of axioms clause treatment *)
 
-let main () =
+let unguarded_main () =
   let usage_msg =
     Printf.sprintf "usage: %s [options] <jimple_programs>" Sys.argv.(0) in
   Arg.parse arg_list set_file usage_msg;
@@ -195,6 +195,14 @@ let main () =
     else printf "@[@{<b>NOK@}@.";
     prof_phase "shutting down")
 
+let guarded_main () =
+  try unguarded_main ()
+  with
+    | Load.FileNotFound f -> eprintf "@{<b>E:@} cannot load '%s'@." f
+    | Failure s -> eprintf "@{<b>FAILED:@} %s@." s
+
+let main = guarded_main (* For DEBUG, switch to unguared one. *)
+
 let () =
   System.set_signal_handlers ();
   let tags = (* bad/good *)
@@ -203,5 +211,4 @@ let () =
   List.iter (add_formatter_tag std_formatter) tags;
   List.iter (add_formatter_tag err_formatter) tags;
   set_tags true; pp_set_tags err_formatter true;
-  (*try*) main ()
-  (*with Failure s -> eprintf "@{<b>FAILED:@} %s@." s*)
+  main ()
