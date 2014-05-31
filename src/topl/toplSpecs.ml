@@ -186,8 +186,11 @@ let thor =
 let mk_thor f g = Syntax.mk_2 thor f g
 
 let rec negate_formula f =
-  let wrong s _ = failwith (Printf.sprintf
-    "negate_formula can't handle %s; just = != * or thor" s) in
+  let wrong s _ =
+    Format.fprintf Format.str_formatter
+      "negate_formula can't handle %a; just = != * or thor (%s)"
+      Syntax.pp_expr f s;
+    failwith (Format.flush_str_formatter ()) in
   let mk_star_not = function
     | [f; g] -> Syntax.mk_star f (negate_formula g)
     | _ -> assert false in
@@ -198,6 +201,7 @@ let rec negate_formula f =
   & Syntax.on_op thor mk_star_not
   & Syntax.on_eq (fun e f -> Syntax.mk_distinct [e; f])
   & Syntax.on_distinct mk_not_distinct
+  & Syntax.on_emp (c1 Syntax.mk_false)
   & wrong "d29dnwdfw" ) f
 
 (* Replace thor(x,y) by x*y *)

@@ -271,28 +271,31 @@ let wrap_call_arg a = U.mk_plvar (U.parameter a)
 
 let make_instrumented_proc_pair (get_arg_cnt, get_ret_cnt) p =
   let proc' = { p with C.proc_name = sprintf "%s_I" p.C.proc_name } in
+(* XXX
   let call_args = iter_wrap wrap_call_arg (get_arg_cnt p.C.proc_name) in
   let call_rets = iter_wrap wrap_ret_arg (get_ret_cnt p.C.proc_name) in
+*)
   let emit_call =
     { C.call_name = "emit_$$"
-    ; call_rets =[]
-    ; call_args = TN.call_event p.C.proc_name :: call_args } in
-  let call_p' = { C.call_name = p.C.proc_name^"_I"; call_rets; call_args } in
+    ; call_rets = []
+    ; call_args = TN.call_event p.C.proc_name :: p.C.proc_args } in
+  let call_p' =
+    { C.call_name = p.C.proc_name^"_I"
+    ; call_rets = p.C.proc_rets
+    ; call_args = p.C.proc_args } in
   let emit_ret =
     { C.call_name = "emit_$$"
     ; call_rets = []
-    ; call_args = [ TN.return_event p.C.proc_name ] } in (* TODO(rgrig): return values *)
+    ; call_args = TN.return_event p.C.proc_name :: p.C.proc_rets } in
   let proc_body = Some ([C.Call_core emit_call; C.Call_core call_p' ; C.Call_core emit_ret])  in
-  let proc_args = failwith "d9wqnf" in
-  let proc_rets = failwith "dqa09djwq" in
   let proc =
-    { C.proc_name=p.C.proc_name
-    ; proc_spec=C.TripleSet.create 0
+    { C.proc_name = p.C.proc_name
+    ; proc_spec = C.TripleSet.create 0
     ; proc_body
-    ; proc_rules= { C.calculus = [] ; C.abstraction = [] }
+    ; proc_rules = { C.calculus = [] ; C.abstraction = [] }
     ; proc_ok = true
-    ; proc_args
-    ; proc_rets } in
+    ; proc_args = p.C.proc_args
+    ; proc_rets = p.C.proc_rets } in
   [proc; proc']
 
 let instrument_procedures ps =
@@ -302,12 +305,14 @@ let instrument_procedures ps =
 (* End instrument procedures code *) (* }}} *)
 (* Add emit and friends *) (* {{{ *)
 
+let call_args pv =
+  iter_wrap wrap_call_arg (Array.length pv.TS.queue.(0))
+
 (* this procedure expects the event to be emitted, and the condition for the assert statement *)
 let emit_proc a pv =
-  let e_sz = Array.length pv.TS.queue.(0) in
-  let call_args = iter_wrap wrap_call_arg e_sz in
-  let call_enqueue = {C.call_name = "enqueue_$$"; C.call_rets=[]; call_args} in
-  let call_step = {C.call_name = "step_$$"; C.call_rets=[]; C.call_args=[]} in
+  let call_args = call_args pv in
+  let call_enqueue = { C.call_name = "enqueue_$$"; call_rets=[]; call_args } in
+  let call_step = { C.call_name = "step_$$"; call_rets=[]; call_args=[] } in
   let errors = TM.VMap.fold (fun k _ acc -> k :: acc) a.TM.error_messages [] in
   let es = List.map Syntax.mk_string_const errors in
   let es = List.map (fun e -> Syntax.mk_distinct [pv.TS.state; e]) es in
@@ -323,8 +328,8 @@ let emit_proc a pv =
     ; proc_spec = C.TripleSet.create 0
     ; proc_body = emit_body
     ; proc_rules = { C.calculus=[]; C.abstraction=[] }
-    ; proc_args = failwith "afsa0fj"
-    ; proc_rets = failwith "daf9amfc"
+    ; proc_args = call_args
+    ; proc_rets = []
     ; proc_ok = true }
 
 let step_proc a pv =
@@ -333,8 +338,8 @@ let step_proc a pv =
   ; proc_spec
   ; proc_body = None
   ; C.proc_rules = { C.calculus=[]; C.abstraction=[] }
-  ; proc_args = failwith "opmdasondf"
-  ; proc_rets  = failwith "da09fdjma"
+  ; proc_args = call_args pv
+  ; proc_rets = []
   ; proc_ok = true }
 
 let enqueue_proc pv =
@@ -343,8 +348,8 @@ let enqueue_proc pv =
   ; proc_spec
   ; proc_body = None
   ; proc_rules= { C.calculus=[]; C.abstraction=[] }
-  ; proc_args = failwith "dad3eq3"
-  ; proc_rets = failwith "dao9dija"
+  ; proc_args = call_args pv
+  ; proc_rets = []
   ; proc_ok = true }
 
 let build_core_monitor m =

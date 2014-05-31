@@ -178,11 +178,11 @@ let unguarded_main () =
     prof_phase "init compile jimple -> core";
     let cores = Classverification.compile_jimple programs specs logic abs_rules in
     prof_phase "topl preprocessing";
-    let cores = ToplPreprocessor.instrument_procedures cores in
     let topls = ToplPreprocessor.read_properties !topl_files in
     (*  Remove this as it messes up true/false
         let topls = List.map ToplPreprocessor.parse_values topls in *)
     let topl_monitor = ToplPreprocessor.compile programs topls in
+    let cores = ToplPreprocessor.instrument_procedures cores in
     let question =
       { Core.q_procs = topl_monitor @ cores
       ; q_rules = { Core.calculus = logic ; abstraction = abs_rules }
@@ -201,7 +201,7 @@ let guarded_main () =
     | Load.FileNotFound f -> eprintf "@{<b>E:@} cannot load '%s'@." f
     | Failure s -> eprintf "@{<b>FAILED:@} %s@." s
 
-let main = guarded_main (* For DEBUG, switch to unguared one. *)
+let main = unguarded_main (* For DEBUG, switch to unguared one. *)
 
 let () =
   System.set_signal_handlers ();

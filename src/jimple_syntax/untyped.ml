@@ -15,10 +15,18 @@ let int_function n op =
   let arg_sort = ListH.replicate n S.int_sort in
   Z3.FuncDecl.mk_func_decl_s S.z3_ctx op arg_sort S.int_sort
 
+let int_predicate n op =
+  let arg_sort = ListH.replicate n S.int_sort in
+  Z3.FuncDecl.mk_func_decl_s S.z3_ctx op arg_sort S.bool_sort
+
 let mk_1 op = S.mk_1 (int_function 1 op)
 let mk_2 op = S.mk_2 (int_function 2 op)
 
+let mk_p1 op = S.mk_1 (int_predicate 1 op)
+let mk_p2 op = S.mk_2 (int_predicate 2 op)
+
 let mk_app op xs = S.mk_n (int_function (List.length xs) op) xs
+let mk_papp op xs = S.mk_n (int_predicate (List.length xs) op) xs
 
 let mk_lvar = S.mk_int_lvar
 let mk_pgvar = S.mk_int_pgvar

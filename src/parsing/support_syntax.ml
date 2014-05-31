@@ -26,10 +26,10 @@ let mk_2 = function
   | J.Cmpl -> U.mk_2 "!jstar_cmpl"
   | J.Cmpeq -> Syntax.mk_eq
   | J.Cmpne -> (fun a b -> Syntax.mk_distinct [a; b])
-  | J.Cmpgt -> U.mk_2 "!jstar_gt"
-  | J.Cmpge -> U.mk_2 "!jstar_ge"
-  | J.Cmplt -> U.mk_2 "!jstar_lt"
-  | J.Cmple -> U.mk_2 "!jstar_le"
+  | J.Cmpgt -> U.mk_p2 "!jstar_gt"
+  | J.Cmpge -> U.mk_p2 "!jstar_ge"
+  | J.Cmplt -> U.mk_p2 "!jstar_lt"
+  | J.Cmple -> U.mk_p2 "!jstar_le"
   | J.Shl -> U.mk_2 "!jstar_shiftl"
   | J.Shr -> U.mk_2 "!jstar_shiftr"
   | J.Ushr -> U.mk_2 "!jstar_ushiftr"

@@ -131,7 +131,7 @@ let mk_zero = function
   | J.Quoted _
   | J.Ident_NVT _
   | J.Full_ident_NVT _
-      -> Syntax.mk_0 "nil"
+      -> U.mk_app "nil" []
 
 let mk_array_get av i v = 
   U.mk_app "array_get" [av; i; v]
