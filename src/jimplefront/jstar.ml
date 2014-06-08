@@ -186,7 +186,6 @@ let unguarded_main () =
     let question =
       { Core.q_procs = topl_monitor @ cores
       ; q_rules = { Core.calculus = logic ; abstraction = abs_rules }
-      ; q_globals = [] (* TODO is this right? NG *)
       ; q_infer = !Config.use_abduction
       ; q_name = "jstar_question_for_corestar" } in
     prof_phase "symbolic execution";
