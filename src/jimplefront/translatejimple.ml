@@ -173,7 +173,7 @@ let mk_alloc j_of_name v = function
       let pto (ty, n) =
         let fn = signature2args (J.Field_signature (c, (J.Non_void ty), n)) in
         Jlogic.mk_pointsto v fn (mk_zero ty) in
-      Syntax.mk_big_star (List.map pto fs)
+      Syntax.mk_star (List.map pto fs)
   | _ -> Syntax.mk_emp
 
 let rec translate_assign_stmt j_of_name e f =
@@ -182,7 +182,7 @@ let rec translate_assign_stmt j_of_name e f =
   to be a program variable. Yes, $temp holds values of any type, and gets
   overwritten often. *)
   let emp = Syntax.mk_emp in
-  let ( @* ) = Syntax.mk_star in
+  let ( @* ) x y = Syntax.mk_star [x; y] in
   let ( @= ) = Syntax.mk_eq in
   (* NOTE: If $temp does not occur in expression f,
     then { } $temp := f { $temp = f } *)

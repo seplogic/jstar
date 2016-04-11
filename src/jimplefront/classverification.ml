@@ -63,7 +63,7 @@ let verify_axioms_implications class_name jimple_file implications axiom_map log
       (* We first tackle the Implication proof obligation if the class is not abstract or an interface. *)
       if not abstract_class_or_interface then (
         let antecedent =
-          Syntax.mk_star conjunct antecedent in
+          Syntax.mk_star [conjunct; antecedent] in
         let m = sprintf "implication verification of axiom %s" name in
         if Prover.is_entailment logic antecedent consequent then
           (if log log_logic then printf "@{<g> OK@}: %s@." m)

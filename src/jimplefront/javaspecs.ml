@@ -716,7 +716,7 @@ let refines logic spec1 spec2 =
   CoreOps.refines_spec logic spec1 spec2
 
 let refines_this cname logic spec1 spec2 =
-  let ( * ) = Syntax.mk_star in
+  let ( * ) x y = Syntax.mk_star [x; y] in
   let cname = Pprinter.class_name2str cname in
   let p = Jlogic.objtype SS.this_var cname in
   let star_pre t = { t with Core.pre = t.Core.pre * p } in

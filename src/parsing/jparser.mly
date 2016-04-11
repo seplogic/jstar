@@ -868,7 +868,7 @@ formula:
    | full_identifier L_PAREN jargument_list R_PAREN
      { failwith "TODO20"
       (*if List.length $3 =1 then [P_SPred($1,$3 @ [mkArgRecord []])] else [P_SPred($1,$3)]*) }
-   | formula MULT formula { Syntax.mk_star $1 $3 }
+   | formula MULT formula { Syntax.mk_star [$1; $3] }
    | formula OR formula
      {  failwith "TODO21"
        (*if Config.parse_debug() then parse_warning "deprecated use of |"  ; pconjunction (purify $1) $3*) }

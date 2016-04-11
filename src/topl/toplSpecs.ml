@@ -35,7 +35,7 @@ let get_specs_for_enqueue pv =
   for i = 0 to q_sz - 1 do begin
     let e = pv.queue.(i) in
     let pre = Syntax.mk_eq pv.size (Syntax.mk_int_const (string_of_int i)) in
-    let post = Syntax.mk_big_star
+    let post = Syntax.mk_star
       (let cp i = Syntax.mk_eq e.(i) (wrap_call_arg i) in
       Syntax.mk_eq pv.size (Syntax.mk_int_const (string_of_int (i+1)))
       :: List.map cp (range 0 e_sz)) in
@@ -192,12 +192,12 @@ let rec negate_formula f =
       Syntax.pp_expr f s;
     failwith (Format.flush_str_formatter ()) in
   let mk_star_not = function
-    | [f; g] -> Syntax.mk_star f (negate_formula g)
+    | [f; g] -> Syntax.mk_star [f; (negate_formula g)]
     | _ -> assert false in
   let mk_not_distinct es =
     Prover.mk_big_or (Misc.map_all_pairs Syntax.mk_eq es) in
-  ( Syntax.on_star (fun a b -> Syntax.mk_or (negate_formula a) (negate_formula b))
-  & Syntax.on_or (Syntax.mk_big_star @@ List.map negate_formula)
+  ( Syntax.on_star (Prover.mk_big_or @@ List.map negate_formula)
+  & Syntax.on_or (Prover.mk_big_star @@ List.map negate_formula)
   & Syntax.on_op thor mk_star_not
   & Syntax.on_eq (fun e f -> Syntax.mk_distinct [e; f])
   & Syntax.on_distinct mk_not_distinct
@@ -207,7 +207,7 @@ let rec negate_formula f =
 (* Replace thor(x,y) by x*y *)
 let rec remove_thors f =
   let mk_star_ton = function
-    | [x; y] -> Syntax.mk_star x (remove_thors y)
+    | [x; y] -> Syntax.mk_star [x; (remove_thors y)]
     | _ -> assert false in
   ( Syntax.on_op thor mk_star_ton
   & Syntax.recurse remove_thors ) f
@@ -221,7 +221,7 @@ let rec guard_conditions gd e st =
      | TM.EqCt (i,v) -> mk_eq_to e.(i+1) v
      | TM.EqReg (i,r) -> Syntax.mk_eq e.(i+1) (TM.RMap.find r st)
      | TM.Not g -> negate_formula (guard_conditions g e st)
-     | TM.And gs -> Syntax.mk_big_star (List.map (fun g -> guard_conditions g e st) gs)
+     | TM.And gs -> Prover.mk_big_star (List.map (fun g -> guard_conditions g e st) gs)
 
 let obs_conditions e { TM.event_time; pattern } =
 (* (* debug *) Format.printf "\nNow, the pattern has length: %d\n" (List.length pattern); *)
@@ -250,14 +250,14 @@ let step_conditions e st st' s =
    let ev_cond = obs_conditions e s.TM.observables in
    let gd_cond = guard_conditions gd e st in
 (* debug *) Format.printf "\nNow, and here is the gd_cond: "; Syntax.pp_expr Format.std_formatter gd_cond;
-   let ac_cond = Syntax.mk_big_star ( TM.VMap.fold (fun r v f ->
+   let ac_cond = Prover.mk_big_star ( TM.VMap.fold (fun r v f ->
      if (TM.RMap.mem r ac) then ((Syntax.mk_eq v e.(1 + TM.RMap.find r ac))::f)
      (* Added 1+ because at position 0 is the call/ret m *)
      else ((Syntax.mk_eq v (TM.VMap.find r st))::f)) st' [] ) in
 (* debug *) Format.printf "\nNow, and here is the ev_cond: ";
    Syntax.pp_expr Format.std_formatter ev_cond;
    Format.printf "\nNow, and ac_cond: "; Syntax.pp_expr Format.std_formatter ac_cond;
-   let big_cond = Syntax.mk_star ev_cond gd_cond in
+   let big_cond = Syntax.mk_star [ev_cond; gd_cond] in
 (* debug *) Format.printf "\nNow, here is the big cond: ";
    Syntax.pp_expr Format.std_formatter big_cond;
    let retn = big_cond in (* NT: here there used to be  a simplification *)
@@ -285,8 +285,11 @@ let trans_pre_and_post pv el l_sr0 v j t =
      if i=0 then l_sr0 else make_logical_copy_of_store sr i j ) in
    let step_conds = ListH.mapi (fun i s ->
      step_conditions pv.queue.(i) l_sr.(i) l_sr.(i+1) s) st in
-   let pre = List.fold_left (fun acc (x,y) -> Syntax.mk_star (mk_thor y acc) x) mk_true step_conds in
-   let post = Syntax.mk_big_star ( (Syntax.mk_eq pv.state (Syntax.mk_string_const tg))
+   let pre =
+     List.fold_left
+       (fun acc (x,y) -> Syntax.mk_star [mk_thor y acc; x])
+       mk_true step_conds in
+   let post = Prover.mk_big_star ( (Syntax.mk_eq pv.state (Syntax.mk_string_const tg))
                                  :: store_eq sr l_sr.(len) @ pDeQu len pv el ) in
  (* debug *) Format.printf "\n==> Pre:\n"; Syntax.pp_expr Format.std_formatter pre;
    Format.printf "\n ===> Post:\n"; Syntax.pp_expr Format.std_formatter post;
@@ -326,8 +329,8 @@ let get_specs_for_vertex t pv v s =
 (* debug *) ListH.iteri (fun i a -> Format.printf "\nNow, here is element %d of pAllPost:\n"
   i; Syntax.pp_expr Format.std_formatter a) pAllPosts;
   let s_skip =
-    let pre = Syntax.mk_big_star ( pAt :: pInit @ pQud @ pAllSats_neg ) |> Prover.normalize in
-    let post = Syntax.mk_big_star( pAt :: pInit @ pDeQu 1 pv el ) |> Prover.normalize in
+    let pre = Prover.mk_big_star ( pAt :: pInit @ pQud @ pAllSats_neg ) |> Prover.normalize in
+    let post = Prover.mk_big_star( pAt :: pInit @ pDeQu 1 pv el ) |> Prover.normalize in
     let modifies = pDeQu_modifies 1 pv el in
     [{ Core.pre; post; modifies }] in
   let subs = index_subsets (List.length tl) in
@@ -335,7 +338,7 @@ let get_specs_for_vertex t pv v s =
     ( fun k ->
       let pSats = ListH.mapi (fun i (x,y) -> if IntSet.mem i k then x else y)
         (List.combine pAllSats pAllSats_neg) in
-      let pre = Syntax.mk_big_star ( pAt :: pInit @ pQud @ pSats ) in
+      let pre = Prover.mk_big_star ( pAt :: pInit @ pQud @ pSats ) in
 (*      (* debug *) Format.printf "@\npre for {%a} before normalization:@,%a" (pp_list (fun f -> Format.fprintf f "%d")) (IntSet.elements k) Syntax.pp_expr pre; *)
       let pre = Prover.normalize pre in
 (*      (* debug *) Format.printf "@\npre after normalization:@,%a" Syntax.pp_expr pre; *)
